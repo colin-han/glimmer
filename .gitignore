@@ -1,0 +1,21 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+*.lock
+
+# 环境
+.env.local
+*.env
+
+# Vim
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
