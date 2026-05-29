@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
@@ -8,6 +9,7 @@ import '../services/asr_service.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
+import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
 import 'diary_detail_page.dart';
@@ -32,6 +34,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Timer? _timer;
   String? _currentFolderId;
   String? _currentFolderPath;
+  Stream<Amplitude>? _amplitudeStream;
 
   int _processingStep = 0;
   bool _hasError = false;
@@ -75,6 +78,7 @@ class _RecordingPageState extends State<RecordingPage> {
       _currentFolderId = _uuid.v4();
       _currentFolderPath = await _storageService.createDiaryFolder(_currentFolderId!);
       await _recorderService.startRecording(_currentFolderPath!);
+      _amplitudeStream = _recorderService.onAmplitudeChanged(const Duration(milliseconds: 80));
       setState(() => _state = RecordingState.recording);
       _startTimer();
     } catch (e) {
@@ -84,6 +88,7 @@ class _RecordingPageState extends State<RecordingPage> {
 
   Future<void> _stopAndProcess() async {
     _stopTimer();
+    _amplitudeStream = null;
     final duration = _recordingSeconds;
 
     setState(() {
@@ -114,9 +119,16 @@ class _RecordingPageState extends State<RecordingPage> {
       await _storageService.createEntry(entry);
 
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => DiaryDetailPage(entry: entry)),
-        );
+        ).then((_) {
+          setState(() {
+            _state = RecordingState.idle;
+            _hasError = false;
+            _processingStep = 0;
+            _recordingSeconds = 0;
+          });
+        });
       }
     } catch (e) {
       setState(() {
@@ -161,6 +173,11 @@ class _RecordingPageState extends State<RecordingPage> {
                   const Text('正在处理中...'),
                 const SizedBox(height: 24),
               ],
+              AudioWaveform(
+                amplitudeStream: _amplitudeStream,
+                color: _state == RecordingState.recording ? Colors.red : Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 32),
               RecordingButton(state: _state, onTap: _onTap, recordingSeconds: _recordingSeconds),
               if (_hasError) ...[
                 const SizedBox(height: 24),

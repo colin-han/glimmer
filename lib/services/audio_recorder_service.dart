@@ -5,17 +5,19 @@ class AudioRecorderService {
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartTime;
 
-  Future<bool> hasPermission() => _recorder.hasPermission();
-
   Future<String> startRecording(String folderPath) async {
-    final hasPerms = await hasPermission();
+    final hasPerms = await _recorder.hasPermission();
     if (!hasPerms) {
       throw Exception('没有麦克风权限');
     }
 
-    final filePath = p.join(folderPath, 'audio.m4a');
+    final filePath = p.join(folderPath, 'audio.wav');
     await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
+      const RecordConfig(
+        encoder: AudioEncoder.wav,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
       path: filePath,
     );
     _recordingStartTime = DateTime.now();
@@ -35,6 +37,10 @@ class AudioRecorderService {
       filePath: filePath,
       durationSeconds: duration,
     );
+  }
+
+  Stream<Amplitude> onAmplitudeChanged(Duration interval) {
+    return _recorder.onAmplitudeChanged(interval);
   }
 
   Future<void> dispose() async {
