@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:uuid/uuid.dart';
+import 'package:web_socket_channel/io.dart';
 
 class RealtimeAsrService {
   static const _wsUrl =
       'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async';
 
-  WebSocketChannel? _channel;
+  final _uuid = const Uuid();
+  IOWebSocketChannel? _channel;
   int _sequence = 0;
 
   final _partialResultsController = StreamController<String>.broadcast();
@@ -26,10 +28,18 @@ class RealtimeAsrService {
   /// 建立 WebSocket 连接并发送配置帧
   Future<void> connect() async {
     final appid = dotenv.get('VOLCENGINE_SPEECH_APPID');
+    final token = dotenv.get('VOLCENGINE_SPEECH_TOKEN');
+    final connectId = _uuid.v4();
     final uri = Uri.parse(_wsUrl);
-    _channel = WebSocketChannel.connect(
+    _channel = IOWebSocketChannel.connect(
       uri,
       protocols: [],
+      headers: {
+        'X-Api-App-Key': appid,
+        'X-Api-Access-Key': token,
+        'X-Api-Resource-Id': 'volc.bigasr.sauc.duration',
+        'X-Api-Connect-Id': connectId,
+      },
     );
 
     // 等待连接 ready
@@ -118,11 +128,9 @@ class RealtimeAsrService {
     final bytes = Uint8List.fromList(data);
     if (bytes.length < 4) return;
 
-    final byte0 = bytes[0];
-    final messageType = (byte0 >> 0) & 0x0F;
-    // byte0 高 4 位是 protocol version，低 4 位是 header size
-
-    // 忽略：byte1 是 message type + flags, byte2 是 serialization + compression
+    // Byte 0: [Protocol version 高4位] [Header size 低4位]
+    // Byte 1: [Message type 高4位] [Message type flags 低4位]
+    final messageType = (bytes[1] >> 4) & 0x0F;
 
     if (messageType == 0x0009) {
       // 服务端响应
