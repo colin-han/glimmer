@@ -58,7 +58,6 @@ class _RecordingPageState extends State<RecordingPage> {
     _partialResultSubscription?.cancel();
     _recorderService.dispose();
     _realtimeAsr.disconnect();
-    _ttsService.dispose();
     super.dispose();
   }
 
@@ -161,7 +160,9 @@ class _RecordingPageState extends State<RecordingPage> {
     });
 
     try {
+      final sw = Stopwatch()..start();
       final recordingResult = await _recorderService.stopRecording();
+      debugPrint('[流程] stopRecording 完成: ${sw.elapsedMilliseconds}ms');
 
       // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
       _speakReply();
@@ -172,12 +173,14 @@ class _RecordingPageState extends State<RecordingPage> {
           await _asrService.transcribe(recordingResult.filePath);
       await _storageService.writeTranscript(
           _currentFolderPath!, transcript);
+      debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 2: LLM 润色
       setState(() => _processingStep = 2);
       final llmResult = await _llmService.summarize(transcript);
       await _storageService.writeSummary(
           _currentFolderPath!, llmResult.content);
+      debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 3: 保存元数据
       setState(() => _processingStep = 3);
@@ -189,6 +192,7 @@ class _RecordingPageState extends State<RecordingPage> {
         createdAt: DateTime.now(),
       );
       await _storageService.createEntry(entry);
+      debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
 
       // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
       _speakSummary(llmResult.oneLineSummary);
@@ -229,9 +233,11 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _speakReply() {
     final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
+    debugPrint('[播报] 触发点1 开始: text="$text"');
     () async {
       try {
         await _ttsService.speak(text, VoiceType.femaleSweet);
+        debugPrint('[播报] 触发点1 完成');
       } catch (e) {
         debugPrint('TTS 应答失败: $e');
       }
@@ -241,9 +247,11 @@ class _RecordingPageState extends State<RecordingPage> {
   void _speakSummary(String oneLineSummary) {
     if (oneLineSummary.isEmpty) return;
     final text = '日记整理完成，一句话总结：$oneLineSummary';
+    debugPrint('[播报] 触发点2 开始: text="$text"');
     () async {
       try {
         await _ttsService.speak(text, VoiceType.maleDeep);
+        debugPrint('[播报] 触发点2 完成');
       } catch (e) {
         debugPrint('TTS 总结播报失败: $e');
       }

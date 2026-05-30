@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,7 +12,6 @@ enum VoiceType { femaleSweet, maleDeep }
 
 class TtsService {
   final Dio _dio = Dio();
-  final AudioPlayer _player = AudioPlayer();
   final _uuid = const Uuid();
 
   static const _voiceTypes = {
@@ -20,6 +20,9 @@ class TtsService {
   };
 
   Future<void> speak(String text, VoiceType voiceType) async {
+    final sw = Stopwatch()..start();
+    debugPrint('[TTS] speak 开始: voice=$voiceType, text="$text"');
+
     final appid = dotenv.get('VOLCENGINE_SPEECH_APPID');
     final token = dotenv.get('VOLCENGINE_SPEECH_TOKEN');
 
@@ -49,6 +52,7 @@ class TtsService {
         'Authorization': 'Bearer;$token',
       }),
     );
+    debugPrint('[TTS] HTTP 响应耗时: ${sw.elapsedMilliseconds}ms');
 
     final code = response.data['code'] as int?;
     if (code != 3000) {
@@ -62,21 +66,23 @@ class TtsService {
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/tts_${_uuid.v4()}.mp3');
     await tempFile.writeAsBytes(audioBytes);
+    debugPrint('[TTS] 文件写入耗时: ${sw.elapsedMilliseconds}ms, 大小=${audioBytes.length} bytes');
 
-    await _player.setFilePath(tempFile.path);
-    await _player.play();
-    await _player.processingStateStream.firstWhere(
-      (state) => state == ProcessingState.completed,
-    );
+    final player = AudioPlayer();
+    try {
+      await player.setFilePath(tempFile.path);
+      debugPrint('[TTS] setFilePath 完成: ${sw.elapsedMilliseconds}ms');
 
-    await tempFile.delete();
-  }
+      await player.play();
+      debugPrint('[TTS] 播放开始: ${sw.elapsedMilliseconds}ms');
 
-  Future<void> stop() async {
-    await _player.stop();
-  }
-
-  Future<void> dispose() async {
-    await _player.dispose();
+      await player.processingStateStream.firstWhere(
+        (state) => state == ProcessingState.completed,
+      );
+      debugPrint('[TTS] 播放完成: ${sw.elapsedMilliseconds}ms');
+    } finally {
+      await player.dispose();
+      await tempFile.delete();
+    }
   }
 }
