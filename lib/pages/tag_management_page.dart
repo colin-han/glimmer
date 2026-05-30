@@ -19,6 +19,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
   List<Tag> _tags = [];
   Map<String, int> _diaryCounts = {};
   bool _loading = true;
+  bool _creating = false;
 
   @override
   void initState() {
@@ -67,6 +68,8 @@ class _TagManagementPageState extends State<TagManagementPage> {
 
     if (name == null || name.isEmpty) return;
 
+    setState(() => _creating = true);
+    try {
     final tag = Tag(
       id: _uuid.v4(),
       name: name,
@@ -118,6 +121,9 @@ class _TagManagementPageState extends State<TagManagementPage> {
         }
       }
       _loadTags();
+    }
+    } finally {
+      if (mounted) setState(() => _creating = false);
     }
   }
 
@@ -281,64 +287,83 @@ class _TagManagementPageState extends State<TagManagementPage> {
       appBar: AppBar(
         title: const Text('标签管理'),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _tags.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.label_off,
-                          size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text('还没有标签',
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.grey[600])),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _tags.length,
-                  itemBuilder: (context, index) {
-                    final tag = _tags[index];
-                    final count = _diaryCounts[tag.id] ?? 0;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: tag.color != null
-                              ? _parseColor(tag.color!)
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
-                          child: Text(tag.name[0],
-                              style: const TextStyle(color: Colors.white)),
-                        ),
-                        title: Text(tag.name),
-                        subtitle: Text(
-                            '$count 篇日记${tag.matchPrompt.isNotEmpty ? ' · 已设置匹配规则' : ''}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey[600])),
-                        trailing: PopupMenuButton(
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(
-                                value: 'edit', child: Text('编辑')),
-                            const PopupMenuItem(
-                                value: 'delete', child: Text('删除')),
-                          ],
-                          onSelected: (val) {
-                            if (val == 'edit') _editTag(tag);
-                            if (val == 'delete') _deleteTag(tag);
-                          },
-                        ),
-                        onTap: () => _editTag(tag),
+      body: Stack(
+        children: [
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _tags.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.label_off,
+                              size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text('还没有标签',
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.grey[600])),
+                        ],
                       ),
-                    );
-                  },
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _tags.length,
+                      itemBuilder: (context, index) {
+                        final tag = _tags[index];
+                        final count = _diaryCounts[tag.id] ?? 0;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: tag.color != null
+                                  ? _parseColor(tag.color!)
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer,
+                              child: Text(tag.name[0],
+                                  style:
+                                      const TextStyle(color: Colors.white)),
+                            ),
+                            title: Text(tag.name),
+                            subtitle: Text(
+                                '$count 篇日记${tag.matchPrompt.isNotEmpty ? ' · 已设置匹配规则' : ''}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[600])),
+                            trailing: PopupMenuButton(
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                    value: 'edit', child: Text('编辑')),
+                                const PopupMenuItem(
+                                    value: 'delete', child: Text('删除')),
+                              ],
+                              onSelected: (val) {
+                                if (val == 'edit') _editTag(tag);
+                                if (val == 'delete') _deleteTag(tag);
+                              },
+                            ),
+                            onTap: () => _editTag(tag),
+                          ),
+                        );
+                      },
+                    ),
+          if (_creating)
+            Container(
+              color: Colors.black.withValues(alpha: 0.3),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text('AI 正在分析日记...', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ],
                 ),
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _createTag,
+        onPressed: _creating ? null : _createTag,
         child: const Icon(Icons.add),
       ),
     );
