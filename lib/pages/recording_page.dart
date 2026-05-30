@@ -11,6 +11,7 @@ import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
+import '../services/tts_service.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
@@ -30,6 +31,7 @@ class _RecordingPageState extends State<RecordingPage> {
   final _asrService = AsrService();
   final _llmService = LlmService();
   final _realtimeAsr = RealtimeAsrService();
+  final _ttsService = TtsService();
   final _uuid = const Uuid();
 
   RecordingState _state = RecordingState.idle;
@@ -158,7 +160,12 @@ class _RecordingPageState extends State<RecordingPage> {
     });
 
     try {
+      final sw = Stopwatch()..start();
       final recordingResult = await _recorderService.stopRecording();
+      debugPrint('[流程] stopRecording 完成: ${sw.elapsedMilliseconds}ms');
+
+      // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
+      _speakReply();
 
       // 步骤 1: Flash ASR 兜底识别
       setState(() => _processingStep = 1);
@@ -166,12 +173,14 @@ class _RecordingPageState extends State<RecordingPage> {
           await _asrService.transcribe(recordingResult.filePath);
       await _storageService.writeTranscript(
           _currentFolderPath!, transcript);
+      debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 2: LLM 润色
       setState(() => _processingStep = 2);
       final llmResult = await _llmService.summarize(transcript);
       await _storageService.writeSummary(
           _currentFolderPath!, llmResult.content);
+      debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 3: 保存元数据
       setState(() => _processingStep = 3);
@@ -183,6 +192,10 @@ class _RecordingPageState extends State<RecordingPage> {
         createdAt: DateTime.now(),
       );
       await _storageService.createEntry(entry);
+      debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
+
+      // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
+      _speakSummary(llmResult.oneLineSummary);
 
       if (mounted) {
         Navigator.of(context)
@@ -205,6 +218,44 @@ class _RecordingPageState extends State<RecordingPage> {
         _errorMessage = e.toString();
       });
     }
+  }
+
+  static const _replyTemplates = [
+    '录音完成，我来帮你整理日记',
+    '录音完成，日记整理马上就好',
+    '录音完成，稍等我帮你整理一下',
+    '录音完成，今天说了好多呢，我慢慢整理',
+    '录音完成，放心交给我吧',
+    '录音完成，内容收到，马上帮你整理成日记',
+    '录音完成，让我想想怎么帮你写这篇日记',
+    '录音完成，今天记录了不少呢，我来整理',
+  ];
+
+  void _speakReply() {
+    final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
+    debugPrint('[播报] 触发点1 开始: text="$text"');
+    () async {
+      try {
+        await _ttsService.speak(text, VoiceType.femaleSweet);
+        debugPrint('[播报] 触发点1 完成');
+      } catch (e) {
+        debugPrint('TTS 应答失败: $e');
+      }
+    }();
+  }
+
+  void _speakSummary(String oneLineSummary) {
+    if (oneLineSummary.isEmpty) return;
+    final text = '日记整理完成，一句话总结：$oneLineSummary';
+    debugPrint('[播报] 触发点2 开始: text="$text"');
+    () async {
+      try {
+        await _ttsService.speak(text, VoiceType.maleDeep);
+        debugPrint('[播报] 触发点2 完成');
+      } catch (e) {
+        debugPrint('TTS 总结播报失败: $e');
+      }
+    }();
   }
 
   void _showError(String msg) {
