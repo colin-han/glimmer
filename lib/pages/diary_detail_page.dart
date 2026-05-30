@@ -77,7 +77,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final audioPath = p.join(widget.entry.folderPath, 'audio.m4a');
+    final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
     final audioExists = File(audioPath).existsSync();
 
     return Scaffold(
