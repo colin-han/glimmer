@@ -13,6 +13,7 @@ import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
 import '../services/tts_service.dart';
+import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
@@ -343,7 +344,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('语音日记'),
+        title: const AppTitle(title: '语音日记'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
