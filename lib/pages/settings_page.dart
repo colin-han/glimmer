@@ -4,11 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
   static const _ttsEnabledKey = 'tts_enabled';
 
   static Future<bool> isTtsEnabled() async {
@@ -16,6 +11,11 @@ class _SettingsPageState extends State<SettingsPage> {
     return prefs.getBool(_ttsEnabledKey) ?? true;
   }
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
   bool _ttsEnabled = true;
 
   @override
@@ -25,7 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
-    final enabled = await isTtsEnabled();
+    final enabled = await SettingsPage.isTtsEnabled();
     if (mounted) {
       setState(() => _ttsEnabled = enabled);
     }
@@ -33,7 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _toggleTts(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_ttsEnabledKey, value);
+    await prefs.setBool(SettingsPage._ttsEnabledKey, value);
     setState(() => _ttsEnabled = value);
   }
 

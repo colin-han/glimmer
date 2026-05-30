@@ -280,10 +280,11 @@ class _RecordingPageState extends State<RecordingPage> {
   ];
 
   void _speakReply() {
-    final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
-    debugPrint('[播报] 触发点1 开始: text="$text"');
     () async {
       try {
+        if (!await SettingsPage.isTtsEnabled()) return;
+        final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
+        debugPrint('[播报] 触发点1 开始: text="$text"');
         await _ttsService.speak(text, VoiceType.femaleSweet);
         debugPrint('[播报] 触发点1 完成');
       } catch (e) {
@@ -294,9 +295,10 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _speakSummary(String outline) {
     if (outline.isEmpty) return;
-    debugPrint('[播报] 触发点2 开始: text="$outline"');
     () async {
       try {
+        if (!await SettingsPage.isTtsEnabled()) return;
+        debugPrint('[播报] 触发点2 开始: text="$outline"');
         await _ttsService.speak(outline, VoiceType.maleDeep);
         debugPrint('[播报] 触发点2 完成');
       } catch (e) {
