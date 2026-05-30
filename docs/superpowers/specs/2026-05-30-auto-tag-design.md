@@ -146,9 +146,7 @@
 
 ### 新增文件
 
-- `lib/models/tag.dart` — Tag 数据模型
-- `lib/models/diary_tag_relation.dart` — DiaryTagRelation 数据模型
-- `lib/services/database/tables.dart` — 新增 Tags、DiaryTagRelations 表定义
+- `lib/models/tag.dart` — Tag 和 DiaryTagRelation 数据模型
 - `lib/pages/tag_management_page.dart` — Tag 管理页面
 - `lib/widgets/tag_chip_bar.dart` — Tag Chip 过滤条组件
 - `lib/widgets/tag_editor_sheet.dart` — 匹配提示词编辑 BottomSheet
@@ -156,7 +154,7 @@
 
 ### 修改文件
 
-- `lib/services/database/tables.dart` — 新增表定义
+- `lib/services/database/tables.dart` — 新增 Tags、DiaryTagRelations 表定义
 - `lib/services/database/app_database.dart` — Schema v2 迁移，新增 DAO 方法
 - `lib/services/diary_storage_service.dart` — 新增 tag 相关 CRUD 方法
 - `lib/services/llm_service.dart` — 新增自动打 tag 和新建 tag 推荐的 LLM 调用
