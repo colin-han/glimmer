@@ -30,9 +30,9 @@ TtsService 封装火山引擎 TTS V1 HTTP API。请求端点 `https://openspeech
 
 播放流程：base64 解码 → 写入临时文件 → just_audio 播放。
 
-音色枚举：
-- `VoiceType.femaleSweet` → `BV700_V2_streaming`（灿灿 2.0，甜美女声）
-- `VoiceType.maleDeep` → `BV406_V2_streaming`（梓梓 2.0，低沉男声）
+音色枚举（基于控制台实际可用音色）：
+- `VoiceType.femaleSweet` → `saturn_zh_female_keainvsheng_tob`（可爱女生，甜美女声）
+- `VoiceType.maleDeep` → `zh_male_m191_uranus_bigtts`（云舟，低沉男声）
 
 - [ ] **Step 1: 创建 TtsService**
 
@@ -54,8 +54,8 @@ class TtsService {
   final _uuid = const Uuid();
 
   static const _voiceTypes = {
-    VoiceType.femaleSweet: 'BV700_V2_streaming',
-    VoiceType.maleDeep: 'BV406_V2_streaming',
+    VoiceType.femaleSweet: 'saturn_zh_female_keainvsheng_tob',
+    VoiceType.maleDeep: 'zh_male_m191_uranus_bigtts',
   };
 
   Future<void> speak(String text, VoiceType voiceType) async {
