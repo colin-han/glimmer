@@ -46,10 +46,12 @@ class _RecordingPageState extends State<RecordingPage> {
   String _errorMessage = '';
 
   String _realtimeText = '';
+  final _realtimeScrollController = ScrollController();
 
   @override
   void dispose() {
     _timer?.cancel();
+    _realtimeScrollController.dispose();
     _audioStreamSubscription?.cancel();
     _partialResultSubscription?.cancel();
     _recorderService.dispose();
@@ -121,6 +123,15 @@ class _RecordingPageState extends State<RecordingPage> {
         _realtimeAsr.onPartialResult.listen((text) {
       if (mounted) {
         setState(() => _realtimeText = text);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_realtimeScrollController.hasClients) {
+            _realtimeScrollController.animateTo(
+              _realtimeScrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       }
     });
   }
@@ -251,6 +262,7 @@ class _RecordingPageState extends State<RecordingPage> {
                 Container(
                   constraints: const BoxConstraints(maxHeight: 120),
                   child: SingleChildScrollView(
+                    controller: _realtimeScrollController,
                     child: Text(
                       _realtimeText,
                       style: TextStyle(
