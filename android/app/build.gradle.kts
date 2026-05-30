@@ -5,20 +5,21 @@ plugins {
 }
 
 // 从 .env.local 读取 WORKTREE 变量
-val worktree: String = {
+val worktreeRaw: String = {
     val envFile = file("${project.projectDir}/../../.env.local")
-    val raw = if (envFile.exists()) {
+    if (envFile.exists()) {
         val lines = envFile.readLines()
         val line = lines.find { it.startsWith("WORKTREE=") }
         line?.substringAfter("WORKTREE=")?.trim()?.removeSurrounding("\"") ?: ""
     } else ""
-    // 规范化为合法 Android 包名段：非字母开头加 "w" 前缀，非字母数字替换为 "x"
-    if (raw.isEmpty()) ""
+}()
+
+// 规范化为合法 Android 包名段：非字母开头加 "w" 前缀，非字母数字替换为 "x"
+val worktreeSafe: String = if (worktreeRaw.isEmpty()) ""
     else {
-        val safe = raw.map { if (it.isLetterOrDigit()) it else 'x' }.joinToString("")
+        val safe = worktreeRaw.map { if (it.isLetterOrDigit()) it else 'x' }.joinToString("")
         if (safe.first().isLetter()) safe else "w$safe"
     }
-}()
 
 android {
     namespace = "info.colinhan.glimmer"
@@ -47,12 +48,12 @@ android {
         }
         create("dev") {
             dimension = "env"
-            applicationId = if (worktree.isNotEmpty())
-                "info.colinhan.glimmer.dev.$worktree"
+            applicationId = if (worktreeSafe.isNotEmpty())
+                "info.colinhan.glimmer.dev.$worktreeSafe"
             else
                 "info.colinhan.glimmer.dev"
-            manifestPlaceholders["appName"] = if (worktree.isNotEmpty())
-                "Glimmer Dev $worktree"
+            manifestPlaceholders["appName"] = if (worktreeRaw.isNotEmpty())
+                "Glimmer Dev$worktreeRaw"
             else
                 "Glimmer Dev"
         }
