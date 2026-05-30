@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
@@ -9,6 +10,7 @@ import '../services/asr_service.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
+import '../services/realtime_asr_service.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
@@ -27,6 +29,7 @@ class _RecordingPageState extends State<RecordingPage> {
   final _storageService = DiaryStorageService();
   final _asrService = AsrService();
   final _llmService = LlmService();
+  final _realtimeAsr = RealtimeAsrService();
   final _uuid = const Uuid();
 
   RecordingState _state = RecordingState.idle;
@@ -35,15 +38,22 @@ class _RecordingPageState extends State<RecordingPage> {
   String? _currentFolderId;
   String? _currentFolderPath;
   Stream<Amplitude>? _amplitudeStream;
+  StreamSubscription<Uint8List>? _audioStreamSubscription;
+  StreamSubscription<String>? _partialResultSubscription;
 
   int _processingStep = 0;
   bool _hasError = false;
   String _errorMessage = '';
 
+  String _realtimeText = '';
+
   @override
   void dispose() {
     _timer?.cancel();
+    _audioStreamSubscription?.cancel();
+    _partialResultSubscription?.cancel();
     _recorderService.dispose();
+    _realtimeAsr.disconnect();
     super.dispose();
   }
 
@@ -76,9 +86,24 @@ class _RecordingPageState extends State<RecordingPage> {
   Future<void> _startRecording() async {
     try {
       _currentFolderId = _uuid.v4();
-      _currentFolderPath = await _storageService.createDiaryFolder(_currentFolderId!);
+      _currentFolderPath =
+          await _storageService.createDiaryFolder(_currentFolderId!);
+
       await _recorderService.startRecording(_currentFolderPath!);
-      _amplitudeStream = _recorderService.onAmplitudeChanged(const Duration(milliseconds: 80));
+      _amplitudeStream =
+          _recorderService.onAmplitudeChanged(const Duration(milliseconds: 80));
+
+      // 连接实时 ASR（失败不阻塞录音）
+      _connectRealtimeAsr();
+
+      // 监听 PCM 流，发送给实时 ASR
+      _audioStreamSubscription =
+          _recorderService.audioStream.listen((pcmData) {
+        if (_realtimeAsr.isConnected) {
+          _realtimeAsr.sendAudio(pcmData);
+        }
+      });
+
       setState(() => _state = RecordingState.recording);
       _startTimer();
     } catch (e) {
@@ -86,9 +111,32 @@ class _RecordingPageState extends State<RecordingPage> {
     }
   }
 
+  void _connectRealtimeAsr() {
+    _realtimeAsr.connect().catchError((e) {
+      // WebSocket 连接失败，不阻塞录音
+      debugPrint('实时 ASR 连接失败: $e');
+    });
+
+    _partialResultSubscription =
+        _realtimeAsr.onPartialResult.listen((text) {
+      if (mounted) {
+        setState(() => _realtimeText = text);
+      }
+    });
+  }
+
   Future<void> _stopAndProcess() async {
     _stopTimer();
     _amplitudeStream = null;
+
+    // 停止实时 ASR
+    _realtimeAsr.sendLastFrame();
+    _realtimeAsr.disconnect();
+    await _audioStreamSubscription?.cancel();
+    _audioStreamSubscription = null;
+    await _partialResultSubscription?.cancel();
+    _partialResultSubscription = null;
+
     final duration = _recordingSeconds;
 
     setState(() {
@@ -100,15 +148,22 @@ class _RecordingPageState extends State<RecordingPage> {
 
     try {
       final recordingResult = await _recorderService.stopRecording();
+
+      // 步骤 1: Flash ASR 兜底识别
       setState(() => _processingStep = 1);
-      final transcript = await _asrService.transcribe(recordingResult.filePath);
-      await _storageService.writeTranscript(_currentFolderPath!, transcript);
+      final transcript =
+          await _asrService.transcribe(recordingResult.filePath);
+      await _storageService.writeTranscript(
+          _currentFolderPath!, transcript);
+
+      // 步骤 2: LLM 润色
       setState(() => _processingStep = 2);
-
       final llmResult = await _llmService.summarize(transcript);
-      await _storageService.writeSummary(_currentFolderPath!, llmResult.content);
-      setState(() => _processingStep = 3);
+      await _storageService.writeSummary(
+          _currentFolderPath!, llmResult.content);
 
+      // 步骤 3: 保存元数据
+      setState(() => _processingStep = 3);
       final entry = DiaryEntry(
         id: _currentFolderId!,
         title: llmResult.title,
@@ -119,14 +174,17 @@ class _RecordingPageState extends State<RecordingPage> {
       await _storageService.createEntry(entry);
 
       if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => DiaryDetailPage(entry: entry)),
-        ).then((_) {
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+              builder: (_) => DiaryDetailPage(entry: entry),
+            ))
+            .then((_) {
           setState(() {
             _state = RecordingState.idle;
             _hasError = false;
             _processingStep = 0;
             _recordingSeconds = 0;
+            _realtimeText = '';
           });
         });
       }
@@ -139,7 +197,9 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   @override
@@ -152,7 +212,8 @@ class _RecordingPageState extends State<RecordingPage> {
             icon: const Icon(Icons.history),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DiaryListPage()),
+                MaterialPageRoute(
+                    builder: (_) => const DiaryListPage()),
               );
             },
           ),
@@ -165,20 +226,48 @@ class _RecordingPageState extends State<RecordingPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_state == RecordingState.processing) ...[
-                StepProgressIndicator(currentStep: _processingStep, hasError: _hasError),
+                StepProgressIndicator(
+                  currentStep: _processingStep,
+                  hasError: _hasError,
+                ),
                 const SizedBox(height: 32),
                 if (_hasError)
-                  Text(_errorMessage, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center)
+                  Text(_errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center)
                 else
                   const Text('正在处理中...'),
                 const SizedBox(height: 24),
               ],
               AudioWaveform(
                 amplitudeStream: _amplitudeStream,
-                color: _state == RecordingState.recording ? Colors.red : Theme.of(context).colorScheme.primary,
+                color: _state == RecordingState.recording
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.primary,
               ),
+              if (_realtimeText.isNotEmpty &&
+                  _state == RecordingState.recording) ...[
+                const SizedBox(height: 16),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      _realtimeText,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
-              RecordingButton(state: _state, onTap: _onTap, recordingSeconds: _recordingSeconds),
+              RecordingButton(
+                state: _state,
+                onTap: _onTap,
+                recordingSeconds: _recordingSeconds,
+              ),
               if (_hasError) ...[
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -187,6 +276,7 @@ class _RecordingPageState extends State<RecordingPage> {
                       _state = RecordingState.idle;
                       _hasError = false;
                       _processingStep = 0;
+                      _realtimeText = '';
                     });
                   },
                   child: const Text('重新开始'),
