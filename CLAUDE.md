@@ -70,16 +70,6 @@ lib/
 
 录音 (wav) → 实时 ASR（WebSocket）→ Flash ASR 兜底识别（带时间戳）→ LLM 四段输出（润色正文/日记体提炼/播报大纲/标题）→ 写入 llm_result.json + SQLite 元数据 → TTS 播报大纲 → 跳转详情页
 
-## 数据兼容性要求
-
-**自 v1.0.0 起，所有修改必须向后兼容，严禁丢失用户数据。**
-
-- 用户已保存的日记数据不可因任何代码变更而丢失或损坏
-- SQLite schema 变更必须通过 drift migration 处理，新字段必须有默认值
-- 文件格式变更时，读取逻辑必须兼容旧格式
-- 不允许删除或重命名用户数据文件（audio.wav, transcript.json, llm_result.json）
-- 不允许执行破坏性数据库操作（DROP TABLE、DELETE 无 WHERE 等）
-
 ## 数据格式迁移规则
 
 - 文件系统中的数据格式变更时，必须保持**向后兼容**：读取时优先检测新格式文件，新格式不存在则回退读旧格式
