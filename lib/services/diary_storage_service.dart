@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -33,6 +34,12 @@ class DiaryStorageService {
       durationSeconds: entry.durationSeconds,
       createdAt: entry.createdAt.millisecondsSinceEpoch,
     ));
+  }
+
+  Future<void> updateTitle(String id, String title) async {
+    await (_db.update(_db.diaryEntries)
+          ..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(title: Value(title)));
   }
 
   // --- transcript.json ---

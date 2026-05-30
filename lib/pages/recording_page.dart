@@ -170,61 +170,69 @@ class _RecordingPageState extends State<RecordingPage> {
 
       // 步骤 1: Flash ASR 识别（带时间戳）
       setState(() => _processingStep = 1);
-      final asrResult =
-          await _asrService.transcribe(recordingResult.filePath);
-      final transcriptData = TranscriptData(
-        version: 1,
-        utterances: asrResult.utterances,
-      );
-      await _storageService.writeTranscriptJson(
-          _currentFolderPath!, transcriptData);
-      debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
+      AsrResult? asrResult;
+      try {
+        asrResult = await _asrService.transcribe(recordingResult.filePath);
+        await _storageService.writeTranscriptJson(
+            _currentFolderPath!,
+            TranscriptData(
+                version: 1, utterances: asrResult.utterances));
+        debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
+      } catch (e) {
+        debugPrint('[流程] Flash ASR 失败: $e');
+        await _saveEntryAndNavigate('未命名日记', duration);
+        return;
+      }
 
       // 步骤 2: LLM 润色（保留时间戳）
       setState(() => _processingStep = 2);
-      final llmResult =
-          await _llmService.summarize(asrResult.utterances);
-      await _storageService.writeLlmResult(
-          _currentFolderPath!,
-          LlmResultData(
-            version: 1,
-            title: llmResult.title,
-            content: llmResult.content,
-            summary: llmResult.summary,
-            outline: llmResult.outline,
-            utterances: llmResult.utterances,
-          ));
-      debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
+      try {
+        final llmResult = await _llmService.summarize(asrResult.utterances);
+        await _storageService.writeLlmResult(
+            _currentFolderPath!,
+            LlmResultData(
+              version: 1,
+              title: llmResult.title,
+              content: llmResult.content,
+              summary: llmResult.summary,
+              outline: llmResult.outline,
+              utterances: llmResult.utterances,
+            ));
+        debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
 
-      // 步骤 3: 保存元数据
-      setState(() => _processingStep = 3);
-      final entry = DiaryEntry(
-        id: _currentFolderId!,
-        title: llmResult.title,
-        folderPath: _currentFolderPath!,
-        durationSeconds: duration,
-        createdAt: DateTime.now(),
-      );
-      await _storageService.createEntry(entry);
-      debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
+        // 步骤 3: 保存元数据
+        setState(() => _processingStep = 3);
+        final entry = DiaryEntry(
+          id: _currentFolderId!,
+          title: llmResult.title,
+          folderPath: _currentFolderPath!,
+          durationSeconds: duration,
+          createdAt: DateTime.now(),
+        );
+        await _storageService.createEntry(entry);
+        debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
 
-      // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
-      _speakSummary(llmResult.outline);
+        // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
+        _speakSummary(llmResult.outline);
 
-      if (mounted) {
-        Navigator.of(context)
-            .push(MaterialPageRoute(
-              builder: (_) => DiaryDetailPage(entry: entry),
-            ))
-            .then((_) {
-          setState(() {
-            _state = RecordingState.idle;
-            _hasError = false;
-            _processingStep = 0;
-            _recordingSeconds = 0;
-            _realtimeText = '';
+        if (mounted) {
+          Navigator.of(context)
+              .push(MaterialPageRoute(
+                builder: (_) => DiaryDetailPage(entry: entry),
+              ))
+              .then((_) {
+            setState(() {
+              _state = RecordingState.idle;
+              _hasError = false;
+              _processingStep = 0;
+              _recordingSeconds = 0;
+              _realtimeText = '';
+            });
           });
-        });
+        }
+      } catch (e) {
+        debugPrint('[流程] LLM 失败: $e');
+        await _saveEntryAndNavigate('未命名日记', duration);
       }
     } catch (e) {
       setState(() {
@@ -275,6 +283,32 @@ class _RecordingPageState extends State<RecordingPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),
     );
+  }
+
+  Future<void> _saveEntryAndNavigate(String title, int duration) async {
+    final entry = DiaryEntry(
+      id: _currentFolderId!,
+      title: title,
+      folderPath: _currentFolderPath!,
+      durationSeconds: duration,
+      createdAt: DateTime.now(),
+    );
+    await _storageService.createEntry(entry);
+    if (mounted) {
+      Navigator.of(context)
+          .push(MaterialPageRoute(
+            builder: (_) => DiaryDetailPage(entry: entry),
+          ))
+          .then((_) {
+        setState(() {
+          _state = RecordingState.idle;
+          _hasError = false;
+          _processingStep = 0;
+          _recordingSeconds = 0;
+          _realtimeText = '';
+        });
+      });
+    }
   }
 
   @override
