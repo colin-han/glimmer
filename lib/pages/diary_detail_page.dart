@@ -25,6 +25,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   final _playerService = AudioPlayerService();
   final _storageService = DiaryStorageService();
   String _summary = '';
+  String _content = '';
   List<Utterance> _summaryUtterances = [];
   TranscriptData? _transcriptData;
   bool _loading = true;
@@ -36,23 +37,41 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Future<void> _loadContent() async {
-    final summary =
-        await _storageService.readSummary(widget.entry.folderPath);
     final transcriptData =
         await _storageService.readTranscriptJson(widget.entry.folderPath);
 
+    String summary = '';
+    String content = '';
     List<Utterance> summaryUtterances = [];
-    try {
-      final summaryData = await _storageService
-          .readSummaryUtterances(widget.entry.folderPath);
-      summaryUtterances = summaryData.utterances;
-    } catch (_) {
-      // summary_utterances.json 可能不存在（旧数据 migration 已清除）
+
+    if (await _storageService.hasLlmResult(widget.entry.folderPath)) {
+      // 新格式：llm_result.json
+      final llmData =
+          await _storageService.readLlmResult(widget.entry.folderPath);
+      summary = llmData.summary.isNotEmpty
+          ? llmData.summary
+          : llmData.content;
+      content = llmData.content;
+      summaryUtterances = llmData.utterances;
+    } else {
+      // 向后兼容：旧格式 summary.md
+      try {
+        summary = await _storageService.readSummary(widget.entry.folderPath);
+      } catch (_) {
+        summary = '';
+      }
+      content = summary;
+      try {
+        final summaryData = await _storageService
+            .readSummaryUtterances(widget.entry.folderPath);
+        summaryUtterances = summaryData.utterances;
+      } catch (_) {}
     }
 
     if (mounted) {
       setState(() {
         _summary = summary;
+        _content = content;
         _summaryUtterances = summaryUtterances;
         _transcriptData = transcriptData;
         _loading = false;
@@ -133,6 +152,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   else
                     MarkdownBody(data: _summary),
                   const SizedBox(height: 24),
+                  ExpansionTile(
+                    title: const Text('润色正文'),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: MarkdownBody(data: _content),
+                      ),
+                    ],
+                  ),
                   ExpansionTile(
                     title: const Text('原始识别文本'),
                     children: [
