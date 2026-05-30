@@ -15,7 +15,7 @@ class TtsService {
   final _uuid = const Uuid();
 
   static const _voiceTypes = {
-    VoiceType.femaleSweet: 'saturn_zh_female_keainvsheng_tob',
+    VoiceType.femaleSweet: 'zh_female_xiaohe_uranus_bigtts',
     VoiceType.maleDeep: 'zh_male_m191_uranus_bigtts',
   };
 
