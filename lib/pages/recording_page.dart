@@ -18,6 +18,7 @@ import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
 import 'diary_detail_page.dart';
 import 'diary_list_page.dart';
+import 'settings_page.dart';
 
 class RecordingPage extends StatefulWidget {
   const RecordingPage({super.key});
@@ -317,6 +318,14 @@ class _RecordingPageState extends State<RecordingPage> {
       appBar: AppBar(
         title: const Text('语音日记'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
