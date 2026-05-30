@@ -67,3 +67,43 @@ class SummaryUtteranceData {
         'utterances': utterances.map((u) => u.toJson()).toList(),
       };
 }
+
+class LlmResultData {
+  final int version;
+  final String title;
+  final String content;
+  final String summary;
+  final String outline;
+  final List<Utterance> utterances;
+
+  const LlmResultData({
+    required this.version,
+    required this.title,
+    required this.content,
+    required this.summary,
+    required this.outline,
+    required this.utterances,
+  });
+
+  factory LlmResultData.fromJson(Map<String, dynamic> json) {
+    return LlmResultData(
+      version: json['version'] as int,
+      title: json['title'] as String,
+      content: json['content'] as String,
+      summary: json['summary'] as String,
+      outline: json['outline'] as String,
+      utterances: (json['utterances'] as List)
+          .map((u) => Utterance.fromJson(u as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'title': title,
+        'content': content,
+        'summary': summary,
+        'outline': outline,
+        'utterances': utterances.map((u) => u.toJson()).toList(),
+      };
+}
