@@ -11,6 +11,7 @@ import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
+import '../services/tts_service.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
 import '../widgets/step_progress_indicator.dart';
@@ -30,6 +31,7 @@ class _RecordingPageState extends State<RecordingPage> {
   final _asrService = AsrService();
   final _llmService = LlmService();
   final _realtimeAsr = RealtimeAsrService();
+  final _ttsService = TtsService();
   final _uuid = const Uuid();
 
   RecordingState _state = RecordingState.idle;
@@ -56,6 +58,7 @@ class _RecordingPageState extends State<RecordingPage> {
     _partialResultSubscription?.cancel();
     _recorderService.dispose();
     _realtimeAsr.disconnect();
+    _ttsService.dispose();
     super.dispose();
   }
 
@@ -160,6 +163,9 @@ class _RecordingPageState extends State<RecordingPage> {
     try {
       final recordingResult = await _recorderService.stopRecording();
 
+      // TTS 触发点 1：甜美女声应答（与 Flash ASR 并行，失败不阻塞）
+      _speakReply(_realtimeText);
+
       // 步骤 1: Flash ASR 兜底识别
       setState(() => _processingStep = 1);
       final transcript =
@@ -184,6 +190,9 @@ class _RecordingPageState extends State<RecordingPage> {
       );
       await _storageService.createEntry(entry);
 
+      // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
+      _speakSummary(llmResult.oneLineSummary);
+
       if (mounted) {
         Navigator.of(context)
             .push(MaterialPageRoute(
@@ -205,6 +214,31 @@ class _RecordingPageState extends State<RecordingPage> {
         _errorMessage = e.toString();
       });
     }
+  }
+
+  void _speakReply(String realtimeText) {
+    if (realtimeText.isEmpty) return;
+    () async {
+      try {
+        final reply = await _llmService.generateReply(realtimeText);
+        await _ttsService.speak(reply, VoiceType.femaleSweet);
+      } catch (e) {
+        debugPrint('TTS 应答失败: $e');
+      }
+    }();
+  }
+
+  void _speakSummary(String oneLineSummary) {
+    if (oneLineSummary.isEmpty) return;
+    () async {
+      try {
+        final announcement =
+            await _llmService.generateSummaryAnnouncement(oneLineSummary);
+        await _ttsService.speak(announcement, VoiceType.maleDeep);
+      } catch (e) {
+        debugPrint('TTS 总结播报失败: $e');
+      }
+    }();
   }
 
   void _showError(String msg) {
