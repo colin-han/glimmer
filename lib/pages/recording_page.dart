@@ -163,8 +163,8 @@ class _RecordingPageState extends State<RecordingPage> {
     try {
       final recordingResult = await _recorderService.stopRecording();
 
-      // TTS 触发点 1：甜美女声应答（与 Flash ASR 并行，失败不阻塞）
-      _speakReply(_realtimeText);
+      // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
+      _speakReply();
 
       // 步骤 1: Flash ASR 兜底识别
       setState(() => _processingStep = 1);
@@ -216,12 +216,18 @@ class _RecordingPageState extends State<RecordingPage> {
     }
   }
 
-  void _speakReply(String realtimeText) {
-    if (realtimeText.isEmpty) return;
+  static const _replyTemplates = [
+    '好的，我去帮你整理日记啦',
+    '收到啦，马上帮你整理日记',
+    '好的呀，我来整理你的日记',
+    '知道啦，日记交给我就好',
+  ];
+
+  void _speakReply() {
+    final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
     () async {
       try {
-        final reply = await _llmService.generateReply(realtimeText);
-        await _ttsService.speak(reply, VoiceType.femaleSweet);
+        await _ttsService.speak(text, VoiceType.femaleSweet);
       } catch (e) {
         debugPrint('TTS 应答失败: $e');
       }
