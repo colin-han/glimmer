@@ -3,24 +3,33 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../models/utterance.dart';
+
 class LlmResult {
   final String title;
   final String content;
   final String oneLineSummary;
+  final List<Utterance> utterances;
 
   LlmResult({
     required this.title,
     required this.content,
     required this.oneLineSummary,
+    required this.utterances,
   });
 }
 
 class LlmService {
   final Dio _dio = Dio();
 
-  Future<LlmResult> summarize(String transcript) async {
+  Future<LlmResult> summarize(List<Utterance> utterances) async {
     final endpointId = dotenv.get('VOLCENGINE_ARK_ENDPOINT_ID');
     final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
+
+    final utterancesJson = utterances
+        .map((u) =>
+            '{"text": "${u.text}", "startTime": ${u.startTime}, "endTime": ${u.endTime}}')
+        .join('\n');
 
     final response = await _dio.post(
       'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
@@ -29,21 +38,29 @@ class LlmService {
         'messages': [
           {
             'role': 'system',
-            'content': '你是一个日记助手。用户会给你一段语音识别的口语文本，'
+            'content': '你是一个日记助手。用户会给你一段语音识别的口语文本（带时间戳），'
                 '请按以下规则整理为日记正文（Markdown 格式）：\n'
                 '1. 最大程度保留原文的句子结构和用词，不添加、不删除实质内容\n'
                 '2. 仅删除无意义的口语填充词（嗯、啊、那个、就是说、然后呢等）\n'
                 '3. 消除重复、结巴、停顿导致的不通顺\n'
                 '4. 按语义自然分段（话题转换、时间线变化处分段）\n'
                 '5. 适当将口语化词汇替换为书面表达（如觉得→认为、挺→很），保持自然\n'
+                '\n'
+                '时间戳规则：\n'
+                '- 每个片段都有 startTime 和 endTime（毫秒），润色文本时必须保留\n'
+                '- 合并多个片段时，取第一个的 startTime 和最后一个的 endTime\n'
+                '- 不要拆分任何片段的时间戳\n'
+                '\n'
                 '同时从内容中提炼一个简短标题（不超过 20 个字），'
                 '以及一句话总结（不超过 30 个字）。'
-                '严格按以下 JSON 格式返回，不要包含任何其他内容：'
-                '{"title": "标题", "content": "日记正文", "oneLineSummary": "一句话总结"}',
+                '严格按以下 JSON 格式返回，不要包含任何其他内容：\n'
+                '{"title": "标题", "content": "日记正文(Markdown)", '
+                '"oneLineSummary": "一句话总结", '
+                '"utterances": [{"text": "润色后文本", "startTime": 0, "endTime": 1000}]}',
           },
           {
             'role': 'user',
-            'content': transcript,
+            'content': utterancesJson,
           },
         ],
       },
@@ -126,16 +143,25 @@ class LlmService {
           .replaceAll(RegExp(r'```\s*'), '')
           .trim();
       final json = jsonDecode(cleaned) as Map<String, dynamic>;
+
+      final utterancesList = json['utterances'] as List<dynamic>?;
+      final utterances = utterancesList
+              ?.map((u) => Utterance.fromJson(u as Map<String, dynamic>))
+              .toList() ??
+          [];
+
       return LlmResult(
         title: json['title'] as String? ?? '未命名日记',
         content: json['content'] as String? ?? content,
         oneLineSummary: json['oneLineSummary'] as String? ?? '',
+        utterances: utterances,
       );
     } catch (_) {
       return LlmResult(
         title: _extractTitle(content),
         content: content,
         oneLineSummary: '',
+        utterances: [],
       );
     }
   }
