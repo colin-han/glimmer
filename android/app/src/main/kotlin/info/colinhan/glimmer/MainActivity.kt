@@ -1,4 +1,4 @@
-package com.personal.voice_diary
+package info.colinhan.glimmer
 
 import io.flutter.embedding.android.FlutterActivity
 

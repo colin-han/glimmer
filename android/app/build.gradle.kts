@@ -4,8 +4,25 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 从 .env.local 读取 WORKTREE 变量
+val worktreeRaw: String = {
+    val envFile = file("${project.projectDir}/../../.env.local")
+    if (envFile.exists()) {
+        val lines = envFile.readLines()
+        val line = lines.find { it.startsWith("WORKTREE=") }
+        line?.substringAfter("WORKTREE=")?.trim()?.removeSurrounding("\"") ?: ""
+    } else ""
+}()
+
+// 规范化为合法 Android 包名段：非字母开头加 "w" 前缀，非字母数字替换为 "x"
+val worktreeSafe: String = if (worktreeRaw.isEmpty()) ""
+    else {
+        val safe = worktreeRaw.map { if (it.isLetterOrDigit()) it else 'x' }.joinToString("")
+        if (safe.first().isLetter()) safe else "w$safe"
+    }
+
 android {
-    namespace = "com.personal.voice_diary"
+    namespace = "info.colinhan.glimmer"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,20 +32,35 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.personal.voice_diary"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "env"
+
+    productFlavors {
+        create("prod") {
+            dimension = "env"
+            applicationId = "info.colinhan.glimmer"
+            manifestPlaceholders["appName"] = "Glimmer"
+        }
+        create("dev") {
+            dimension = "env"
+            applicationId = if (worktreeSafe.isNotEmpty())
+                "info.colinhan.glimmer.dev.$worktreeSafe"
+            else
+                "info.colinhan.glimmer.dev"
+            manifestPlaceholders["appName"] = if (worktreeRaw.isNotEmpty())
+                "Glimmer Dev$worktreeRaw"
+            else
+                "Glimmer Dev"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
