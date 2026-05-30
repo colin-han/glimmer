@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/diary_entry.dart';
+import '../models/utterance.dart';
 import 'database/app_database.dart' hide DiaryEntry;
 
 class DiaryStorageService {
@@ -33,25 +35,50 @@ class DiaryStorageService {
     ));
   }
 
-  Future<void> writeTranscript(String folderPath, String text) async {
-    final file = File(p.join(folderPath, 'transcript.txt'));
-    await file.writeAsString(text);
+  // --- transcript.json ---
+
+  Future<void> writeTranscriptJson(
+      String folderPath, TranscriptData data) async {
+    final file = File(p.join(folderPath, 'transcript.json'));
+    await file.writeAsString(jsonEncode(data.toJson()));
   }
+
+  Future<TranscriptData> readTranscriptJson(String folderPath) async {
+    final file = File(p.join(folderPath, 'transcript.json'));
+    final content = await file.readAsString();
+    return TranscriptData.fromJson(
+        jsonDecode(content) as Map<String, dynamic>);
+  }
+
+  // --- summary.md ---
 
   Future<void> writeSummary(String folderPath, String content) async {
     final file = File(p.join(folderPath, 'summary.md'));
     await file.writeAsString(content);
   }
 
-  Future<String> readTranscript(String folderPath) async {
-    final file = File(p.join(folderPath, 'transcript.txt'));
-    return file.readAsString();
-  }
-
   Future<String> readSummary(String folderPath) async {
     final file = File(p.join(folderPath, 'summary.md'));
     return file.readAsString();
   }
+
+  // --- summary_utterances.json ---
+
+  Future<void> writeSummaryUtterances(
+      String folderPath, SummaryUtteranceData data) async {
+    final file = File(p.join(folderPath, 'summary_utterances.json'));
+    await file.writeAsString(jsonEncode(data.toJson()));
+  }
+
+  Future<SummaryUtteranceData> readSummaryUtterances(
+      String folderPath) async {
+    final file = File(p.join(folderPath, 'summary_utterances.json'));
+    final content = await file.readAsString();
+    return SummaryUtteranceData.fromJson(
+        jsonDecode(content) as Map<String, dynamic>);
+  }
+
+  // --- 查询 ---
 
   Future<List<DiaryEntry>> getAllEntries() async {
     final rows = await _db.getAllEntries();

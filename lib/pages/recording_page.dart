@@ -6,6 +6,7 @@ import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
+import '../models/utterance.dart';
 import '../services/asr_service.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
@@ -167,19 +168,28 @@ class _RecordingPageState extends State<RecordingPage> {
       // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
       _speakReply();
 
-      // 步骤 1: Flash ASR 兜底识别
+      // 步骤 1: Flash ASR 识别（带时间戳）
       setState(() => _processingStep = 1);
-      final transcript =
+      final asrResult =
           await _asrService.transcribe(recordingResult.filePath);
-      await _storageService.writeTranscript(
-          _currentFolderPath!, transcript);
+      final transcriptData = TranscriptData(
+        version: 1,
+        utterances: asrResult.utterances,
+      );
+      await _storageService.writeTranscriptJson(
+          _currentFolderPath!, transcriptData);
       debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
 
-      // 步骤 2: LLM 润色
+      // 步骤 2: LLM 润色（保留时间戳）
       setState(() => _processingStep = 2);
-      final llmResult = await _llmService.summarize(transcript);
+      final llmResult =
+          await _llmService.summarize(asrResult.utterances);
       await _storageService.writeSummary(
           _currentFolderPath!, llmResult.content);
+      await _storageService.writeSummaryUtterances(
+          _currentFolderPath!,
+          SummaryUtteranceData(
+              version: 1, utterances: llmResult.utterances));
       debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 3: 保存元数据

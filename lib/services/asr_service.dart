@@ -5,11 +5,20 @@ import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/utterance.dart';
+
+class AsrResult {
+  final String text;
+  final List<Utterance> utterances;
+
+  const AsrResult({required this.text, required this.utterances});
+}
+
 class AsrService {
   final Dio _dio = Dio();
   final _uuid = const Uuid();
 
-  Future<String> transcribe(String audioFilePath) async {
+  Future<AsrResult> transcribe(String audioFilePath) async {
     final appid = dotenv.get('VOLCENGINE_SPEECH_APPID');
     final token = dotenv.get('VOLCENGINE_SPEECH_TOKEN');
 
@@ -28,6 +37,7 @@ class AsrService {
         },
         'request': {
           'model_name': 'bigmodel',
+          'show_utterances': true,
         },
       },
       options: Options(headers: {
@@ -45,10 +55,29 @@ class AsrService {
       throw Exception('ASR 识别失败 ($statusCode): $message');
     }
 
-    final text = response.data['result']?['text'] as String?;
-    if (text == null || text.isEmpty) {
+    final result = response.data['result'] as Map<String, dynamic>?;
+    if (result == null) {
       throw Exception('ASR 识别结果为空');
     }
-    return text;
+
+    final text = result['text'] as String? ?? '';
+    if (text.isEmpty) {
+      throw Exception('ASR 识别结果为空');
+    }
+
+    final utterancesList = result['utterances'] as List<dynamic>?;
+    if (utterancesList == null || utterancesList.isEmpty) {
+      throw Exception('ASR 未返回 utterances 数据，需要切换到录音文件识别 API');
+    }
+
+    final utterances = utterancesList
+        .map((u) => Utterance(
+              text: u['text'] as String,
+              startTime: u['start_time'] as int,
+              endTime: u['end_time'] as int,
+            ))
+        .toList();
+
+    return AsrResult(text: text, utterances: utterances);
   }
 }
