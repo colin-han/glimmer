@@ -38,14 +38,18 @@ dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆�
 ```
 lib/
   main.dart                  # 入口，加载 .env.local，MaterialApp
-  models/diary_entry.dart    # 数据模型
+  models/
+    diary_entry.dart         # 日记元数据模型
+    utterance.dart           # 带时间戳的语音片段 + TranscriptData + LlmResultData
   pages/                     # 页面（直接导航，无路由表）
     recording_page.dart      # 主页：录音 → ASR → LLM → 保存
     diary_list_page.dart
     diary_detail_page.dart
   services/
-    asr_service.dart         # 火山引擎 ASR（异步长录音识别）
-    llm_service.dart         # 火山引擎 Doubao（文本润色 + 标题生成）
+    asr_service.dart         # 火山引擎 ASR（带时间戳识别）
+    realtime_asr_service.dart # 实时 ASR（WebSocket）
+    llm_service.dart         # 火山引擎 Doubao（四段输出：润色/提炼/播报/标题）
+    tts_service.dart         # TTS 播报
     audio_recorder_service.dart   # record 插件封装
     audio_player_service.dart     # just_audio 封装
     diary_storage_service.dart    # 文件 I/O + drift 数据库
@@ -59,12 +63,27 @@ lib/
 ### 数据存储策略
 
 - **SQLite (drift)**：仅存元数据（id, title, folderPath, duration, createdAt）
-- **文件系统**：每个日记一个 UUID 文件夹，内含 `audio.m4a`、`transcript.txt`、`summary.md`
+- **文件系统**：每个日记一个 UUID 文件夹，内含 `audio.wav`、`transcript.json`、`llm_result.json`
 - 正文永远不进 SQLite，确保数据可迁移
 
 ### 主流程 (RecordingPage)
 
-录音 (m4a) → 提交 ASR 异步任务 → 轮询结果 → LLM 润色生成 Markdown → 写入文件 + SQLite 元数据 → 跳转详情页
+录音 (wav) → 实时 ASR（WebSocket）→ Flash ASR 兜底识别（带时间戳）→ LLM 四段输出（润色正文/日记体提炼/播报大纲/标题）→ 写入 llm_result.json + SQLite 元数据 → TTS 播报大纲 → 跳转详情页
+
+## 数据格式迁移规则
+
+- 文件系统中的数据格式变更时，必须保持**向后兼容**：读取时优先检测新格式文件，新格式不存在则回退读旧格式
+- 每个数据文件都带 `version` 字段（整数），用于未来格式升级时判断版本
+- 废弃的写入方法保留在代码中（不删除），仅标记为废弃，确保旧数据仍可读取
+- SQLite schema 变更需通过 drift migration 处理
+
+### 当前文件格式
+
+每个日记 UUID 文件夹内：
+- `audio.wav` — 录音文件
+- `transcript.json` — ASR 原始识别结果（含时间戳）
+- `llm_result.json` — LLM 处理结果（title/content/summary/outline + 时间戳 utterances）
+- 旧格式 `summary.md` 和 `summary_utterances.json` 仍需兼容读取
 
 ## 关键依赖
 

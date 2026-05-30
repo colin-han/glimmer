@@ -184,12 +184,16 @@ class _RecordingPageState extends State<RecordingPage> {
       setState(() => _processingStep = 2);
       final llmResult =
           await _llmService.summarize(asrResult.utterances);
-      await _storageService.writeSummary(
-          _currentFolderPath!, llmResult.content);
-      await _storageService.writeSummaryUtterances(
+      await _storageService.writeLlmResult(
           _currentFolderPath!,
-          SummaryUtteranceData(
-              version: 1, utterances: llmResult.utterances));
+          LlmResultData(
+            version: 1,
+            title: llmResult.title,
+            content: llmResult.content,
+            summary: llmResult.summary,
+            outline: llmResult.outline,
+            utterances: llmResult.utterances,
+          ));
       debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
 
       // 步骤 3: 保存元数据
@@ -205,7 +209,7 @@ class _RecordingPageState extends State<RecordingPage> {
       debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
 
       // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
-      _speakSummary(llmResult.oneLineSummary);
+      _speakSummary(llmResult.outline);
 
       if (mounted) {
         Navigator.of(context)
@@ -254,13 +258,12 @@ class _RecordingPageState extends State<RecordingPage> {
     }();
   }
 
-  void _speakSummary(String oneLineSummary) {
-    if (oneLineSummary.isEmpty) return;
-    final text = '日记整理完成，一句话总结：$oneLineSummary';
-    debugPrint('[播报] 触发点2 开始: text="$text"');
+  void _speakSummary(String outline) {
+    if (outline.isEmpty) return;
+    debugPrint('[播报] 触发点2 开始: text="$outline"');
     () async {
       try {
-        await _ttsService.speak(text, VoiceType.maleDeep);
+        await _ttsService.speak(outline, VoiceType.maleDeep);
         debugPrint('[播报] 触发点2 完成');
       } catch (e) {
         debugPrint('TTS 总结播报失败: $e');
