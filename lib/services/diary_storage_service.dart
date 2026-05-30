@@ -78,6 +78,26 @@ class DiaryStorageService {
         jsonDecode(content) as Map<String, dynamic>);
   }
 
+  // --- llm_result.json ---
+
+  Future<void> writeLlmResult(String folderPath, LlmResultData data) async {
+    final file = File(p.join(folderPath, 'llm_result.json'));
+    await file.writeAsString(jsonEncode(data.toJson()));
+  }
+
+  Future<LlmResultData> readLlmResult(String folderPath) async {
+    final file = File(p.join(folderPath, 'llm_result.json'));
+    final content = await file.readAsString();
+    return LlmResultData.fromJson(
+        jsonDecode(content) as Map<String, dynamic>);
+  }
+
+  /// 检查 llm_result.json 是否存在（用于向后兼容判断）
+  Future<bool> hasLlmResult(String folderPath) async {
+    final file = File(p.join(folderPath, 'llm_result.json'));
+    return file.exists();
+  }
+
   // --- 查询 ---
 
   Future<List<DiaryEntry>> getAllEntries() async {
