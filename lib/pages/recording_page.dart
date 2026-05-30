@@ -217,10 +217,9 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   static const _replyTemplates = [
-    '好的，我去帮你整理日记啦',
-    '收到啦，马上帮你整理日记',
-    '好的呀，我来整理你的日记',
-    '知道啦，日记交给我就好',
+    '录音完成，我来帮你整理日记',
+    '录音完成，日记整理马上就好',
+    '录音完成，稍等我帮你整理一下',
   ];
 
   void _speakReply() {
