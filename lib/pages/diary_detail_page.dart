@@ -6,8 +6,10 @@ import 'package:path/path.dart' as p;
 
 import '../models/diary_entry.dart';
 import '../models/utterance.dart';
+import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
+import '../services/llm_service.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/timestamped_text_view.dart';
 import 'diary_list_page.dart';
@@ -24,11 +26,16 @@ class DiaryDetailPage extends StatefulWidget {
 class _DiaryDetailPageState extends State<DiaryDetailPage> {
   final _playerService = AudioPlayerService();
   final _storageService = DiaryStorageService();
+  final _asrService = AsrService();
+  final _llmService = LlmService();
   String _summary = '';
   String _content = '';
   List<Utterance> _summaryUtterances = [];
   TranscriptData? _transcriptData;
   bool _loading = true;
+  bool _needsRetry = false;
+  bool _retrying = false;
+  String _retryError = '';
 
   @override
   void initState() {
@@ -37,15 +44,35 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Future<void> _loadContent() async {
-    final transcriptData =
-        await _storageService.readTranscriptJson(widget.entry.folderPath);
+    final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
+    final audioExists = File(audioPath).existsSync();
+    final transcriptExists =
+        await File(p.join(widget.entry.folderPath, 'transcript.json'))
+            .exists();
+    final hasLlm = await _storageService.hasLlmResult(widget.entry.folderPath);
+
+    // 检测未完成状态：有音频但缺少 transcript 或 llm_result
+    if (audioExists && (!transcriptExists || !hasLlm)) {
+      if (mounted) {
+        setState(() {
+          _needsRetry = true;
+          _loading = false;
+        });
+      }
+      return;
+    }
+
+    TranscriptData? transcriptData;
+    try {
+      transcriptData =
+          await _storageService.readTranscriptJson(widget.entry.folderPath);
+    } catch (_) {}
 
     String summary = '';
     String content = '';
     List<Utterance> summaryUtterances = [];
 
-    if (await _storageService.hasLlmResult(widget.entry.folderPath)) {
-      // 新格式：llm_result.json
+    if (hasLlm) {
       final llmData =
           await _storageService.readLlmResult(widget.entry.folderPath);
       summary = llmData.summary.isNotEmpty
@@ -54,7 +81,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       content = llmData.content;
       summaryUtterances = llmData.utterances;
     } else {
-      // 向后兼容：旧格式 summary.md
       try {
         summary = await _storageService.readSummary(widget.entry.folderPath);
       } catch (_) {
@@ -83,6 +109,108 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   void dispose() {
     _playerService.dispose();
     super.dispose();
+  }
+
+  Future<void> _retry() async {
+    setState(() {
+      _retrying = true;
+      _retryError = '';
+    });
+
+    try {
+      final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
+      final transcriptPath =
+          p.join(widget.entry.folderPath, 'transcript.json');
+      final transcriptExists = File(transcriptPath).existsSync();
+
+      List<Utterance> utterances;
+
+      if (!transcriptExists) {
+        // 重试 ASR
+        final asrResult = await _asrService.transcribe(audioPath);
+        await _storageService.writeTranscriptJson(
+            widget.entry.folderPath,
+            TranscriptData(
+                version: 1, utterances: asrResult.utterances));
+        utterances = asrResult.utterances;
+      } else {
+        // ASR 已完成，重试 LLM
+        final transcriptData =
+            await _storageService.readTranscriptJson(widget.entry.folderPath);
+        utterances = transcriptData.utterances;
+      }
+
+      // LLM
+      final llmResult = await _llmService.summarize(utterances);
+      await _storageService.writeLlmResult(
+          widget.entry.folderPath,
+          LlmResultData(
+            version: 1,
+            title: llmResult.title,
+            content: llmResult.content,
+            summary: llmResult.summary,
+            outline: llmResult.outline,
+            utterances: llmResult.utterances,
+          ));
+
+      // 更新数据库标题
+      await _storageService.updateTitle(
+          widget.entry.id, llmResult.title);
+
+      // 重新加载页面
+      setState(() {
+        _needsRetry = false;
+        _retrying = false;
+        _loading = true;
+      });
+      await _loadContent();
+    } catch (e) {
+      setState(() {
+        _retrying = false;
+        _retryError = e.toString();
+      });
+    }
+  }
+
+  Widget _buildRetryView(String audioPath) {
+    final audioExists = File(audioPath).existsSync();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('处理未完成', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            const Text('网络请求失败，音频已保存。', style: TextStyle(color: Colors.grey)),
+            if (_retryError.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(_retryError,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                  textAlign: TextAlign.center),
+            ],
+            const SizedBox(height: 24),
+            if (_retrying)
+              const CircularProgressIndicator()
+            else ...[
+              ElevatedButton.icon(
+                onPressed: _retry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('重试'),
+              ),
+              if (audioExists) ...[
+                const SizedBox(height: 16),
+                AudioPlayerBar(
+                    playerService: _playerService,
+                    audioFilePath: audioPath),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteDiary() async {
@@ -129,7 +257,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : _needsRetry
+              ? _buildRetryView(audioPath)
+              : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
