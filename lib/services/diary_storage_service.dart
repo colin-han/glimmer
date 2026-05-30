@@ -6,8 +6,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/diary_entry.dart';
+import '../models/tag.dart';
 import '../models/utterance.dart';
-import 'database/app_database.dart' hide DiaryEntry;
+import 'database/app_database.dart' hide DiaryEntry, Tag, DiaryTagRelation;
 
 class DiaryStorageService {
   final AppDatabase _db;
@@ -99,7 +100,6 @@ class DiaryStorageService {
         jsonDecode(content) as Map<String, dynamic>);
   }
 
-  /// 检查 llm_result.json 是否存在（用于向后兼容判断）
   Future<bool> hasLlmResult(String folderPath) async {
     final file = File(p.join(folderPath, 'llm_result.json'));
     return file.exists();
@@ -137,5 +137,133 @@ class DiaryStorageService {
     if (await folder.exists()) {
       await folder.delete(recursive: true);
     }
+  }
+
+  // --- Tag CRUD ---
+
+  Future<List<Tag>> getAllTags() async {
+    final rows = await _db.getAllTags();
+    return rows
+        .map((r) => Tag(
+              id: r.id,
+              name: r.name,
+              matchPrompt: r.matchPrompt,
+              color: r.color,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+            ))
+        .toList();
+  }
+
+  Future<Tag> getTagById(String id) async {
+    final r = await _db.getTagById(id);
+    return Tag(
+      id: r.id,
+      name: r.name,
+      matchPrompt: r.matchPrompt,
+      color: r.color,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+    );
+  }
+
+  Future<void> createTag(Tag tag) async {
+    await _db.insertTag(TagsCompanion.insert(
+      id: tag.id,
+      name: tag.name,
+      matchPrompt: Value(tag.matchPrompt),
+      color: Value(tag.color),
+      createdAt: tag.createdAt.millisecondsSinceEpoch,
+    ));
+  }
+
+  Future<void> updateTag(Tag tag) async {
+    await _db.updateTag(TagsCompanion(
+      id: Value(tag.id),
+      name: Value(tag.name),
+      matchPrompt: Value(tag.matchPrompt),
+      color: Value(tag.color),
+      createdAt: Value(tag.createdAt.millisecondsSinceEpoch),
+    ));
+  }
+
+  Future<void> deleteTag(String tagId) async {
+    await _db.deleteDiaryTagsByTag(tagId);
+    await _db.deleteTag(tagId);
+  }
+
+  // --- DiaryTagRelation ---
+
+  Future<void> addDiaryTag(String diaryId, String tagId,
+      {String source = 'manual'}) async {
+    await _db.insertDiaryTag(DiaryTagRelationsCompanion.insert(
+      diaryId: diaryId,
+      tagId: tagId,
+      source: Value(source),
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+  }
+
+  Future<void> removeDiaryTag(String diaryId, String tagId) async {
+    await _db.deleteDiaryTag(diaryId, tagId);
+  }
+
+  Future<List<DiaryTagRelation>> getTagsForDiary(String diaryId) async {
+    final rows = await _db.getTagsForDiary(diaryId);
+    return rows
+        .map((r) => DiaryTagRelation(
+              diaryId: r.diaryId,
+              tagId: r.tagId,
+              source: r.source,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+            ))
+        .toList();
+  }
+
+  Future<int> getDiaryCountForTag(String tagId) async {
+    return await _db.getDiaryCountForTag(tagId);
+  }
+
+  Future<void> autoTagDiary(String diaryId, List<String> tagIds) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final tagId in tagIds) {
+      await _db.insertDiaryTag(DiaryTagRelationsCompanion.insert(
+        diaryId: diaryId,
+        tagId: tagId,
+        source: const Value('auto'),
+        createdAt: now,
+      ));
+    }
+  }
+
+  Future<List<Tag>> getFullTagsForDiary(String diaryId) async {
+    final relations = await getTagsForDiary(diaryId);
+    final tags = <Tag>[];
+    for (final rel in relations) {
+      try {
+        tags.add(await getTagById(rel.tagId));
+      } catch (_) {}
+    }
+    return tags;
+  }
+
+  Future<List<DiaryEntry>> searchEntries(String query) async {
+    final allEntries = await getAllEntries();
+    final lowerQuery = query.toLowerCase();
+
+    final results = <DiaryEntry>[];
+    for (final entry in allEntries) {
+      if (entry.title.toLowerCase().contains(lowerQuery)) {
+        results.add(entry);
+        continue;
+      }
+      try {
+        if (await hasLlmResult(entry.folderPath)) {
+          final llmData = await readLlmResult(entry.folderPath);
+          if (llmData.content.toLowerCase().contains(lowerQuery)) {
+            results.add(entry);
+          }
+        }
+      } catch (_) {}
+    }
+    return results;
   }
 }

@@ -10,7 +10,7 @@ class StepProgressIndicator extends StatelessWidget {
     this.hasError = false,
   });
 
-  static const _steps = ['语音识别', '保存原文', 'AI 总结', '完成'];
+  static const _steps = ['语音识别', '保存原文', 'AI 总结', '自动归类', '完成'];
 
   @override
   Widget build(BuildContext context) {

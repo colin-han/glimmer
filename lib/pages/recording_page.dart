@@ -187,8 +187,9 @@ class _RecordingPageState extends State<RecordingPage> {
 
       // 步骤 2: LLM 润色（保留时间戳）
       setState(() => _processingStep = 2);
+      LlmResult? llmResult;
       try {
-        final llmResult = await _llmService.summarize(asrResult.utterances);
+        llmResult = await _llmService.summarize(asrResult.utterances);
         await _storageService.writeLlmResult(
             _currentFolderPath!,
             LlmResultData(
@@ -200,40 +201,64 @@ class _RecordingPageState extends State<RecordingPage> {
               utterances: llmResult.utterances,
             ));
         debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
-
-        // 步骤 3: 保存元数据
-        setState(() => _processingStep = 3);
-        final entry = DiaryEntry(
-          id: _currentFolderId!,
-          title: llmResult.title,
-          folderPath: _currentFolderPath!,
-          durationSeconds: duration,
-          createdAt: DateTime.now(),
-        );
-        await _storageService.createEntry(entry);
-        debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
-
-        // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
-        _speakSummary(llmResult.outline);
-
-        if (mounted) {
-          Navigator.of(context)
-              .push(MaterialPageRoute(
-                builder: (_) => DiaryDetailPage(entry: entry),
-              ))
-              .then((_) {
-            setState(() {
-              _state = RecordingState.idle;
-              _hasError = false;
-              _processingStep = 0;
-              _recordingSeconds = 0;
-              _realtimeText = '';
-            });
-          });
-        }
       } catch (e) {
         debugPrint('[流程] LLM 失败: $e');
         await _saveEntryAndNavigate('未命名日记', duration);
+        return;
+      }
+
+      // 步骤 3: 保存元数据（防御性保存：LLM 成功后立即入库）
+      setState(() => _processingStep = 3);
+      final entry = DiaryEntry(
+        id: _currentFolderId!,
+        title: llmResult.title,
+        folderPath: _currentFolderPath!,
+        durationSeconds: duration,
+        createdAt: DateTime.now(),
+      );
+      await _storageService.createEntry(entry);
+      debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
+
+      // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
+      _speakSummary(llmResult.outline);
+
+      // 步骤 4: 自动归类（失败不阻塞）
+      setState(() => _processingStep = 4);
+      try {
+        final allTags = await _storageService.getAllTags();
+        final tagsWithPrompt =
+            allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
+        if (tagsWithPrompt.isNotEmpty) {
+          final tagInfos = tagsWithPrompt
+              .map((t) => TagInfo(
+                  id: t.id, name: t.name, matchPrompt: t.matchPrompt))
+              .toList();
+          final matchedTagIds =
+              await _llmService.matchTags(llmResult.content, tagInfos);
+          if (matchedTagIds.isNotEmpty) {
+            await _storageService.autoTagDiary(
+                _currentFolderId!, matchedTagIds);
+          }
+          debugPrint('[流程] 自动归类完成: 匹配 ${matchedTagIds.length} 个标签');
+        }
+      } catch (e) {
+        debugPrint('[流程] 自动归类失败（不阻塞）: $e');
+      }
+
+      if (mounted) {
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+              builder: (_) => DiaryDetailPage(entry: entry),
+            ))
+            .then((_) {
+          setState(() {
+            _state = RecordingState.idle;
+            _hasError = false;
+            _processingStep = 0;
+            _recordingSeconds = 0;
+            _realtimeText = '';
+          });
+        });
       }
     } catch (e) {
       setState(() {

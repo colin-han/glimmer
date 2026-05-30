@@ -5,6 +5,32 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../models/utterance.dart';
 
+class TagInfo {
+  final String id;
+  final String name;
+  final String matchPrompt;
+
+  const TagInfo(
+      {required this.id, required this.name, required this.matchPrompt});
+}
+
+class DiarySummaryInfo {
+  final String id;
+  final String title;
+  final String summary;
+
+  const DiarySummaryInfo(
+      {required this.id, required this.title, required this.summary});
+}
+
+class TagDiaryRecommendation {
+  final String diaryId;
+  final String reason;
+
+  const TagDiaryRecommendation(
+      {required this.diaryId, required this.reason});
+}
+
 class LlmResult {
   final String title;
   final String content;
@@ -119,6 +145,150 @@ class LlmService {
     return response.data['choices'][0]['message']['content'] as String;
   }
 
+  Future<List<String>> matchTags(
+      String content, List<TagInfo> tagInfos) async {
+    if (tagInfos.isEmpty) return [];
+
+    final endpointId = dotenv.get('VOLCENGINE_ARK_ENDPOINT_ID');
+    final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
+
+    final tagsJson = tagInfos
+        .map((t) =>
+            '{"id": "${t.id}", "name": "${t.name}", "matchPrompt": "${t.matchPrompt}"}')
+        .join('\n');
+
+    final response = await _dio.post(
+      'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+      data: {
+        'model': endpointId,
+        'messages': [
+          {
+            'role': 'system',
+            'content': '你是一个日记分类助手。你会收到一篇日记正文和一组标签（每条包含 id、name、matchPrompt）。\n'
+                '请根据每条标签的 matchPrompt 描述，判断该日记是否属于该标签。\n'
+                '严格按以下 JSON 格式返回匹配的标签 ID 列表，不要包含任何其他内容：\n'
+                '{"matchedTagIds": ["id1", "id2"]}\n'
+                '如果没有匹配的标签，返回空列表：{"matchedTagIds": []}',
+          },
+          {
+            'role': 'user',
+            'content': '日记正文：\n$content\n\n标签列表：\n$tagsJson',
+          },
+        ],
+      },
+      options: Options(headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      }),
+    );
+
+    final respContent =
+        response.data['choices'][0]['message']['content'] as String;
+    try {
+      final cleaned = respContent
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll(RegExp(r'```\s*'), '')
+          .trim();
+      final json = jsonDecode(cleaned) as Map<String, dynamic>;
+      return (json['matchedTagIds'] as List<dynamic>)
+          .map((id) => id as String)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<TagDiaryRecommendation>> recommendDiariesForTag(
+      String tagName, List<DiarySummaryInfo> diaries) async {
+    if (diaries.isEmpty) return [];
+
+    final endpointId = dotenv.get('VOLCENGINE_ARK_ENDPOINT_ID');
+    final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
+
+    final diariesJson = diaries
+        .map((d) =>
+            '{"id": "${d.id}", "title": "${d.title}", "summary": "${d.summary}"}')
+        .join('\n');
+
+    final response = await _dio.post(
+      'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+      data: {
+        'model': endpointId,
+        'messages': [
+          {
+            'role': 'system',
+            'content': '你是一个日记分类助手。用户正在创建一个名为「$tagName」的标签。\n'
+                '请分析以下日记列表，推荐可能属于该标签的日记。\n'
+                '严格按以下 JSON 格式返回，不要包含任何其他内容：\n'
+                '{"recommendations": [{"diaryId": "id", "reason": "推荐理由"}]}\n'
+                '只推荐确实相关的日记，不要强行推荐。',
+          },
+          {
+            'role': 'user',
+            'content': '标签名称：$tagName\n\n日记列表：\n$diariesJson',
+          },
+        ],
+      },
+      options: Options(headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      }),
+    );
+
+    final respContent =
+        response.data['choices'][0]['message']['content'] as String;
+    try {
+      final cleaned = respContent
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll(RegExp(r'```\s*'), '')
+          .trim();
+      final json = jsonDecode(cleaned) as Map<String, dynamic>;
+      return (json['recommendations'] as List<dynamic>)
+          .map((r) => TagDiaryRecommendation(
+                diaryId: r['diaryId'] as String,
+                reason: r['reason'] as String,
+              ))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<String> generateMatchPrompt(
+      String tagName, List<DiarySummaryInfo> confirmedDiaries) async {
+    final endpointId = dotenv.get('VOLCENGINE_ARK_ENDPOINT_ID');
+    final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
+
+    final diariesText = confirmedDiaries
+        .map((d) => '标题：${d.title}\n摘要：${d.summary}')
+        .join('\n\n');
+
+    final response = await _dio.post(
+      'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+      data: {
+        'model': endpointId,
+        'messages': [
+          {
+            'role': 'system',
+            'content': '你是一个日记分类助手。用户正在创建一个名为「$tagName」的标签。\n'
+                '以下是用户确认属于该标签的日记内容。请根据这些日记的共同特征，生成一段简洁的匹配提示词。\n'
+                '提示词用于后续自动判断新日记是否属于该标签。\n'
+                '只输出提示词纯文本，不要加引号或其他格式，不超过100个字。',
+          },
+          {
+            'role': 'user',
+            'content': diariesText,
+          },
+        ],
+      },
+      options: Options(headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      }),
+    );
+
+    return response.data['choices'][0]['message']['content'] as String;
+  }
 
   LlmResult _parseResult(String content) {
     try {
