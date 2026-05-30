@@ -9,12 +9,27 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [DiaryEntries])
+@DriftDatabase(tables: [DiaryEntries, Tags, DiaryTagRelations])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async {
+          await m.createAll();
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            await m.createTable(tags);
+            await m.createTable(diaryTagRelations);
+          }
+        },
+      );
+
+  // --- DiaryEntries ---
 
   Future<List<DiaryEntry>> getAllEntries() {
     return (select(diaryEntries)
@@ -32,6 +47,68 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteEntry(String id) {
     return (delete(diaryEntries)..where((t) => t.id.equals(id))).go();
+  }
+
+  // --- Tags ---
+
+  Future<List<Tag>> getAllTags() {
+    return (select(tags)..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Future<Tag> getTagById(String id) {
+    return (select(tags)..where((t) => t.id.equals(id))).getSingle();
+  }
+
+  Future<void> insertTag(TagsCompanion tag) {
+    return into(tags).insert(tag);
+  }
+
+  Future<void> updateTag(TagsCompanion tag) {
+    return (update(tags)..where((t) => t.id.equals(tag.id.value))).write(tag);
+  }
+
+  Future<void> deleteTag(String id) {
+    return (delete(tags)..where((t) => t.id.equals(id))).go();
+  }
+
+  // --- DiaryTagRelations ---
+
+  Future<void> insertDiaryTag(DiaryTagRelationsCompanion relation) {
+    return into(diaryTagRelations)
+        .insert(relation, mode: InsertMode.insertOrIgnore);
+  }
+
+  Future<void> deleteDiaryTag(String diaryId, String tagId) {
+    return (delete(diaryTagRelations)
+          ..where((t) => t.diaryId.equals(diaryId) & t.tagId.equals(tagId)))
+        .go();
+  }
+
+  Future<void> deleteDiaryTagsByTag(String tagId) {
+    return (delete(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
+        .go();
+  }
+
+  Future<void> deleteDiaryTagsByDiary(String diaryId) {
+    return (delete(diaryTagRelations)..where((t) => t.diaryId.equals(diaryId)))
+        .go();
+  }
+
+  Future<List<DiaryTagRelation>> getTagsForDiary(String diaryId) {
+    return (select(diaryTagRelations)..where((t) => t.diaryId.equals(diaryId)))
+        .get();
+  }
+
+  Future<List<DiaryTagRelation>> getDiariesForTag(String tagId) {
+    return (select(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
+        .get();
+  }
+
+  Future<int> getDiaryCountForTag(String tagId) {
+    return (select(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
+        .get()
+        .then((rows) => rows.length);
   }
 }
 
