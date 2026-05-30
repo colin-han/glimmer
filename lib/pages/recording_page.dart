@@ -240,11 +240,10 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _speakSummary(String oneLineSummary) {
     if (oneLineSummary.isEmpty) return;
+    final text = '日记整理完成，一句话总结：$oneLineSummary';
     () async {
       try {
-        final announcement =
-            await _llmService.generateSummaryAnnouncement(oneLineSummary);
-        await _ttsService.speak(announcement, VoiceType.maleDeep);
+        await _ttsService.speak(text, VoiceType.maleDeep);
       } catch (e) {
         debugPrint('TTS 总结播报失败: $e');
       }
