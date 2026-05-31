@@ -37,8 +37,8 @@ class TosUploadService {
 
   void _ensureInitialized() {
     if (_ak != null) return;
-    _ak = dotenv.get('VOLCENGINE_TOS_ACCESS_KEY');
-    _sk = dotenv.get('VOLCENGINE_TOS_SECRET_KEY');
+    _ak = dotenv.get('VOLCENGINE_ACCESS_KEY');
+    _sk = dotenv.get('VOLCENGINE_SECRET_KEY');
     _endpoint = dotenv.get('VOLCENGINE_TOS_ENDPOINT');
     _bucket = dotenv.get('VOLCENGINE_TOS_BUCKET');
     _region = _endpoint!.split('.').first.replaceAll('tos-', '');
