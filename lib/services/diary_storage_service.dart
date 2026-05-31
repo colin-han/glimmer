@@ -280,6 +280,12 @@ class DiaryStorageService {
     return wavPath;
   }
 
+  /// 获取未上传到 TOS 的日记条目（用于历史迁移）
+  Future<List<DiaryEntry>> getEntriesWithoutTos() async {
+    final all = await getAllEntries();
+    return all.where((e) => e.tosKey == null).toList();
+  }
+
   Future<List<DiaryEntry>> searchEntries(String query) async {
     final allEntries = await getAllEntries();
     final lowerQuery = query.toLowerCase();
