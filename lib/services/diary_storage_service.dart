@@ -34,6 +34,9 @@ class DiaryStorageService {
       folderPath: entry.folderPath,
       durationSeconds: entry.durationSeconds,
       createdAt: entry.createdAt.millisecondsSinceEpoch,
+      tosKey: Value(entry.tosKey),
+      audioFormat: Value(entry.audioFormat),
+      uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
     ));
   }
 
@@ -116,6 +119,11 @@ class DiaryStorageService {
               folderPath: r.folderPath,
               durationSeconds: r.durationSeconds,
               createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+              tosKey: r.tosKey,
+              audioFormat: r.audioFormat,
+              uploadedAt: r.uploadedAt != null
+                  ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+                  : null,
             ))
         .toList();
   }
@@ -128,6 +136,11 @@ class DiaryStorageService {
       folderPath: r.folderPath,
       durationSeconds: r.durationSeconds,
       createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+      tosKey: r.tosKey,
+      audioFormat: r.audioFormat,
+      uploadedAt: r.uploadedAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+          : null,
     );
   }
 
@@ -243,6 +256,28 @@ class DiaryStorageService {
       } catch (_) {}
     }
     return tags;
+  }
+
+  /// 更新日记的 TOS 上传信息
+  Future<void> updateTosInfo(String id,
+      {String? tosKey, String? audioFormat, int? uploadedAt}) async {
+    final companion = DiaryEntriesCompanion(
+      tosKey: Value(tosKey),
+      audioFormat: Value(audioFormat ?? 'wav'),
+      uploadedAt: Value(uploadedAt),
+    );
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
+        .write(companion);
+  }
+
+  /// 根据音频格式获取音频文件路径，优先 OGG，回退 WAV
+  String getAudioPath(String folderPath, String audioFormat) {
+    final oggPath = p.join(folderPath, 'audio.ogg');
+    final wavPath = p.join(folderPath, 'audio.wav');
+    if (audioFormat == 'ogg' || File(oggPath).existsSync()) {
+      return oggPath;
+    }
+    return wavPath;
   }
 
   Future<List<DiaryEntry>> searchEntries(String query) async {

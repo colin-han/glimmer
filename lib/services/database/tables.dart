@@ -6,6 +6,9 @@ class DiaryEntries extends Table {
   TextColumn get folderPath => text()();
   IntColumn get durationSeconds => integer()();
   IntColumn get createdAt => integer()();
+  TextColumn get tosKey => text().nullable()();
+  TextColumn get audioFormat => text().withDefault(const Constant('wav'))();
+  IntColumn get uploadedAt => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
