@@ -12,6 +12,7 @@ import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
+import '../services/tos_upload_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
@@ -34,6 +35,7 @@ class _RecordingPageState extends State<RecordingPage> {
   final _asrService = AsrService();
   final _llmService = LlmService();
   final _realtimeAsr = RealtimeAsrService();
+  final _tosService = TosUploadService();
   final _ttsService = TtsService();
   final _uuid = const Uuid();
 
@@ -162,6 +164,8 @@ class _RecordingPageState extends State<RecordingPage> {
       _errorMessage = '';
     });
 
+    String? tosKey;
+
     try {
       final sw = Stopwatch()..start();
       final recordingResult = await _recorderService.stopRecording();
@@ -170,19 +174,31 @@ class _RecordingPageState extends State<RecordingPage> {
       // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
       _speakReply();
 
-      // 步骤 1: Flash ASR 识别（带时间戳）
+      // 步骤 1: 上传 OGG 到 TOS + Flash ASR 识别
       setState(() => _processingStep = 1);
       AsrResult? asrResult;
       try {
-        asrResult = await _asrService.transcribe(recordingResult.filePath);
+        // 上传 OGG 到 TOS
+        tosKey = await _tosService.uploadAudio(
+          recordingResult.filePath,
+          _currentFolderId!,
+        );
+        debugPrint('[流程] TOS 上传完成: $tosKey');
+
+        // 生成预签名 URL
+        final presignedUrl = await _tosService.getPresignedUrl(tosKey);
+        debugPrint('[流程] 预签名 URL 生成完成');
+
+        // 用 URL 调 Flash ASR
+        asrResult = await _asrService.transcribeFromUrl(presignedUrl);
         await _storageService.writeTranscriptJson(
             _currentFolderPath!,
             TranscriptData(
                 version: 1, utterances: asrResult.utterances));
         debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
       } catch (e) {
-        debugPrint('[流程] Flash ASR 失败: $e');
-        await _saveEntryAndNavigate('未命名日记', duration);
+        debugPrint('[流程] TOS 上传或 ASR 失败: $e');
+        await _saveEntryAndNavigate('未命名日记', duration, audioFormat: 'ogg');
         return;
       }
 
@@ -204,7 +220,7 @@ class _RecordingPageState extends State<RecordingPage> {
         debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
       } catch (e) {
         debugPrint('[流程] LLM 失败: $e');
-        await _saveEntryAndNavigate('未命名日记', duration);
+        await _saveEntryAndNavigate('未命名日记', duration, audioFormat: 'ogg');
         return;
       }
 
@@ -216,6 +232,9 @@ class _RecordingPageState extends State<RecordingPage> {
         folderPath: _currentFolderPath!,
         durationSeconds: duration,
         createdAt: DateTime.now(),
+        tosKey: tosKey,
+        audioFormat: 'ogg',
+        uploadedAt: DateTime.now(),
       );
       await _storageService.createEntry(entry);
       debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
@@ -314,13 +333,14 @@ class _RecordingPageState extends State<RecordingPage> {
     );
   }
 
-  Future<void> _saveEntryAndNavigate(String title, int duration) async {
+  Future<void> _saveEntryAndNavigate(String title, int duration, {String audioFormat = 'wav'}) async {
     final entry = DiaryEntry(
       id: _currentFolderId!,
       title: title,
       folderPath: _currentFolderPath!,
       durationSeconds: duration,
       createdAt: DateTime.now(),
+      audioFormat: audioFormat,
     );
     await _storageService.createEntry(entry);
     if (mounted) {
