@@ -6,10 +6,22 @@
 
 当前录音和处理流程全在 UI isolate 中运行。锁屏后 Android 会挂起 UI 进程，导致：
 - WebSocket 连接断开（"software caused connection abort"）
-- HTTP 请求中断
-- 录音可能被系统回收
+- HTTP 请求中断（TOS 上传、ASR、LLM）
+- Opus 编码中断（PCM → OGG 实时编码需要持续 CPU）
 
 虽然已实现重试功能（保存数据后可从详情页重试），但根本解决方案是使用 FGS 保持进程活跃。
+
+## 当前处理流程
+
+录音停止后的管线需要 FGS 保护：
+
+1. **上传 OGG 到 TOS**（1-5s，网络上传）
+2. **生成预签名 URL + Flash ASR**（1-5s，网络请求）
+3. **LLM 润色**（5-15s，网络请求）
+4. **保存元数据**（本地 DB 写入）
+5. **自动打标签**（1-3s，可选网络请求）
+
+加上录音阶段本身（PCM → Opus 实时编码 + WebSocket ASR），整个过程都需要保护。
 
 ## 方案选择
 
@@ -35,16 +47,16 @@ lib/
 ### 职责划分
 
 **`RecordingService`（TaskHandler isolate）**:
-- 管理 AudioRecorder 完整生命周期
-- 执行录音 + 实时 ASR（WebSocket）
-- 录音停止后执行 Flash ASR → LLM → 自动打标签 → 保存
+- 管理 AudioRecorder + AudioEncoderService 完整生命周期
+- PCM 流双路分发：Opus 编码写文件 + WebSocket ASR 实时转写
+- 录音停止后执行：TOS 上传 → Flash ASR(URL) → LLM → 自动打标签 → 保存
 - 通过 sendDataToMain() 发送状态给 UI
 
 **`RecordingPage`（UI isolate）**:
 - 启动/停止 FGS
 - 监听状态消息更新 UI
 - 处理完成后导航到详情页
-- 触发 TTS 播报（在 UI isolate 中）
+- 触发 TTS 播报（在 UI isolate 中，因为涉及 just_audio 和系统音频焦点）
 
 ## 通信协议
 
@@ -54,7 +66,7 @@ lib/
 |-------|------|------|
 | `recording` | `{duration, amplitude}` | 每秒发送录音状态 |
 | `partial` | `{text}` | 实时转写片段 |
-| `processing` | `{step}` | 步骤：1=ASR, 2=LLM, 3=保存, 4=打标签 |
+| `processing` | `{step}` | 步骤：1=上传+ASR, 2=LLM, 3=保存, 4=打标签 |
 | `completed` | `{entryId}` | 全部完成 |
 | `failed` | `{entryId, step, error}` | 失败但数据已保存，可重试 |
 | `error` | `{message}` | 录音出错，无数据 |
@@ -72,26 +84,32 @@ lib/
 
 1. 创建 UUID + 文件夹
 2. 初始化 AudioRecorder（PCM 16kHz, 16bit, mono）
-3. 初始化 RealtimeAsrService WebSocket
-4. 录音循环：PCM 帧同时写入 WAV 文件 + 发送到 WebSocket ASR
-5. 接收转写结果，发送 partial 给 UI
-6. 每秒发送录音状态（时长、音量）
-7. 收到 stop 或 5 分钟超时 → 停止
+3. 初始化 AudioEncoderService（PCM → Opus/OGG 实时编码）
+4. 初始化 RealtimeAsrService WebSocket
+5. 录音循环：PCM 帧双路分发
+   - 路径 A：喂入 AudioEncoderService → 写入 audio.ogg
+   - 路径 B：发送到 WebSocket ASR
+   - 接收转写结果，发送 partial 给 UI
+   - 每秒发送录音状态（时长、音量）给 UI
+6. 收到 stop 或 5 分钟超时 → 停止
 
 ### 处理阶段
 
-8. 关闭 WebSocket，刷新 WAV 文件头
-9. Flash ASR（带时间戳完整识别） → 发送 step=1
-10. LLM 润色 → 发送 step=2
-11. 保存 transcript.json + llm_result.json + SQLite 元数据 → 发送 step=3
-12. 自动打标签 → 发送 step=4
-13. 发送 completed + entryId
+7. 关闭 WebSocket，停止 AudioEncoderService（flush 剩余数据 + EOS 页）
+8. 上传 OGG 到 TOS，获取 tosKey
+9. 生成预签名 URL
+10. Flash ASR（URL 模式，OGG/Opus 格式）→ 发送 step=1
+11. LLM 润色（保留时间戳）→ 发送 step=2
+12. 保存 transcript.json + llm_result.json + SQLite 元数据（含 tosKey、audioFormat='ogg'、uploadedAt）→ 发送 step=3
+13. 自动打标签 → 发送 step=4
+14. 发送 completed + entryId
 
 ### 错误处理
 
-- **WebSocket ASR 断开**: 不中断录音，继续写入文件，完成后用 Flash ASR 兜底
-- **Flash ASR 失败**: 保存音频 + 空 transcript，发送 failed(step=1)
-- **LLM 失败**: 保存音频 + transcript，发送 failed(step=2)
+- **WebSocket ASR 断开**: 不中断录音，继续 Opus 编码写文件，完成后用 Flash ASR 兜底
+- **TOS 上传失败**: 保存本地 OGG 文件，发送 failed(step=1)。详情页重试时可重新上传
+- **Flash ASR 失败**: 保存 OGG 文件 + 空 transcript，发送 failed(step=1)
+- **LLM 失败**: 保存 OGG + transcript，发送 failed(step=2)
 - **任何步骤**: 确保已生成文件写入磁盘，entryId 传回 UI
 
 ## Android 配置
@@ -138,8 +156,8 @@ flutter_foreground_task: ^9.2.2
 
 ## 成功标准
 
-1. 锁屏后录音不中断
-2. 锁屏后 ASR + LLM 网络请求完成
-3. 任何步骤失败时音频文件和已有数据不丢失
+1. 锁屏后录音不中断（PCM → Opus 编码持续）
+2. 锁屏后 TOS 上传、ASR、LLM 网络请求完成
+3. 任何步骤失败时 OGG 音频文件和已有数据不丢失
 4. 通知正确显示录音/处理状态
 5. Android 14+ 兼容（FGS 类型权限）
