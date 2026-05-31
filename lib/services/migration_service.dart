@@ -25,8 +25,7 @@ class MigrationService {
   }
 
   /// 执行迁移，返回迁移的条目数量。
-  /// 通过 tosKey 是否为 null 判断进度，支持中断恢复。
-  /// 迁移完成后标记 flag，不再重复执行。
+  /// 只有全部条目处理完毕后才标记 flag，支持部分失败后重试。
   Future<int> migrateUnuploadedEntries() async {
     final entries = await _storage.getEntriesWithoutTos();
     if (entries.isEmpty) {
@@ -41,9 +40,16 @@ class MigrationService {
         if (ok) migrated++;
       } catch (e) {
         print('[迁移] 失败: ${entry.id}, $e');
+        // 单条失败不阻塞后续，但不标记完成，下次启动重试
       }
     }
-    await _markDone();
+
+    // 只有全部条目都有了 tosKey 才标记完成
+    final remaining = await _storage.getEntriesWithoutTos();
+    if (remaining.isEmpty) {
+      await _markDone();
+    }
+
     return migrated;
   }
 
@@ -52,29 +58,31 @@ class MigrationService {
     final folder = entry.folderPath;
     final wavPath = p.join(folder, 'audio.wav');
     final oggPath = p.join(folder, 'audio.ogg');
-    final wavFile = File(wavPath);
-    final oggFile = File(oggPath);
+    final hasWav = await File(wavPath).exists();
+    final hasOgg = await File(oggPath).exists();
 
-    String uploadPath;
-
-    if (await wavFile.exists()) {
+    if (hasWav) {
       // 旧格式：WAV → OGG 转码 → 上传
-      await _convertWavToOgg(wavPath, oggPath);
-      uploadPath = oggPath;
-    } else if (await oggFile.exists()) {
+      // 仅在 OGG 不存在时才转码（避免重复转码）
+      if (!hasOgg) {
+        await _convertWavToOgg(wavPath, oggPath);
+      }
+      final tosKey = await _tos.uploadAudio(oggPath, entry.id);
+      await _storage.updateTosInfo(entry.id,
+          tosKey: tosKey, audioFormat: 'wav');
+      return true;
+    } else if (hasOgg) {
       // 新格式（录音已是 OGG，但 TOS 上传失败）：直接上传
-      uploadPath = oggPath;
+      final tosKey = await _tos.uploadAudio(oggPath, entry.id);
+      await _storage.updateTosInfo(entry.id,
+          tosKey: tosKey, audioFormat: 'ogg');
+      return true;
     } else {
-      // 音频文件不存在，标记为已迁移避免反复重试
-      await _storage.updateTosInfo(entry.id, tosKey: '', audioFormat: 'ogg');
+      // 音频文件不存在，跳过（不标记 tosKey，保持 null）
+      // 下次迁移仍会尝试，但这种情况极少发生
+      print('[迁移] 跳过: ${entry.id}, 音频文件不存在');
       return false;
     }
-
-    final tosKey = await _tos.uploadAudio(uploadPath, entry.id);
-    final audioFormat = await wavFile.exists() ? 'wav' : 'ogg';
-    await _storage.updateTosInfo(entry.id,
-        tosKey: tosKey, audioFormat: audioFormat);
-    return true;
   }
 
   /// WAV 转 OGG：读取 WAV PCM 数据 → Opus 编码 → OGG 文件。
