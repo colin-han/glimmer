@@ -60,6 +60,38 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _tosKeyMeta = const VerificationMeta('tosKey');
+  @override
+  late final GeneratedColumn<String> tosKey = GeneratedColumn<String>(
+    'tos_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _audioFormatMeta = const VerificationMeta(
+    'audioFormat',
+  );
+  @override
+  late final GeneratedColumn<String> audioFormat = GeneratedColumn<String>(
+    'audio_format',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('wav'),
+  );
+  static const VerificationMeta _uploadedAtMeta = const VerificationMeta(
+    'uploadedAt',
+  );
+  @override
+  late final GeneratedColumn<int> uploadedAt = GeneratedColumn<int>(
+    'uploaded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -67,6 +99,9 @@ class $DiaryEntriesTable extends DiaryEntries
     folderPath,
     durationSeconds,
     createdAt,
+    tosKey,
+    audioFormat,
+    uploadedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -120,6 +155,27 @@ class $DiaryEntriesTable extends DiaryEntries
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('tos_key')) {
+      context.handle(
+        _tosKeyMeta,
+        tosKey.isAcceptableOrUnknown(data['tos_key']!, _tosKeyMeta),
+      );
+    }
+    if (data.containsKey('audio_format')) {
+      context.handle(
+        _audioFormatMeta,
+        audioFormat.isAcceptableOrUnknown(
+          data['audio_format']!,
+          _audioFormatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('uploaded_at')) {
+      context.handle(
+        _uploadedAtMeta,
+        uploadedAt.isAcceptableOrUnknown(data['uploaded_at']!, _uploadedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -149,6 +205,18 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
       )!,
+      tosKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tos_key'],
+      ),
+      audioFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_format'],
+      )!,
+      uploadedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}uploaded_at'],
+      ),
     );
   }
 
@@ -164,12 +232,18 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
   final String folderPath;
   final int durationSeconds;
   final int createdAt;
+  final String? tosKey;
+  final String audioFormat;
+  final int? uploadedAt;
   const DiaryEntry({
     required this.id,
     required this.title,
     required this.folderPath,
     required this.durationSeconds,
     required this.createdAt,
+    this.tosKey,
+    required this.audioFormat,
+    this.uploadedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -179,6 +253,13 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     map['folder_path'] = Variable<String>(folderPath);
     map['duration_seconds'] = Variable<int>(durationSeconds);
     map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || tosKey != null) {
+      map['tos_key'] = Variable<String>(tosKey);
+    }
+    map['audio_format'] = Variable<String>(audioFormat);
+    if (!nullToAbsent || uploadedAt != null) {
+      map['uploaded_at'] = Variable<int>(uploadedAt);
+    }
     return map;
   }
 
@@ -189,6 +270,13 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       folderPath: Value(folderPath),
       durationSeconds: Value(durationSeconds),
       createdAt: Value(createdAt),
+      tosKey: tosKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tosKey),
+      audioFormat: Value(audioFormat),
+      uploadedAt: uploadedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadedAt),
     );
   }
 
@@ -203,6 +291,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       folderPath: serializer.fromJson<String>(json['folderPath']),
       durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
+      tosKey: serializer.fromJson<String?>(json['tosKey']),
+      audioFormat: serializer.fromJson<String>(json['audioFormat']),
+      uploadedAt: serializer.fromJson<int?>(json['uploadedAt']),
     );
   }
   @override
@@ -214,6 +305,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       'folderPath': serializer.toJson<String>(folderPath),
       'durationSeconds': serializer.toJson<int>(durationSeconds),
       'createdAt': serializer.toJson<int>(createdAt),
+      'tosKey': serializer.toJson<String?>(tosKey),
+      'audioFormat': serializer.toJson<String>(audioFormat),
+      'uploadedAt': serializer.toJson<int?>(uploadedAt),
     };
   }
 
@@ -223,12 +317,18 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     String? folderPath,
     int? durationSeconds,
     int? createdAt,
+    Value<String?> tosKey = const Value.absent(),
+    String? audioFormat,
+    Value<int?> uploadedAt = const Value.absent(),
   }) => DiaryEntry(
     id: id ?? this.id,
     title: title ?? this.title,
     folderPath: folderPath ?? this.folderPath,
     durationSeconds: durationSeconds ?? this.durationSeconds,
     createdAt: createdAt ?? this.createdAt,
+    tosKey: tosKey.present ? tosKey.value : this.tosKey,
+    audioFormat: audioFormat ?? this.audioFormat,
+    uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
   );
   DiaryEntry copyWithCompanion(DiaryEntriesCompanion data) {
     return DiaryEntry(
@@ -241,6 +341,13 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ? data.durationSeconds.value
           : this.durationSeconds,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      tosKey: data.tosKey.present ? data.tosKey.value : this.tosKey,
+      audioFormat: data.audioFormat.present
+          ? data.audioFormat.value
+          : this.audioFormat,
+      uploadedAt: data.uploadedAt.present
+          ? data.uploadedAt.value
+          : this.uploadedAt,
     );
   }
 
@@ -251,14 +358,25 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ..write('title: $title, ')
           ..write('folderPath: $folderPath, ')
           ..write('durationSeconds: $durationSeconds, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('tosKey: $tosKey, ')
+          ..write('audioFormat: $audioFormat, ')
+          ..write('uploadedAt: $uploadedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, title, folderPath, durationSeconds, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    folderPath,
+    durationSeconds,
+    createdAt,
+    tosKey,
+    audioFormat,
+    uploadedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -267,7 +385,10 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           other.title == this.title &&
           other.folderPath == this.folderPath &&
           other.durationSeconds == this.durationSeconds &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.tosKey == this.tosKey &&
+          other.audioFormat == this.audioFormat &&
+          other.uploadedAt == this.uploadedAt);
 }
 
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
@@ -276,6 +397,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
   final Value<String> folderPath;
   final Value<int> durationSeconds;
   final Value<int> createdAt;
+  final Value<String?> tosKey;
+  final Value<String> audioFormat;
+  final Value<int?> uploadedAt;
   final Value<int> rowid;
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
@@ -283,6 +407,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.folderPath = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.tosKey = const Value.absent(),
+    this.audioFormat = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiaryEntriesCompanion.insert({
@@ -291,6 +418,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     required String folderPath,
     required int durationSeconds,
     required int createdAt,
+    this.tosKey = const Value.absent(),
+    this.audioFormat = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -303,6 +433,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Expression<String>? folderPath,
     Expression<int>? durationSeconds,
     Expression<int>? createdAt,
+    Expression<String>? tosKey,
+    Expression<String>? audioFormat,
+    Expression<int>? uploadedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -311,6 +444,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       if (folderPath != null) 'folder_path': folderPath,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
       if (createdAt != null) 'created_at': createdAt,
+      if (tosKey != null) 'tos_key': tosKey,
+      if (audioFormat != null) 'audio_format': audioFormat,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -321,6 +457,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Value<String>? folderPath,
     Value<int>? durationSeconds,
     Value<int>? createdAt,
+    Value<String?>? tosKey,
+    Value<String>? audioFormat,
+    Value<int?>? uploadedAt,
     Value<int>? rowid,
   }) {
     return DiaryEntriesCompanion(
@@ -329,6 +468,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       folderPath: folderPath ?? this.folderPath,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       createdAt: createdAt ?? this.createdAt,
+      tosKey: tosKey ?? this.tosKey,
+      audioFormat: audioFormat ?? this.audioFormat,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -351,6 +493,15 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
+    if (tosKey.present) {
+      map['tos_key'] = Variable<String>(tosKey.value);
+    }
+    if (audioFormat.present) {
+      map['audio_format'] = Variable<String>(audioFormat.value);
+    }
+    if (uploadedAt.present) {
+      map['uploaded_at'] = Variable<int>(uploadedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -365,6 +516,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
           ..write('folderPath: $folderPath, ')
           ..write('durationSeconds: $durationSeconds, ')
           ..write('createdAt: $createdAt, ')
+          ..write('tosKey: $tosKey, ')
+          ..write('audioFormat: $audioFormat, ')
+          ..write('uploadedAt: $uploadedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1077,6 +1231,9 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       required String folderPath,
       required int durationSeconds,
       required int createdAt,
+      Value<String?> tosKey,
+      Value<String> audioFormat,
+      Value<int?> uploadedAt,
       Value<int> rowid,
     });
 typedef $$DiaryEntriesTableUpdateCompanionBuilder =
@@ -1086,6 +1243,9 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<String> folderPath,
       Value<int> durationSeconds,
       Value<int> createdAt,
+      Value<String?> tosKey,
+      Value<String> audioFormat,
+      Value<int?> uploadedAt,
       Value<int> rowid,
     });
 
@@ -1152,6 +1312,21 @@ class $$DiaryEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get tosKey => $composableBuilder(
+    column: $table.tosKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get audioFormat => $composableBuilder(
+    column: $table.audioFormat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> diaryTagRelationsRefs(
     Expression<bool> Function($$DiaryTagRelationsTableFilterComposer f) f,
   ) {
@@ -1211,6 +1386,21 @@ class $$DiaryEntriesTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get tosKey => $composableBuilder(
+    column: $table.tosKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get audioFormat => $composableBuilder(
+    column: $table.audioFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DiaryEntriesTableAnnotationComposer
@@ -1240,6 +1430,19 @@ class $$DiaryEntriesTableAnnotationComposer
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get tosKey =>
+      $composableBuilder(column: $table.tosKey, builder: (column) => column);
+
+  GeneratedColumn<String> get audioFormat => $composableBuilder(
+    column: $table.audioFormat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => column,
+  );
 
   Expression<T> diaryTagRelationsRefs<T extends Object>(
     Expression<T> Function($$DiaryTagRelationsTableAnnotationComposer a) f,
@@ -1301,6 +1504,9 @@ class $$DiaryEntriesTableTableManager
                 Value<String> folderPath = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
+                Value<String?> tosKey = const Value.absent(),
+                Value<String> audioFormat = const Value.absent(),
+                Value<int?> uploadedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion(
                 id: id,
@@ -1308,6 +1514,9 @@ class $$DiaryEntriesTableTableManager
                 folderPath: folderPath,
                 durationSeconds: durationSeconds,
                 createdAt: createdAt,
+                tosKey: tosKey,
+                audioFormat: audioFormat,
+                uploadedAt: uploadedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1317,6 +1526,9 @@ class $$DiaryEntriesTableTableManager
                 required String folderPath,
                 required int durationSeconds,
                 required int createdAt,
+                Value<String?> tosKey = const Value.absent(),
+                Value<String> audioFormat = const Value.absent(),
+                Value<int?> uploadedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion.insert(
                 id: id,
@@ -1324,6 +1536,9 @@ class $$DiaryEntriesTableTableManager
                 folderPath: folderPath,
                 durationSeconds: durationSeconds,
                 createdAt: createdAt,
+                tosKey: tosKey,
+                audioFormat: audioFormat,
+                uploadedAt: uploadedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

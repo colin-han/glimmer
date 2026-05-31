@@ -4,6 +4,9 @@ class DiaryEntry {
   final String folderPath;
   final int durationSeconds;
   final DateTime createdAt;
+  final String? tosKey;
+  final String audioFormat;
+  final DateTime? uploadedAt;
 
   const DiaryEntry({
     required this.id,
@@ -11,6 +14,9 @@ class DiaryEntry {
     required this.folderPath,
     required this.durationSeconds,
     required this.createdAt,
+    this.tosKey,
+    this.audioFormat = 'wav',
+    this.uploadedAt,
   });
 
   String get displayTitle =>
