@@ -14,27 +14,25 @@ void main() async {
   await migrationService.runMigrations();
 
   // 异步执行历史 WAV → OGG + TOS 迁移（不阻塞 UI）
-  _runTosMigration();
+  _runTosMigrationIfNeeded();
 
   runApp(const VoiceDiaryApp());
 }
 
-void _runTosMigration() {
-  () async {
-    try {
-      final storage = DiaryStorageService();
-      final tos = TosUploadService();
-      final migration = MigrationService(storage, tos);
-      final count = await migration.migrateUnuploadedEntries();
-      if (count > 0) {
-        print('[迁移] 完成: 迁移了 $count 条日记');
-      }
-      tos.close();
-    } catch (e) {
-      // TOS 未配置时跳过迁移
-      print('[迁移] 跳过: $e');
+Future<void> _runTosMigrationIfNeeded() async {
+  if (await MigrationService.isMigrated()) return;
+  try {
+    final storage = DiaryStorageService();
+    final tos = TosUploadService();
+    final migration = MigrationService(storage, tos);
+    final count = await migration.migrateUnuploadedEntries();
+    if (count > 0) {
+      print('[迁移] 完成: 迁移了 $count 条日记');
     }
-  }();
+    tos.close();
+  } catch (e) {
+    print('[迁移] 跳过: $e');
+  }
 }
 
 class VoiceDiaryApp extends StatelessWidget {
