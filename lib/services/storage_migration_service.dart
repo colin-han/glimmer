@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,11 +15,31 @@ class StorageMigrationService {
 
     if (currentVersion >= _currentVersion) return;
 
+    // 版本变化时先备份当前存储目录
+    await _backupBeforeMigration(currentVersion);
+
     for (var v = currentVersion + 1; v <= _currentVersion; v++) {
       await _runMigration(v);
     }
 
     await prefs.setInt(_versionKey, _currentVersion);
+  }
+
+  /// 将应用文档目录打包为 zip 备份
+  Future<void> _backupBeforeMigration(int fromVersion) async {
+    final docDir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory(p.join(docDir.parent.path, 'migration_backups'));
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
+
+    final timestamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+    final backupName = 'backup_v$fromVersion\_$timestamp.zip';
+    final backupPath = p.join(backupDir.path, backupName);
+
+    final encoder = ZipFileEncoder();
+    encoder.zipDirectory(Directory(docDir.path), filename: backupPath);
+    print('[迁移备份] 已备份至 $backupPath');
   }
 
   Future<void> _runMigration(int version) async {
