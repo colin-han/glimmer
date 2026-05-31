@@ -7,11 +7,10 @@ class OggMuxer {
   final int serialNumber;
   int _pageSequenceNumber = 0;
 
-  static const int _maxSegmentsPerPage = 255;
   static const int _maxSegmentSize = 255;
-  static const int _maxPageSize =
-      _maxSegmentsPerPage * _maxSegmentSize; // 65025
-  static const List<int> _capturePattern = [0x4F, 0x67, 0x67, 0x53]; // "OggS"
+  // 最大 254 个 255 字节 segment + 1 个终止 segment = 254*255 = 64770 字节
+  static const int _maxDataPerPage = 254 * _maxSegmentSize; // 64770
+  static const List<int> _capturePattern = const [0x4F, 0x67, 0x67, 0x53]; // "OggS"
 
   OggMuxer({required this.serialNumber});
 
@@ -26,14 +25,18 @@ class OggMuxer {
     final pages = <Uint8List>[];
     int offset = 0;
     int pageIndex = 0;
-    final totalPages = (data.length / _maxPageSize).ceil().clamp(1, 999999);
+    if (data.isEmpty) return pages;
+
+    final totalPages = (data.length / _maxDataPerPage).ceil();
 
     while (offset < data.length) {
       final remaining = data.length - offset;
-      final chunkSize = min(remaining, _maxPageSize);
+      final chunkSize = min(remaining, _maxDataPerPage);
       final chunk = Uint8List.sublistView(data, offset, offset + chunkSize);
 
-      // 构建 segment table
+      // 构建 segment table（OGG lacing）
+      // 每段最大 255 字节，最后一段 < 255 表示包结束
+      // 若总大小恰好是 255 的倍数，追加一个 0 长度段表示终止
       final segments = <int>[];
       int segOffset = 0;
       while (segOffset < chunk.length) {
@@ -42,21 +45,21 @@ class OggMuxer {
           segments.add(_maxSegmentSize);
           segOffset += _maxSegmentSize;
         } else {
-          // 最后一个 segment：值为实际长度，如果恰好 255 则追加一个 0
           segments.add(segRemaining);
-          if (segRemaining == _maxSegmentSize) {
-            segments.add(0);
-          }
           segOffset += segRemaining;
         }
+      }
+      // 包大小是 255 的倍数时，追加 0 长度段表示终止
+      if (chunk.length % _maxSegmentSize == 0) {
+        segments.add(0);
       }
 
       final isFirst = pageIndex == 0;
       final isLast = pageIndex == totalPages - 1;
       int headerType = 0;
+      if (!isFirst) headerType |= 0x01; // continuation
       if (isFirst && isBeginOfStream) headerType |= 0x02; // BOS
       if (isLast && isEndOfStream) headerType |= 0x04; // EOS
-      // continuation flag not needed for fresh data
 
       final page = _buildPage(
         headerType: headerType,
