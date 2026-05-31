@@ -49,7 +49,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Future<void> _loadContent() async {
-    final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
+    final audioPath = _storageService.getAudioPath(
+        widget.entry.folderPath, widget.entry.audioFormat);
     final audioExists = File(audioPath).existsSync();
     final transcriptExists =
         await File(p.join(widget.entry.folderPath, 'transcript.json'))
@@ -129,7 +130,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     });
 
     try {
-      final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
+      final audioPath = _storageService.getAudioPath(
+          widget.entry.folderPath, widget.entry.audioFormat);
       final transcriptPath =
           p.join(widget.entry.folderPath, 'transcript.json');
       final transcriptExists = File(transcriptPath).existsSync();
@@ -269,7 +271,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final audioPath = p.join(widget.entry.folderPath, 'audio.wav');
+    final audioPath = _storageService.getAudioPath(
+        widget.entry.folderPath, widget.entry.audioFormat);
     final audioExists = File(audioPath).existsSync();
 
     return Scaffold(
