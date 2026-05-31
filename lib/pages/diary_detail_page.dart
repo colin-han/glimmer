@@ -11,6 +11,7 @@ import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
+import '../widgets/app_title.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/tag_editor_sheet.dart';
 import '../widgets/tag_selector_sheet.dart';
@@ -273,7 +274,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry.displayTitle),
+        title: AppTitle.wrap(Text(widget.entry.displayTitle)),
         actions: [
           IconButton(
               icon: const Icon(Icons.delete_outline),

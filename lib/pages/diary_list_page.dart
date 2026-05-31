@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
+import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
 import 'diary_detail_page.dart';
 import 'recording_page.dart';
@@ -97,7 +98,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 ),
                 onChanged: (val) => setState(() => _searchQuery = val),
               )
-            : const Text('我的日记'),
+            : const AppTitle(title: '我的日记'),
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),

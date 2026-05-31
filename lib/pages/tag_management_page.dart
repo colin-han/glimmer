@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
+import '../widgets/app_title.dart';
 
 class TagManagementPage extends StatefulWidget {
   const TagManagementPage({super.key});
@@ -285,7 +286,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('标签管理'),
+        title: const AppTitle(title: '标签管理'),
       ),
       body: Stack(
         children: [
