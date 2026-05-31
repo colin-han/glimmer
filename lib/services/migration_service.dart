@@ -78,8 +78,8 @@ class MigrationService {
           tosKey: tosKey, audioFormat: 'ogg');
       return true;
     } else {
-      // 音频文件不存在，跳过（不标记 tosKey，保持 null）
-      // 下次迁移仍会尝试，但这种情况极少发生
+      // 音频文件不存在，标记为已处理避免每次启动重复检查
+      await _storage.updateTosInfo(entry.id, tosKey: '', audioFormat: 'ogg');
       print('[迁移] 跳过: ${entry.id}, 音频文件不存在');
       return false;
     }
