@@ -23,9 +23,24 @@ class OggMuxer {
     bool isEndOfStream = false,
   }) {
     final pages = <Uint8List>[];
+
+    // EOS 页可以为空数据，此时写入一个零长度 segment 的页面
+    if (data.isEmpty) {
+      if (isEndOfStream) {
+        pages.add(_buildPage(
+          headerType: 0x04, // EOS
+          granulePosition: granulePosition,
+          pageSequenceNumber: _pageSequenceNumber,
+          segmentTable: [0], // 一个零长度 segment 表示空包
+          data: Uint8List(0),
+        ));
+        _pageSequenceNumber++;
+      }
+      return pages;
+    }
+
     int offset = 0;
     int pageIndex = 0;
-    if (data.isEmpty) return pages;
 
     final totalPages = (data.length / _maxDataPerPage).ceil();
 
