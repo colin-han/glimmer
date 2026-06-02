@@ -7,6 +7,12 @@ class DiaryEntry {
   final String? tosKey;
   final String audioFormat;
   final DateTime? uploadedAt;
+  final String? weatherIcon;
+  final String? weatherText;
+  final String? temperature;
+  final String? locationName;
+  final double? locationLat;
+  final double? locationLon;
 
   const DiaryEntry({
     required this.id,
@@ -17,6 +23,12 @@ class DiaryEntry {
     this.tosKey,
     this.audioFormat = 'wav',
     this.uploadedAt,
+    this.weatherIcon,
+    this.weatherText,
+    this.temperature,
+    this.locationName,
+    this.locationLat,
+    this.locationLon,
   });
 
   String get displayTitle =>
@@ -32,4 +44,71 @@ class DiaryEntry {
     final seconds = durationSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
+
+  /// 天气摘要文本，如 "海淀区  ☁️ 24°"，无天气时返回空字符串
+  String get weatherDisplay {
+    final parts = <String>[];
+    if (locationName != null) parts.add(locationName!);
+    if (weatherIcon != null) {
+      final emoji = _weatherEmoji[weatherIcon!] ?? weatherText ?? '';
+      if (emoji.isNotEmpty) parts.add(emoji);
+    }
+    if (temperature != null) parts.add('$temperature°');
+    return parts.join('  ');
+  }
+
+  static const _weatherEmoji = {
+    '100': '☀️',
+    '101': '🌤️',
+    '102': '⛅',
+    '103': '⛅',
+    '104': '☁️',
+    '150': '☀️',
+    '151': '🌤️',
+    '300': '🌧️',
+    '301': '⛈️',
+    '302': '⛈️',
+    '303': '⛈️',
+    '304': '⛈️',
+    '305': '🌧️',
+    '306': '🌧️',
+    '307': '🌧️',
+    '308': '🌧️',
+    '309': '🌧️',
+    '310': '🌧️',
+    '311': '🌧️',
+    '312': '🌧️',
+    '313': '🌧️',
+    '314': '🌧️',
+    '315': '🌧️',
+    '399': '🌧️',
+    '400': '🌨️',
+    '401': '🌨️',
+    '402': '🌨️',
+    '403': '🌨️',
+    '404': '🌨️',
+    '405': '🌨️',
+    '406': '🌨️',
+    '407': '🌨️',
+    '408': '🌨️',
+    '409': '🌨️',
+    '499': '🌨️',
+    '500': '🌫️',
+    '501': '🌫️',
+    '502': '🌫️',
+    '503': '🌫️',
+    '504': '🌫️',
+    '507': '🌫️',
+    '508': '🌫️',
+    '509': '🌫️',
+    '510': '🌫️',
+    '511': '🌫️',
+    '512': '🌫️',
+    '513': '🌫️',
+    '514': '🌫️',
+    '515': '🌫️',
+    '900': '🌡️',
+    '901': '🌡️',
+    '999': '🌡️',
+  };
 }
