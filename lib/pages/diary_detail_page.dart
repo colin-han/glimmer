@@ -294,7 +294,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${widget.entry.formattedDate}  ${widget.entry.durationDisplay}',
+                        '${widget.entry.formattedDate}  ${widget.entry.durationDisplay}${widget.entry.weatherDisplay.isNotEmpty ? '  ${widget.entry.weatherDisplay}' : ''}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       if (_tags.isNotEmpty ||
