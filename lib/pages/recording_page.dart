@@ -14,6 +14,8 @@ import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
 import '../services/tos_upload_service.dart';
 import '../services/tts_service.dart';
+import '../services/location_service.dart';
+import '../services/weather_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
@@ -38,6 +40,12 @@ class _RecordingPageState extends State<RecordingPage> {
   final _tosService = TosUploadService();
   final _ttsService = TtsService();
   final _uuid = const Uuid();
+  final _locationService = LocationService();
+  final _weatherService = WeatherService();
+
+  /// 录音期间异步获取的天气+位置信息，保存时注入 DiaryEntry
+  WeatherLocation? _currentWeatherLocation;
+  ({double lat, double lon})? _currentLocation;
 
   RecordingState _state = RecordingState.idle;
   int _recordingSeconds = 0;
@@ -113,6 +121,9 @@ class _RecordingPageState extends State<RecordingPage> {
         }
       });
 
+      // 异步获取位置和天气（不阻塞录音）
+      _fetchWeatherInBackground();
+
       setState(() => _state = RecordingState.recording);
       _startTimer();
     } catch (e) {
@@ -141,6 +152,20 @@ class _RecordingPageState extends State<RecordingPage> {
         });
       }
     });
+  }
+
+  void _fetchWeatherInBackground() {
+    () async {
+      try {
+        final loc = await _locationService.getCurrentLocation();
+        if (loc == null) return;
+        _currentLocation = loc;
+        _currentWeatherLocation =
+            await _weatherService.fetchWeatherAndLocation(loc.lat, loc.lon);
+      } catch (e) {
+        debugPrint('[天气] 获取失败（不阻塞）: $e');
+      }
+    }();
   }
 
   Future<void> _stopAndProcess() async {
@@ -235,6 +260,12 @@ class _RecordingPageState extends State<RecordingPage> {
         tosKey: tosKey,
         audioFormat: 'ogg',
         uploadedAt: DateTime.now(),
+        weatherIcon: _currentWeatherLocation?.icon,
+        weatherText: _currentWeatherLocation?.text,
+        temperature: _currentWeatherLocation?.temp,
+        locationName: _currentWeatherLocation?.locationName,
+        locationLat: _currentLocation?.lat,
+        locationLon: _currentLocation?.lon,
       );
       await _storageService.createEntry(entry);
       debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
@@ -277,6 +308,8 @@ class _RecordingPageState extends State<RecordingPage> {
             _processingStep = 0;
             _recordingSeconds = 0;
             _realtimeText = '';
+            _currentWeatherLocation = null;
+            _currentLocation = null;
           });
         });
       }
@@ -341,6 +374,12 @@ class _RecordingPageState extends State<RecordingPage> {
       durationSeconds: duration,
       createdAt: DateTime.now(),
       audioFormat: audioFormat,
+      weatherIcon: _currentWeatherLocation?.icon,
+      weatherText: _currentWeatherLocation?.text,
+      temperature: _currentWeatherLocation?.temp,
+      locationName: _currentWeatherLocation?.locationName,
+      locationLat: _currentLocation?.lat,
+      locationLon: _currentLocation?.lon,
     );
     await _storageService.createEntry(entry);
     if (mounted) {
