@@ -92,6 +92,72 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _weatherIconMeta = const VerificationMeta(
+    'weatherIcon',
+  );
+  @override
+  late final GeneratedColumn<String> weatherIcon = GeneratedColumn<String>(
+    'weather_icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weatherTextMeta = const VerificationMeta(
+    'weatherText',
+  );
+  @override
+  late final GeneratedColumn<String> weatherText = GeneratedColumn<String>(
+    'weather_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _temperatureMeta = const VerificationMeta(
+    'temperature',
+  );
+  @override
+  late final GeneratedColumn<String> temperature = GeneratedColumn<String>(
+    'temperature',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationNameMeta = const VerificationMeta(
+    'locationName',
+  );
+  @override
+  late final GeneratedColumn<String> locationName = GeneratedColumn<String>(
+    'location_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationLatMeta = const VerificationMeta(
+    'locationLat',
+  );
+  @override
+  late final GeneratedColumn<double> locationLat = GeneratedColumn<double>(
+    'location_lat',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationLonMeta = const VerificationMeta(
+    'locationLon',
+  );
+  @override
+  late final GeneratedColumn<double> locationLon = GeneratedColumn<double>(
+    'location_lon',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -102,6 +168,12 @@ class $DiaryEntriesTable extends DiaryEntries
     tosKey,
     audioFormat,
     uploadedAt,
+    weatherIcon,
+    weatherText,
+    temperature,
+    locationName,
+    locationLat,
+    locationLon,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -176,6 +248,60 @@ class $DiaryEntriesTable extends DiaryEntries
         uploadedAt.isAcceptableOrUnknown(data['uploaded_at']!, _uploadedAtMeta),
       );
     }
+    if (data.containsKey('weather_icon')) {
+      context.handle(
+        _weatherIconMeta,
+        weatherIcon.isAcceptableOrUnknown(
+          data['weather_icon']!,
+          _weatherIconMeta,
+        ),
+      );
+    }
+    if (data.containsKey('weather_text')) {
+      context.handle(
+        _weatherTextMeta,
+        weatherText.isAcceptableOrUnknown(
+          data['weather_text']!,
+          _weatherTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('temperature')) {
+      context.handle(
+        _temperatureMeta,
+        temperature.isAcceptableOrUnknown(
+          data['temperature']!,
+          _temperatureMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_name')) {
+      context.handle(
+        _locationNameMeta,
+        locationName.isAcceptableOrUnknown(
+          data['location_name']!,
+          _locationNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_lat')) {
+      context.handle(
+        _locationLatMeta,
+        locationLat.isAcceptableOrUnknown(
+          data['location_lat']!,
+          _locationLatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_lon')) {
+      context.handle(
+        _locationLonMeta,
+        locationLon.isAcceptableOrUnknown(
+          data['location_lon']!,
+          _locationLonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -217,6 +343,30 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.int,
         data['${effectivePrefix}uploaded_at'],
       ),
+      weatherIcon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weather_icon'],
+      ),
+      weatherText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weather_text'],
+      ),
+      temperature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}temperature'],
+      ),
+      locationName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location_name'],
+      ),
+      locationLat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}location_lat'],
+      ),
+      locationLon: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}location_lon'],
+      ),
     );
   }
 
@@ -235,6 +385,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
   final String? tosKey;
   final String audioFormat;
   final int? uploadedAt;
+  final String? weatherIcon;
+  final String? weatherText;
+  final String? temperature;
+  final String? locationName;
+  final double? locationLat;
+  final double? locationLon;
   const DiaryEntry({
     required this.id,
     required this.title,
@@ -244,6 +400,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     this.tosKey,
     required this.audioFormat,
     this.uploadedAt,
+    this.weatherIcon,
+    this.weatherText,
+    this.temperature,
+    this.locationName,
+    this.locationLat,
+    this.locationLon,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -259,6 +421,24 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     map['audio_format'] = Variable<String>(audioFormat);
     if (!nullToAbsent || uploadedAt != null) {
       map['uploaded_at'] = Variable<int>(uploadedAt);
+    }
+    if (!nullToAbsent || weatherIcon != null) {
+      map['weather_icon'] = Variable<String>(weatherIcon);
+    }
+    if (!nullToAbsent || weatherText != null) {
+      map['weather_text'] = Variable<String>(weatherText);
+    }
+    if (!nullToAbsent || temperature != null) {
+      map['temperature'] = Variable<String>(temperature);
+    }
+    if (!nullToAbsent || locationName != null) {
+      map['location_name'] = Variable<String>(locationName);
+    }
+    if (!nullToAbsent || locationLat != null) {
+      map['location_lat'] = Variable<double>(locationLat);
+    }
+    if (!nullToAbsent || locationLon != null) {
+      map['location_lon'] = Variable<double>(locationLon);
     }
     return map;
   }
@@ -277,6 +457,24 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       uploadedAt: uploadedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(uploadedAt),
+      weatherIcon: weatherIcon == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weatherIcon),
+      weatherText: weatherText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weatherText),
+      temperature: temperature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(temperature),
+      locationName: locationName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationName),
+      locationLat: locationLat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationLat),
+      locationLon: locationLon == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationLon),
     );
   }
 
@@ -294,6 +492,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       tosKey: serializer.fromJson<String?>(json['tosKey']),
       audioFormat: serializer.fromJson<String>(json['audioFormat']),
       uploadedAt: serializer.fromJson<int?>(json['uploadedAt']),
+      weatherIcon: serializer.fromJson<String?>(json['weatherIcon']),
+      weatherText: serializer.fromJson<String?>(json['weatherText']),
+      temperature: serializer.fromJson<String?>(json['temperature']),
+      locationName: serializer.fromJson<String?>(json['locationName']),
+      locationLat: serializer.fromJson<double?>(json['locationLat']),
+      locationLon: serializer.fromJson<double?>(json['locationLon']),
     );
   }
   @override
@@ -308,6 +512,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       'tosKey': serializer.toJson<String?>(tosKey),
       'audioFormat': serializer.toJson<String>(audioFormat),
       'uploadedAt': serializer.toJson<int?>(uploadedAt),
+      'weatherIcon': serializer.toJson<String?>(weatherIcon),
+      'weatherText': serializer.toJson<String?>(weatherText),
+      'temperature': serializer.toJson<String?>(temperature),
+      'locationName': serializer.toJson<String?>(locationName),
+      'locationLat': serializer.toJson<double?>(locationLat),
+      'locationLon': serializer.toJson<double?>(locationLon),
     };
   }
 
@@ -320,6 +530,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     Value<String?> tosKey = const Value.absent(),
     String? audioFormat,
     Value<int?> uploadedAt = const Value.absent(),
+    Value<String?> weatherIcon = const Value.absent(),
+    Value<String?> weatherText = const Value.absent(),
+    Value<String?> temperature = const Value.absent(),
+    Value<String?> locationName = const Value.absent(),
+    Value<double?> locationLat = const Value.absent(),
+    Value<double?> locationLon = const Value.absent(),
   }) => DiaryEntry(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -329,6 +545,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     tosKey: tosKey.present ? tosKey.value : this.tosKey,
     audioFormat: audioFormat ?? this.audioFormat,
     uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
+    weatherIcon: weatherIcon.present ? weatherIcon.value : this.weatherIcon,
+    weatherText: weatherText.present ? weatherText.value : this.weatherText,
+    temperature: temperature.present ? temperature.value : this.temperature,
+    locationName: locationName.present ? locationName.value : this.locationName,
+    locationLat: locationLat.present ? locationLat.value : this.locationLat,
+    locationLon: locationLon.present ? locationLon.value : this.locationLon,
   );
   DiaryEntry copyWithCompanion(DiaryEntriesCompanion data) {
     return DiaryEntry(
@@ -348,6 +570,24 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       uploadedAt: data.uploadedAt.present
           ? data.uploadedAt.value
           : this.uploadedAt,
+      weatherIcon: data.weatherIcon.present
+          ? data.weatherIcon.value
+          : this.weatherIcon,
+      weatherText: data.weatherText.present
+          ? data.weatherText.value
+          : this.weatherText,
+      temperature: data.temperature.present
+          ? data.temperature.value
+          : this.temperature,
+      locationName: data.locationName.present
+          ? data.locationName.value
+          : this.locationName,
+      locationLat: data.locationLat.present
+          ? data.locationLat.value
+          : this.locationLat,
+      locationLon: data.locationLon.present
+          ? data.locationLon.value
+          : this.locationLon,
     );
   }
 
@@ -361,7 +601,13 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ..write('createdAt: $createdAt, ')
           ..write('tosKey: $tosKey, ')
           ..write('audioFormat: $audioFormat, ')
-          ..write('uploadedAt: $uploadedAt')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('weatherIcon: $weatherIcon, ')
+          ..write('weatherText: $weatherText, ')
+          ..write('temperature: $temperature, ')
+          ..write('locationName: $locationName, ')
+          ..write('locationLat: $locationLat, ')
+          ..write('locationLon: $locationLon')
           ..write(')'))
         .toString();
   }
@@ -376,6 +622,12 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     tosKey,
     audioFormat,
     uploadedAt,
+    weatherIcon,
+    weatherText,
+    temperature,
+    locationName,
+    locationLat,
+    locationLon,
   );
   @override
   bool operator ==(Object other) =>
@@ -388,7 +640,13 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           other.createdAt == this.createdAt &&
           other.tosKey == this.tosKey &&
           other.audioFormat == this.audioFormat &&
-          other.uploadedAt == this.uploadedAt);
+          other.uploadedAt == this.uploadedAt &&
+          other.weatherIcon == this.weatherIcon &&
+          other.weatherText == this.weatherText &&
+          other.temperature == this.temperature &&
+          other.locationName == this.locationName &&
+          other.locationLat == this.locationLat &&
+          other.locationLon == this.locationLon);
 }
 
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
@@ -400,6 +658,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
   final Value<String?> tosKey;
   final Value<String> audioFormat;
   final Value<int?> uploadedAt;
+  final Value<String?> weatherIcon;
+  final Value<String?> weatherText;
+  final Value<String?> temperature;
+  final Value<String?> locationName;
+  final Value<double?> locationLat;
+  final Value<double?> locationLon;
   final Value<int> rowid;
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
@@ -410,6 +674,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.tosKey = const Value.absent(),
     this.audioFormat = const Value.absent(),
     this.uploadedAt = const Value.absent(),
+    this.weatherIcon = const Value.absent(),
+    this.weatherText = const Value.absent(),
+    this.temperature = const Value.absent(),
+    this.locationName = const Value.absent(),
+    this.locationLat = const Value.absent(),
+    this.locationLon = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiaryEntriesCompanion.insert({
@@ -421,6 +691,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.tosKey = const Value.absent(),
     this.audioFormat = const Value.absent(),
     this.uploadedAt = const Value.absent(),
+    this.weatherIcon = const Value.absent(),
+    this.weatherText = const Value.absent(),
+    this.temperature = const Value.absent(),
+    this.locationName = const Value.absent(),
+    this.locationLat = const Value.absent(),
+    this.locationLon = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -436,6 +712,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Expression<String>? tosKey,
     Expression<String>? audioFormat,
     Expression<int>? uploadedAt,
+    Expression<String>? weatherIcon,
+    Expression<String>? weatherText,
+    Expression<String>? temperature,
+    Expression<String>? locationName,
+    Expression<double>? locationLat,
+    Expression<double>? locationLon,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -447,6 +729,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       if (tosKey != null) 'tos_key': tosKey,
       if (audioFormat != null) 'audio_format': audioFormat,
       if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (weatherIcon != null) 'weather_icon': weatherIcon,
+      if (weatherText != null) 'weather_text': weatherText,
+      if (temperature != null) 'temperature': temperature,
+      if (locationName != null) 'location_name': locationName,
+      if (locationLat != null) 'location_lat': locationLat,
+      if (locationLon != null) 'location_lon': locationLon,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -460,6 +748,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Value<String?>? tosKey,
     Value<String>? audioFormat,
     Value<int?>? uploadedAt,
+    Value<String?>? weatherIcon,
+    Value<String?>? weatherText,
+    Value<String?>? temperature,
+    Value<String?>? locationName,
+    Value<double?>? locationLat,
+    Value<double?>? locationLon,
     Value<int>? rowid,
   }) {
     return DiaryEntriesCompanion(
@@ -471,6 +765,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       tosKey: tosKey ?? this.tosKey,
       audioFormat: audioFormat ?? this.audioFormat,
       uploadedAt: uploadedAt ?? this.uploadedAt,
+      weatherIcon: weatherIcon ?? this.weatherIcon,
+      weatherText: weatherText ?? this.weatherText,
+      temperature: temperature ?? this.temperature,
+      locationName: locationName ?? this.locationName,
+      locationLat: locationLat ?? this.locationLat,
+      locationLon: locationLon ?? this.locationLon,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -502,6 +802,24 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     if (uploadedAt.present) {
       map['uploaded_at'] = Variable<int>(uploadedAt.value);
     }
+    if (weatherIcon.present) {
+      map['weather_icon'] = Variable<String>(weatherIcon.value);
+    }
+    if (weatherText.present) {
+      map['weather_text'] = Variable<String>(weatherText.value);
+    }
+    if (temperature.present) {
+      map['temperature'] = Variable<String>(temperature.value);
+    }
+    if (locationName.present) {
+      map['location_name'] = Variable<String>(locationName.value);
+    }
+    if (locationLat.present) {
+      map['location_lat'] = Variable<double>(locationLat.value);
+    }
+    if (locationLon.present) {
+      map['location_lon'] = Variable<double>(locationLon.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -519,6 +837,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
           ..write('tosKey: $tosKey, ')
           ..write('audioFormat: $audioFormat, ')
           ..write('uploadedAt: $uploadedAt, ')
+          ..write('weatherIcon: $weatherIcon, ')
+          ..write('weatherText: $weatherText, ')
+          ..write('temperature: $temperature, ')
+          ..write('locationName: $locationName, ')
+          ..write('locationLat: $locationLat, ')
+          ..write('locationLon: $locationLon, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1234,6 +1558,12 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       Value<String?> tosKey,
       Value<String> audioFormat,
       Value<int?> uploadedAt,
+      Value<String?> weatherIcon,
+      Value<String?> weatherText,
+      Value<String?> temperature,
+      Value<String?> locationName,
+      Value<double?> locationLat,
+      Value<double?> locationLon,
       Value<int> rowid,
     });
 typedef $$DiaryEntriesTableUpdateCompanionBuilder =
@@ -1246,6 +1576,12 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<String?> tosKey,
       Value<String> audioFormat,
       Value<int?> uploadedAt,
+      Value<String?> weatherIcon,
+      Value<String?> weatherText,
+      Value<String?> temperature,
+      Value<String?> locationName,
+      Value<double?> locationLat,
+      Value<double?> locationLon,
       Value<int> rowid,
     });
 
@@ -1327,6 +1663,36 @@ class $$DiaryEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get weatherIcon => $composableBuilder(
+    column: $table.weatherIcon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weatherText => $composableBuilder(
+    column: $table.weatherText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get temperature => $composableBuilder(
+    column: $table.temperature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get locationLat => $composableBuilder(
+    column: $table.locationLat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get locationLon => $composableBuilder(
+    column: $table.locationLon,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> diaryTagRelationsRefs(
     Expression<bool> Function($$DiaryTagRelationsTableFilterComposer f) f,
   ) {
@@ -1401,6 +1767,36 @@ class $$DiaryEntriesTableOrderingComposer
     column: $table.uploadedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get weatherIcon => $composableBuilder(
+    column: $table.weatherIcon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weatherText => $composableBuilder(
+    column: $table.weatherText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get temperature => $composableBuilder(
+    column: $table.temperature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get locationLat => $composableBuilder(
+    column: $table.locationLat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get locationLon => $composableBuilder(
+    column: $table.locationLon,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DiaryEntriesTableAnnotationComposer
@@ -1441,6 +1837,36 @@ class $$DiaryEntriesTableAnnotationComposer
 
   GeneratedColumn<int> get uploadedAt => $composableBuilder(
     column: $table.uploadedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get weatherIcon => $composableBuilder(
+    column: $table.weatherIcon,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get weatherText => $composableBuilder(
+    column: $table.weatherText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get temperature => $composableBuilder(
+    column: $table.temperature,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get locationLat => $composableBuilder(
+    column: $table.locationLat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get locationLon => $composableBuilder(
+    column: $table.locationLon,
     builder: (column) => column,
   );
 
@@ -1507,6 +1933,12 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> tosKey = const Value.absent(),
                 Value<String> audioFormat = const Value.absent(),
                 Value<int?> uploadedAt = const Value.absent(),
+                Value<String?> weatherIcon = const Value.absent(),
+                Value<String?> weatherText = const Value.absent(),
+                Value<String?> temperature = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
+                Value<double?> locationLat = const Value.absent(),
+                Value<double?> locationLon = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion(
                 id: id,
@@ -1517,6 +1949,12 @@ class $$DiaryEntriesTableTableManager
                 tosKey: tosKey,
                 audioFormat: audioFormat,
                 uploadedAt: uploadedAt,
+                weatherIcon: weatherIcon,
+                weatherText: weatherText,
+                temperature: temperature,
+                locationName: locationName,
+                locationLat: locationLat,
+                locationLon: locationLon,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1529,6 +1967,12 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> tosKey = const Value.absent(),
                 Value<String> audioFormat = const Value.absent(),
                 Value<int?> uploadedAt = const Value.absent(),
+                Value<String?> weatherIcon = const Value.absent(),
+                Value<String?> weatherText = const Value.absent(),
+                Value<String?> temperature = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
+                Value<double?> locationLat = const Value.absent(),
+                Value<double?> locationLon = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion.insert(
                 id: id,
@@ -1539,6 +1983,12 @@ class $$DiaryEntriesTableTableManager
                 tosKey: tosKey,
                 audioFormat: audioFormat,
                 uploadedAt: uploadedAt,
+                weatherIcon: weatherIcon,
+                weatherText: weatherText,
+                temperature: temperature,
+                locationName: locationName,
+                locationLat: locationLat,
+                locationLon: locationLon,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -9,6 +9,12 @@ class DiaryEntries extends Table {
   TextColumn get tosKey => text().nullable()();
   TextColumn get audioFormat => text().withDefault(const Constant('wav'))();
   IntColumn get uploadedAt => integer().nullable()();
+  TextColumn get weatherIcon => text().nullable()();
+  TextColumn get weatherText => text().nullable()();
+  TextColumn get temperature => text().nullable()();
+  TextColumn get locationName => text().nullable()();
+  RealColumn get locationLat => real().nullable()();
+  RealColumn get locationLon => real().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

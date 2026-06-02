@@ -14,7 +14,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -30,6 +30,14 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(diaryEntries, diaryEntries.tosKey);
             await m.addColumn(diaryEntries, diaryEntries.audioFormat);
             await m.addColumn(diaryEntries, diaryEntries.uploadedAt);
+          }
+          if (from < 4) {
+            await m.addColumn(diaryEntries, diaryEntries.weatherIcon);
+            await m.addColumn(diaryEntries, diaryEntries.weatherText);
+            await m.addColumn(diaryEntries, diaryEntries.temperature);
+            await m.addColumn(diaryEntries, diaryEntries.locationName);
+            await m.addColumn(diaryEntries, diaryEntries.locationLat);
+            await m.addColumn(diaryEntries, diaryEntries.locationLon);
           }
         },
       );
