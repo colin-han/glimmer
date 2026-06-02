@@ -50,6 +50,7 @@ dependencies:
   flutter_opus: ^1.0.4
   crypto: ^3.0.7
   archive: ^4.0.7
+  geolocator: ^13.0.0
 
 dev_dependencies:
   flutter_test:
