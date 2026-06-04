@@ -15,6 +15,7 @@ class DiaryEntries extends Table {
   TextColumn get locationName => text().nullable()();
   RealColumn get locationLat => real().nullable()();
   RealColumn get locationLon => real().nullable()();
+  TextColumn get status => text().withDefault(const Constant('completed'))();
 
   @override
   Set<Column> get primaryKey => {id};

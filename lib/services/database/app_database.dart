@@ -14,7 +14,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +39,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(diaryEntries, diaryEntries.locationLat);
             await m.addColumn(diaryEntries, diaryEntries.locationLon);
           }
+          if (from < 5) {
+            await m.addColumn(diaryEntries, diaryEntries.status);
+          }
         },
       );
 
@@ -56,6 +59,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertEntry(DiaryEntriesCompanion entry) {
     return into(diaryEntries).insert(entry);
+  }
+
+  Future<void> updateEntry(DiaryEntriesCompanion entry) {
+    return (update(diaryEntries)..where((t) => t.id.equals(entry.id.value)))
+        .write(entry);
   }
 
   Future<void> deleteEntry(String id) {

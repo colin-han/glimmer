@@ -43,6 +43,27 @@ class DiaryStorageService {
       locationName: Value(entry.locationName),
       locationLat: Value(entry.locationLat),
       locationLon: Value(entry.locationLon),
+      status: Value(entry.status.name),
+    ));
+  }
+
+  Future<void> updateEntry(DiaryEntry entry) async {
+    await _db.updateEntry(DiaryEntriesCompanion(
+      id: Value(entry.id),
+      title: Value(entry.title),
+      folderPath: Value(entry.folderPath),
+      durationSeconds: Value(entry.durationSeconds),
+      createdAt: Value(entry.createdAt.millisecondsSinceEpoch),
+      tosKey: Value(entry.tosKey),
+      audioFormat: Value(entry.audioFormat),
+      uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+      weatherIcon: Value(entry.weatherIcon),
+      weatherText: Value(entry.weatherText),
+      temperature: Value(entry.temperature),
+      locationName: Value(entry.locationName),
+      locationLat: Value(entry.locationLat),
+      locationLon: Value(entry.locationLon),
+      status: Value(entry.status.name),
     ));
   }
 
@@ -116,6 +137,11 @@ class DiaryStorageService {
 
   // --- 查询 ---
 
+  EntryStatus _parseStatus(String? status) {
+    if (status == 'processing') return EntryStatus.processing;
+    return EntryStatus.completed;
+  }
+
   Future<List<DiaryEntry>> getAllEntries() async {
     final rows = await _db.getAllEntries();
     return rows
@@ -136,6 +162,7 @@ class DiaryStorageService {
               locationName: r.locationName,
               locationLat: r.locationLat,
               locationLon: r.locationLon,
+              status: _parseStatus(r.status),
             ))
         .toList();
   }
@@ -159,6 +186,7 @@ class DiaryStorageService {
       locationName: r.locationName,
       locationLat: r.locationLat,
       locationLon: r.locationLon,
+      status: _parseStatus(r.status),
     );
   }
 

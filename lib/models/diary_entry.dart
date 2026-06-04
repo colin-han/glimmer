@@ -1,3 +1,5 @@
+enum EntryStatus { processing, completed }
+
 class DiaryEntry {
   final String id;
   final String title;
@@ -13,6 +15,7 @@ class DiaryEntry {
   final String? locationName;
   final double? locationLat;
   final double? locationLon;
+  final EntryStatus status;
 
   const DiaryEntry({
     required this.id,
@@ -29,6 +32,7 @@ class DiaryEntry {
     this.locationName,
     this.locationLat,
     this.locationLon,
+    this.status = EntryStatus.completed,
   });
 
   String get displayTitle =>

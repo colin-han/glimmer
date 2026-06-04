@@ -6,21 +6,16 @@ import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
-import '../models/utterance.dart';
-import '../services/asr_service.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/diary_storage_service.dart';
-import '../services/llm_service.dart';
 import '../services/realtime_asr_service.dart';
-import '../services/tos_upload_service.dart';
+import '../services/recording_processor.dart';
 import '../services/tts_service.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
-import '../widgets/step_progress_indicator.dart';
-import 'diary_detail_page.dart';
 import 'diary_list_page.dart';
 import 'settings_page.dart';
 
@@ -34,10 +29,7 @@ class RecordingPage extends StatefulWidget {
 class _RecordingPageState extends State<RecordingPage> {
   final _recorderService = AudioRecorderService();
   final _storageService = DiaryStorageService();
-  final _asrService = AsrService();
-  final _llmService = LlmService();
   final _realtimeAsr = RealtimeAsrService();
-  final _tosService = TosUploadService();
   final _ttsService = TtsService();
   final _uuid = const Uuid();
   final _locationService = LocationService();
@@ -56,12 +48,11 @@ class _RecordingPageState extends State<RecordingPage> {
   StreamSubscription<Uint8List>? _audioStreamSubscription;
   StreamSubscription<String>? _partialResultSubscription;
 
-  int _processingStep = 0;
-  bool _hasError = false;
-  String _errorMessage = '';
-
   String _realtimeText = '';
   final _realtimeScrollController = ScrollController();
+
+  int _pendingCount = 0;
+  StreamSubscription<int>? _pendingCountSubscription;
 
   @override
   void dispose() {
@@ -69,6 +60,7 @@ class _RecordingPageState extends State<RecordingPage> {
     _realtimeScrollController.dispose();
     _audioStreamSubscription?.cancel();
     _partialResultSubscription?.cancel();
+    _pendingCountSubscription?.cancel();
     _recorderService.dispose();
     _realtimeAsr.disconnect();
     super.dispose();
@@ -191,143 +183,41 @@ class _RecordingPageState extends State<RecordingPage> {
     await _partialResultSubscription?.cancel();
     _partialResultSubscription = null;
 
+    // 捕获当前状态
+    final folderId = _currentFolderId!;
+    final folderPath = _currentFolderPath!;
     final duration = _recordingSeconds;
+    final weather = _currentWeatherLocation;
+    final location = _currentLocation;
+    final createdAt = DateTime.now();
 
-    setState(() {
-      _state = RecordingState.processing;
-      _processingStep = 0;
-      _hasError = false;
-      _errorMessage = '';
-    });
+    // 停止录音，获取文件路径
+    final recordingResult = await _recorderService.stopRecording();
 
-    String? tosKey;
+    // TTS 应答
+    _speakReply();
 
-    try {
-      final sw = Stopwatch()..start();
-      final recordingResult = await _recorderService.stopRecording();
-      debugPrint('[流程] stopRecording 完成: ${sw.elapsedMilliseconds}ms');
+    // 提交后台处理
+    RecordingProcessor.instance.enqueue(ProcessingTask(
+      folderId: folderId,
+      folderPath: folderPath,
+      audioFilePath: recordingResult.filePath,
+      durationSeconds: duration,
+      createdAt: createdAt,
+      weatherLocation: weather,
+      location: location,
+    ));
 
-      // TTS 触发点 1：甜美女声应答（固定模板，无需等 LLM）
-      _speakReply();
-
-      // 步骤 1: 上传 OGG 到 TOS + Flash ASR 识别
-      setState(() => _processingStep = 1);
-      AsrResult? asrResult;
-      try {
-        // 上传 OGG 到 TOS
-        tosKey = await _tosService.uploadAudio(
-          recordingResult.filePath,
-          _currentFolderId!,
-        );
-        debugPrint('[流程] TOS 上传完成: $tosKey');
-
-        // 生成预签名 URL
-        final presignedUrl = await _tosService.getPresignedUrl(tosKey);
-        debugPrint('[流程] 预签名 URL 生成完成');
-
-        // 用 URL 调 Flash ASR
-        asrResult = await _asrService.transcribeFromUrl(presignedUrl);
-        await _storageService.writeTranscriptJson(
-            _currentFolderPath!,
-            TranscriptData(
-                version: 1, utterances: asrResult.utterances));
-        debugPrint('[流程] Flash ASR 完成: ${sw.elapsedMilliseconds}ms');
-      } catch (e) {
-        debugPrint('[流程] TOS 上传或 ASR 失败: $e');
-        await _saveEntryAndNavigate('未命名日记', duration, audioFormat: 'ogg');
-        return;
-      }
-
-      // 步骤 2: LLM 润色（保留时间戳）
-      setState(() => _processingStep = 2);
-      LlmResult? llmResult;
-      try {
-        llmResult = await _llmService.summarize(asrResult.utterances);
-        await _storageService.writeLlmResult(
-            _currentFolderPath!,
-            LlmResultData(
-              version: 1,
-              title: llmResult.title,
-              content: llmResult.content,
-              summary: llmResult.summary,
-              outline: llmResult.outline,
-              utterances: llmResult.utterances,
-            ));
-        debugPrint('[流程] LLM summarize 完成: ${sw.elapsedMilliseconds}ms');
-      } catch (e) {
-        debugPrint('[流程] LLM 失败: $e');
-        await _saveEntryAndNavigate('未命名日记', duration, audioFormat: 'ogg');
-        return;
-      }
-
-      // 步骤 3: 保存元数据（防御性保存：LLM 成功后立即入库）
-      setState(() => _processingStep = 3);
-      final entry = DiaryEntry(
-        id: _currentFolderId!,
-        title: llmResult.title,
-        folderPath: _currentFolderPath!,
-        durationSeconds: duration,
-        createdAt: DateTime.now(),
-        tosKey: tosKey,
-        audioFormat: 'ogg',
-        uploadedAt: DateTime.now(),
-        weatherIcon: _currentWeatherLocation?.icon,
-        weatherText: _currentWeatherLocation?.text,
-        temperature: _currentWeatherLocation?.temp,
-        locationName: _currentWeatherLocation?.locationName,
-        locationLat: _currentLocation?.lat,
-        locationLon: _currentLocation?.lon,
-      );
-      await _storageService.createEntry(entry);
-      debugPrint('[流程] 保存元数据完成: ${sw.elapsedMilliseconds}ms');
-
-      // TTS 触发点 2：低沉男声播报总结（失败不阻塞）
-      _speakSummary(llmResult.outline);
-
-      // 步骤 4: 自动归类（失败不阻塞）
-      setState(() => _processingStep = 4);
-      try {
-        final allTags = await _storageService.getAllTags();
-        final tagsWithPrompt =
-            allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
-        if (tagsWithPrompt.isNotEmpty) {
-          final tagInfos = tagsWithPrompt
-              .map((t) => TagInfo(
-                  id: t.id, name: t.name, matchPrompt: t.matchPrompt))
-              .toList();
-          final matchedTagIds =
-              await _llmService.matchTags(llmResult.content, tagInfos);
-          if (matchedTagIds.isNotEmpty) {
-            await _storageService.autoTagDiary(
-                _currentFolderId!, matchedTagIds);
-          }
-          debugPrint('[流程] 自动归类完成: 匹配 ${matchedTagIds.length} 个标签');
-        }
-      } catch (e) {
-        debugPrint('[流程] 自动归类失败（不阻塞）: $e');
-      }
-
-      if (mounted) {
-        Navigator.of(context)
-            .push(MaterialPageRoute(
-              builder: (_) => DiaryDetailPage(entry: entry),
-            ))
-            .then((_) {
-          setState(() {
-            _state = RecordingState.idle;
-            _hasError = false;
-            _processingStep = 0;
-            _recordingSeconds = 0;
-            _realtimeText = '';
-            _currentWeatherLocation = null;
-            _currentLocation = null;
-          });
-        });
-      }
-    } catch (e) {
+    // 立即回到 idle
+    if (mounted) {
       setState(() {
-        _hasError = true;
-        _errorMessage = e.toString();
+        _state = RecordingState.idle;
+        _recordingSeconds = 0;
+        _realtimeText = '';
+        _currentWeatherLocation = null;
+        _currentLocation = null;
+        _currentFolderId = null;
+        _currentFolderPath = null;
       });
     }
   }
@@ -357,57 +247,19 @@ class _RecordingPageState extends State<RecordingPage> {
     }();
   }
 
-  void _speakSummary(String outline) {
-    if (outline.isEmpty) return;
-    () async {
-      try {
-        if (!await SettingsPage.isTtsEnabled()) return;
-        debugPrint('[播报] 触发点2 开始: text="$outline"');
-        await _ttsService.speak(outline, VoiceType.maleDeep);
-        debugPrint('[播报] 触发点2 完成');
-      } catch (e) {
-        debugPrint('TTS 总结播报失败: $e');
-      }
-    }();
-  }
-
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),
     );
   }
 
-  Future<void> _saveEntryAndNavigate(String title, int duration, {String audioFormat = 'wav'}) async {
-    final entry = DiaryEntry(
-      id: _currentFolderId!,
-      title: title,
-      folderPath: _currentFolderPath!,
-      durationSeconds: duration,
-      createdAt: DateTime.now(),
-      audioFormat: audioFormat,
-      weatherIcon: _currentWeatherLocation?.icon,
-      weatherText: _currentWeatherLocation?.text,
-      temperature: _currentWeatherLocation?.temp,
-      locationName: _currentWeatherLocation?.locationName,
-      locationLat: _currentLocation?.lat,
-      locationLon: _currentLocation?.lon,
-    );
-    await _storageService.createEntry(entry);
-    if (mounted) {
-      Navigator.of(context)
-          .push(MaterialPageRoute(
-            builder: (_) => DiaryDetailPage(entry: entry),
-          ))
-          .then((_) {
-        setState(() {
-          _state = RecordingState.idle;
-          _hasError = false;
-          _processingStep = 0;
-          _recordingSeconds = 0;
-          _realtimeText = '';
-        });
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _pendingCountSubscription =
+        RecordingProcessor.instance.pendingCountStream.listen((count) {
+      if (mounted) setState(() => _pendingCount = count);
+    });
   }
 
   @override
@@ -425,7 +277,11 @@ class _RecordingPageState extends State<RecordingPage> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: Badge(
+              isLabelVisible: _pendingCount > 0,
+              label: Text('$_pendingCount'),
+              child: const Icon(Icons.history),
+            ),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -441,20 +297,6 @@ class _RecordingPageState extends State<RecordingPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (_state == RecordingState.processing) ...[
-                StepProgressIndicator(
-                  currentStep: _processingStep,
-                  hasError: _hasError,
-                ),
-                const SizedBox(height: 32),
-                if (_hasError)
-                  Text(_errorMessage,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center)
-                else
-                  const Text('正在处理中...'),
-                const SizedBox(height: 24),
-              ],
               AudioWaveform(
                 amplitudeStream: _amplitudeStream,
                 color: _state == RecordingState.recording
@@ -493,20 +335,6 @@ class _RecordingPageState extends State<RecordingPage> {
                 onTap: _onTap,
                 recordingSeconds: _recordingSeconds,
               ),
-              if (_hasError) ...[
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _state = RecordingState.idle;
-                      _hasError = false;
-                      _processingStep = 0;
-                      _realtimeText = '';
-                    });
-                  },
-                  child: const Text('重新开始'),
-                ),
-              ],
             ],
           ),
         ),

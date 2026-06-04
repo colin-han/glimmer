@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
+import '../services/recording_processor.dart';
 import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
 import 'diary_detail_page.dart';
@@ -29,10 +32,22 @@ class _DiaryListPageState extends State<DiaryListPage> {
   bool _isSearching = false;
   final _searchController = TextEditingController();
 
+  List<ProcessingTask> _processingTasks = [];
+  StreamSubscription<List<ProcessingTask>>? _tasksSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _tasksSubscription =
+        RecordingProcessor.instance.tasksStream.listen((tasks) {
+      final prevCount = _processingTasks.length;
+      setState(() => _processingTasks = tasks);
+      // 任务减少说明有任务完成，刷新列表
+      if (tasks.length < prevCount) {
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -78,6 +93,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   @override
   void dispose() {
+    _tasksSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -125,7 +141,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _entries.isEmpty
+          : _entries.isEmpty && _processingTasks.isEmpty
               ? _buildEmptyState()
               : Column(
                   children: [
@@ -285,6 +301,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   Widget _buildEntryCard(DiaryEntry entry) {
     final tags = _entryTags[entry.id] ?? [];
+    final isProcessing = entry.status == EntryStatus.processing;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -323,13 +340,21 @@ class _DiaryListPageState extends State<DiaryListPage> {
           child: Text(
               '${entry.formattedDate}  ${entry.durationDisplay}${entry.weatherDisplay.isNotEmpty ? '  ${entry.weatherDisplay}' : ''}'),
         ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(
-                  builder: (_) => DiaryDetailPage(entry: entry)))
-              .then((_) => _loadData());
-        },
+        trailing: isProcessing
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400]),
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: isProcessing
+            ? null
+            : () {
+                Navigator.of(context)
+                    .push(MaterialPageRoute(
+                        builder: (_) => DiaryDetailPage(entry: entry)))
+                    .then((_) => _loadData());
+              },
       ),
     );
   }

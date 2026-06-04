@@ -158,6 +158,16 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('completed'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -174,6 +184,7 @@ class $DiaryEntriesTable extends DiaryEntries
     locationName,
     locationLat,
     locationLon,
+    status,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -302,6 +313,12 @@ class $DiaryEntriesTable extends DiaryEntries
         ),
       );
     }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
     return context;
   }
 
@@ -367,6 +384,10 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.double,
         data['${effectivePrefix}location_lon'],
       ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
     );
   }
 
@@ -391,6 +412,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
   final String? locationName;
   final double? locationLat;
   final double? locationLon;
+  final String status;
   const DiaryEntry({
     required this.id,
     required this.title,
@@ -406,6 +428,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     this.locationName,
     this.locationLat,
     this.locationLon,
+    required this.status,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -440,6 +463,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     if (!nullToAbsent || locationLon != null) {
       map['location_lon'] = Variable<double>(locationLon);
     }
+    map['status'] = Variable<String>(status);
     return map;
   }
 
@@ -475,6 +499,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       locationLon: locationLon == null && nullToAbsent
           ? const Value.absent()
           : Value(locationLon),
+      status: Value(status),
     );
   }
 
@@ -498,6 +523,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       locationName: serializer.fromJson<String?>(json['locationName']),
       locationLat: serializer.fromJson<double?>(json['locationLat']),
       locationLon: serializer.fromJson<double?>(json['locationLon']),
+      status: serializer.fromJson<String>(json['status']),
     );
   }
   @override
@@ -518,6 +544,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       'locationName': serializer.toJson<String?>(locationName),
       'locationLat': serializer.toJson<double?>(locationLat),
       'locationLon': serializer.toJson<double?>(locationLon),
+      'status': serializer.toJson<String>(status),
     };
   }
 
@@ -536,6 +563,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     Value<String?> locationName = const Value.absent(),
     Value<double?> locationLat = const Value.absent(),
     Value<double?> locationLon = const Value.absent(),
+    String? status,
   }) => DiaryEntry(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -551,6 +579,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     locationName: locationName.present ? locationName.value : this.locationName,
     locationLat: locationLat.present ? locationLat.value : this.locationLat,
     locationLon: locationLon.present ? locationLon.value : this.locationLon,
+    status: status ?? this.status,
   );
   DiaryEntry copyWithCompanion(DiaryEntriesCompanion data) {
     return DiaryEntry(
@@ -588,6 +617,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       locationLon: data.locationLon.present
           ? data.locationLon.value
           : this.locationLon,
+      status: data.status.present ? data.status.value : this.status,
     );
   }
 
@@ -607,7 +637,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ..write('temperature: $temperature, ')
           ..write('locationName: $locationName, ')
           ..write('locationLat: $locationLat, ')
-          ..write('locationLon: $locationLon')
+          ..write('locationLon: $locationLon, ')
+          ..write('status: $status')
           ..write(')'))
         .toString();
   }
@@ -628,6 +659,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     locationName,
     locationLat,
     locationLon,
+    status,
   );
   @override
   bool operator ==(Object other) =>
@@ -646,7 +678,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           other.temperature == this.temperature &&
           other.locationName == this.locationName &&
           other.locationLat == this.locationLat &&
-          other.locationLon == this.locationLon);
+          other.locationLon == this.locationLon &&
+          other.status == this.status);
 }
 
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
@@ -664,6 +697,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
   final Value<String?> locationName;
   final Value<double?> locationLat;
   final Value<double?> locationLon;
+  final Value<String> status;
   final Value<int> rowid;
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
@@ -680,6 +714,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.locationName = const Value.absent(),
     this.locationLat = const Value.absent(),
     this.locationLon = const Value.absent(),
+    this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiaryEntriesCompanion.insert({
@@ -697,6 +732,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.locationName = const Value.absent(),
     this.locationLat = const Value.absent(),
     this.locationLon = const Value.absent(),
+    this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -718,6 +754,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Expression<String>? locationName,
     Expression<double>? locationLat,
     Expression<double>? locationLon,
+    Expression<String>? status,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -735,6 +772,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       if (locationName != null) 'location_name': locationName,
       if (locationLat != null) 'location_lat': locationLat,
       if (locationLon != null) 'location_lon': locationLon,
+      if (status != null) 'status': status,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -754,6 +792,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Value<String?>? locationName,
     Value<double?>? locationLat,
     Value<double?>? locationLon,
+    Value<String>? status,
     Value<int>? rowid,
   }) {
     return DiaryEntriesCompanion(
@@ -771,6 +810,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       locationName: locationName ?? this.locationName,
       locationLat: locationLat ?? this.locationLat,
       locationLon: locationLon ?? this.locationLon,
+      status: status ?? this.status,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -820,6 +860,9 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     if (locationLon.present) {
       map['location_lon'] = Variable<double>(locationLon.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -843,6 +886,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
           ..write('locationName: $locationName, ')
           ..write('locationLat: $locationLat, ')
           ..write('locationLon: $locationLon, ')
+          ..write('status: $status, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1564,6 +1608,7 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       Value<String?> locationName,
       Value<double?> locationLat,
       Value<double?> locationLon,
+      Value<String> status,
       Value<int> rowid,
     });
 typedef $$DiaryEntriesTableUpdateCompanionBuilder =
@@ -1582,6 +1627,7 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<String?> locationName,
       Value<double?> locationLat,
       Value<double?> locationLon,
+      Value<String> status,
       Value<int> rowid,
     });
 
@@ -1693,6 +1739,11 @@ class $$DiaryEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> diaryTagRelationsRefs(
     Expression<bool> Function($$DiaryTagRelationsTableFilterComposer f) f,
   ) {
@@ -1797,6 +1848,11 @@ class $$DiaryEntriesTableOrderingComposer
     column: $table.locationLon,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DiaryEntriesTableAnnotationComposer
@@ -1870,6 +1926,9 @@ class $$DiaryEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
   Expression<T> diaryTagRelationsRefs<T extends Object>(
     Expression<T> Function($$DiaryTagRelationsTableAnnotationComposer a) f,
   ) {
@@ -1939,6 +1998,7 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> locationName = const Value.absent(),
                 Value<double?> locationLat = const Value.absent(),
                 Value<double?> locationLon = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion(
                 id: id,
@@ -1955,6 +2015,7 @@ class $$DiaryEntriesTableTableManager
                 locationName: locationName,
                 locationLat: locationLat,
                 locationLon: locationLon,
+                status: status,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1973,6 +2034,7 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> locationName = const Value.absent(),
                 Value<double?> locationLat = const Value.absent(),
                 Value<double?> locationLon = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion.insert(
                 id: id,
@@ -1989,6 +2051,7 @@ class $$DiaryEntriesTableTableManager
                 locationName: locationName,
                 locationLat: locationLat,
                 locationLon: locationLon,
+                status: status,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
