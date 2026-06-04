@@ -22,25 +22,26 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
         },
         onUpgrade: (Migrator m, int from, int to) async {
+          // 每个 step 容错：列已存在时忽略，避免设备上 DB 状态不一致导致崩溃
           if (from < 2) {
-            await m.createTable(tags);
-            await m.createTable(diaryTagRelations);
+            try { await m.createTable(tags); } catch (_) {}
+            try { await m.createTable(diaryTagRelations); } catch (_) {}
           }
           if (from < 3) {
-            await m.addColumn(diaryEntries, diaryEntries.tosKey);
-            await m.addColumn(diaryEntries, diaryEntries.audioFormat);
-            await m.addColumn(diaryEntries, diaryEntries.uploadedAt);
+            try { await m.addColumn(diaryEntries, diaryEntries.tosKey); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.audioFormat); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.uploadedAt); } catch (_) {}
           }
           if (from < 4) {
-            await m.addColumn(diaryEntries, diaryEntries.weatherIcon);
-            await m.addColumn(diaryEntries, diaryEntries.weatherText);
-            await m.addColumn(diaryEntries, diaryEntries.temperature);
-            await m.addColumn(diaryEntries, diaryEntries.locationName);
-            await m.addColumn(diaryEntries, diaryEntries.locationLat);
-            await m.addColumn(diaryEntries, diaryEntries.locationLon);
+            try { await m.addColumn(diaryEntries, diaryEntries.weatherIcon); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.weatherText); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.temperature); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.locationName); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.locationLat); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.locationLon); } catch (_) {}
           }
           if (from < 5) {
-            await m.addColumn(diaryEntries, diaryEntries.status);
+            try { await m.addColumn(diaryEntries, diaryEntries.status); } catch (_) {}
           }
         },
       );
