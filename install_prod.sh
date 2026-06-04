@@ -5,6 +5,9 @@ set -e
 
 ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 
+echo "正在清理构建缓存..."
+flutter clean
+
 echo "正在构建 release APK..."
 flutter build apk --release --flavor prod "$@"
 
