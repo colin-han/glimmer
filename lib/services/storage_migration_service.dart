@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageMigrationService {
   static const _versionKey = 'storage_version';
-  static const _currentVersion = 1;
+  static const _currentVersion = 2;
 
   Future<void> runMigrations() async {
     final prefs = await SharedPreferences.getInstance();
@@ -44,22 +44,8 @@ class StorageMigrationService {
 
   Future<void> _runMigration(int version) async {
     switch (version) {
-      case 1:
-        await _migrateV0ToV1();
-        break;
-    }
-  }
-
-  Future<void> _migrateV0ToV1() async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final diariesDir = Directory(p.join(docDir.path, 'diaries'));
-    if (await diariesDir.exists()) {
-      await diariesDir.delete(recursive: true);
-    }
-
-    final dbFile = File(p.join(docDir.path, 'voice_diary.db'));
-    if (await dbFile.exists()) {
-      await dbFile.delete();
+      // v0→v1 已废弃（原始实现会删除 diaries 和数据库，过于危险）
+      // v1→v2: 占位，保留迁移框架供未来使用
     }
   }
 }

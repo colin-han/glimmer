@@ -3,12 +3,12 @@
 
 set -e
 
-APK="build/app/outputs/flutter-apk/app-prod-release.apk"
+ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 
 echo "正在构建 release APK..."
 flutter build apk --release --flavor prod "$@"
 
-echo "正在安装到设备..."
-flutter install --flavor prod
+echo "正在安装到设备（保留数据）..."
+"$ADB" install -r build/app/outputs/flutter-apk/app-prod-release.apk
 
 echo "安装完成 ✓"
