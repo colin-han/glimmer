@@ -321,7 +321,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-              '${entry.formattedDate}  ${entry.durationDisplay}'),
+              '${entry.formattedDate}  ${entry.durationDisplay}${entry.weatherDisplay.isNotEmpty ? '  ${entry.weatherDisplay}' : ''}'),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {

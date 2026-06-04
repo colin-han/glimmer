@@ -37,6 +37,12 @@ class DiaryStorageService {
       tosKey: Value(entry.tosKey),
       audioFormat: Value(entry.audioFormat),
       uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+      weatherIcon: Value(entry.weatherIcon),
+      weatherText: Value(entry.weatherText),
+      temperature: Value(entry.temperature),
+      locationName: Value(entry.locationName),
+      locationLat: Value(entry.locationLat),
+      locationLon: Value(entry.locationLon),
     ));
   }
 
@@ -124,6 +130,12 @@ class DiaryStorageService {
               uploadedAt: r.uploadedAt != null
                   ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
                   : null,
+              weatherIcon: r.weatherIcon,
+              weatherText: r.weatherText,
+              temperature: r.temperature,
+              locationName: r.locationName,
+              locationLat: r.locationLat,
+              locationLon: r.locationLon,
             ))
         .toList();
   }
@@ -141,6 +153,12 @@ class DiaryStorageService {
       uploadedAt: r.uploadedAt != null
           ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
           : null,
+      weatherIcon: r.weatherIcon,
+      weatherText: r.weatherText,
+      temperature: r.temperature,
+      locationName: r.locationName,
+      locationLat: r.locationLat,
+      locationLon: r.locationLon,
     );
   }
 
