@@ -23,7 +23,7 @@ void startCallback() {
 /// 录音 + 处理的 TaskHandler，运行在独立 Dart isolate 中。
 ///
 /// 所有 service 实例必须在此内部创建，不能从 UI 传入。
-/// 通过 [FlutterForegroundTask.sendDataToMain] 向 UI 发送状态，
+/// 通过 [FlutterForegroundTask.saveData] 向 UI 传递状态（轮询方式），
 /// 通过 [onReceiveData] 接收 UI 的 stop 指令。
 class RecordingTaskHandler extends TaskHandler {
   // --- 内部创建的 service 实例 ---
@@ -44,13 +44,30 @@ class RecordingTaskHandler extends TaskHandler {
   StreamSubscription<String>? _partialResultSub;
   StreamSubscription<Amplitude>? _amplitudeSub;
 
+  /// 保存事件状态供 UI 轮询读取
+  Future<void> _emit(String event, {int? duration, int? step, String? entryId, String? error}) async {
+    await FlutterForegroundTask.saveData(key: 'taskEvent', value: event);
+    if (duration != null) {
+      await FlutterForegroundTask.saveData(key: 'taskDuration', value: duration);
+    }
+    if (step != null) {
+      await FlutterForegroundTask.saveData(key: 'taskStep', value: step);
+    }
+    if (entryId != null) {
+      await FlutterForegroundTask.saveData(key: 'taskEntryId', value: entryId);
+    }
+    if (error != null) {
+      await FlutterForegroundTask.saveData(key: 'taskError', value: error);
+    }
+  }
+
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('[TaskHandler] onStart, starter=${starter.name}');
 
     // flutter_dotenv 在 TaskHandler isolate 中未初始化，需手动加载
     try {
-      await dotenv.load();
+      await dotenv.load(fileName: '.env.local');
     } catch (e) {
       debugPrint('[TaskHandler] dotenv.load 失败: $e');
     }
@@ -61,12 +78,7 @@ class RecordingTaskHandler extends TaskHandler {
 
     if (_folderId == null || _folderPath == null) {
       debugPrint('[TaskHandler] 缺少 folderId 或 folderPath，无法启动');
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'failed',
-        'entryId': _folderId ?? '',
-        'step': 0,
-        'error': '缺少 folderId 或 folderPath',
-      });
+      await _emit('failed', entryId: _folderId ?? '', step: 0, error: '缺少 folderId 或 folderPath');
       return;
     }
 
@@ -91,24 +103,20 @@ class RecordingTaskHandler extends TaskHandler {
         }
       });
 
-      // 监听振幅，发送给 UI
+      // 监听振幅，保存供 UI 读取
       _amplitudeSub = _recorderService!
           .onAmplitudeChanged(const Duration(milliseconds: 80))
           .listen((amp) {
-        FlutterForegroundTask.sendDataToMain({
-          'event': 'amplitude',
-          'value': amp.current,
-        });
+        FlutterForegroundTask.saveData(key: 'taskAmplitude', value: amp.current);
       });
 
       // 启动计时器
       _recordingSeconds = 0;
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _recordingSeconds++;
-        FlutterForegroundTask.sendDataToMain({
-          'event': 'recording',
-          'duration': _recordingSeconds,
-        });
+
+        // 保存录音时长供 UI 轮询
+        _emit('recording', duration: _recordingSeconds);
 
         // 更新通知文字
         final minutes = _recordingSeconds ~/ 60;
@@ -125,18 +133,11 @@ class RecordingTaskHandler extends TaskHandler {
         }
       });
 
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'recording',
-        'duration': 0,
-      });
+      await _emit('recording', duration: 0);
+      debugPrint('[TaskHandler] 录音启动成功');
     } catch (e) {
       debugPrint('[TaskHandler] 录音启动失败: $e');
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'failed',
-        'entryId': _folderId ?? '',
-        'step': 0,
-        'error': '录音启动失败: $e',
-      });
+      await _emit('failed', entryId: _folderId ?? '', step: 0, error: '录音启动失败: $e');
     }
   }
 
@@ -147,10 +148,7 @@ class RecordingTaskHandler extends TaskHandler {
     });
 
     _partialResultSub = _realtimeAsr!.onPartialResult.listen((text) {
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'partial',
-        'text': text,
-      });
+      FlutterForegroundTask.saveData(key: 'taskPartial', value: text);
     });
   }
 
@@ -193,10 +191,7 @@ class RecordingTaskHandler extends TaskHandler {
     final duration = _recordingSeconds;
 
     // 通知 UI 进入 processing 状态
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'processing',
-      'step': 0,
-    });
+    await _emit('processing', step: 0);
 
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
@@ -217,10 +212,7 @@ class RecordingTaskHandler extends TaskHandler {
     }
 
     // --- 步骤 1: 上传 TOS + Flash ASR ---
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'processing',
-      'step': 1,
-    });
+    await _emit('processing', step: 1);
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 语音识别...',
@@ -246,32 +238,19 @@ class RecordingTaskHandler extends TaskHandler {
       debugPrint('[TaskHandler] TOS 上传或 ASR 失败: $e');
       // ASR 失败，保存为未命名日记
       await _saveMinimalEntry('未命名日记', duration);
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'failed',
-        'entryId': _folderId!,
-        'step': 1,
-        'error': '语音识别失败: $e',
-      });
+      await _emit('failed', entryId: _folderId!, step: 1, error: '语音识别失败: $e');
       return;
     }
 
     if (asrResult == null) {
       debugPrint('[TaskHandler] ASR 结果为空');
       await _saveMinimalEntry('未命名日记', duration);
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'failed',
-        'entryId': _folderId!,
-        'step': 1,
-        'error': '语音识别结果为空',
-      });
+      await _emit('failed', entryId: _folderId!, step: 1, error: '语音识别结果为空');
       return;
     }
 
     // --- 步骤 2: LLM 润色 ---
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'processing',
-      'step': 2,
-    });
+    await _emit('processing', step: 2);
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - AI 总结...',
@@ -296,20 +275,12 @@ class RecordingTaskHandler extends TaskHandler {
       debugPrint('[TaskHandler] LLM 失败: $e');
       // LLM 失败，保存为未命名日记
       await _saveMinimalEntry('未命名日记', duration);
-      FlutterForegroundTask.sendDataToMain({
-        'event': 'failed',
-        'entryId': _folderId!,
-        'step': 2,
-        'error': 'AI 总结失败: $e',
-      });
+      await _emit('failed', entryId: _folderId!, step: 2, error: 'AI 总结失败: $e');
       return;
     }
 
     // --- 步骤 3: 保存元数据 ---
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'processing',
-      'step': 3,
-    });
+    await _emit('processing', step: 3);
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 保存数据...',
@@ -329,10 +300,7 @@ class RecordingTaskHandler extends TaskHandler {
     debugPrint('[TaskHandler] 保存元数据完成');
 
     // --- 步骤 4: 自动归类（非阻塞） ---
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'processing',
-      'step': 4,
-    });
+    await _emit('processing', step: 4);
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 自动归类...',
@@ -365,10 +333,8 @@ class RecordingTaskHandler extends TaskHandler {
       notificationText: '语音日记 - ${llmResult.title}',
     );
 
-    FlutterForegroundTask.sendDataToMain({
-      'event': 'completed',
-      'entryId': _folderId!,
-    });
+    debugPrint('[TaskHandler] 发送 completed 事件');
+    await _emit('completed', entryId: _folderId!);
   }
 
   /// 保存最小元数据条目（用于失败场景）

@@ -25,11 +25,6 @@ class AudioRecorderService {
   /// 开始录音，返回 OGG 文件路径。
   /// PCM 流同时分发到：1) Opus 编码器 → OGG 文件  2) audioStream（实时 ASR）
   Future<String> startRecording(String folderPath) async {
-    final hasPerms = await _recorder.hasPermission();
-    if (!hasPerms) {
-      throw Exception('没有麦克风权限');
-    }
-
     _filePath = p.join(folderPath, 'audio.ogg');
 
     // 启动 Opus 编码器
