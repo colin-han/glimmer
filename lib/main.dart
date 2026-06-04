@@ -39,9 +39,11 @@ class VoiceDiaryApp extends StatelessWidget {
   const VoiceDiaryApp({super.key});
 
   static const _isDev = bool.fromEnvironment('dev', defaultValue: false);
+  static const _worktree = String.fromEnvironment('worktree');
 
   @override
   Widget build(BuildContext context) {
+    final watermark = _worktree.isNotEmpty ? 'DEV $_worktree' : 'DEV';
     return MaterialApp(
       title: '语音日记',
       debugShowCheckedModeBanner: false,
@@ -60,7 +62,7 @@ class VoiceDiaryApp extends StatelessWidget {
               bottom: 32,
               child: IgnorePointer(
                 child: Text(
-                  'DEV',
+                  watermark,
                   style: TextStyle(
                     fontSize: 64,
                     fontWeight: FontWeight.w900,
