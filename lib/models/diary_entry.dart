@@ -50,14 +50,17 @@ class DiaryEntry {
     final parts = <String>[];
     if (locationName != null) parts.add(locationName!);
     if (weatherIcon != null) {
-      final emoji = _weatherEmoji[weatherIcon!] ?? weatherText ?? '';
+      final emoji = weatherEmoji(weatherIcon!) ?? weatherText ?? '';
       if (emoji.isNotEmpty) parts.add(emoji);
     }
     if (temperature != null) parts.add('$temperature°');
     return parts.join('  ');
   }
 
-  static const _weatherEmoji = {
+  /// 和风天气图标代码 → emoji 映射
+  static String? weatherEmoji(String iconCode) => _weatherEmojiMap[iconCode];
+
+  static const _weatherEmojiMap = {
     '100': '☀️',
     '101': '🌤️',
     '102': '⛅',

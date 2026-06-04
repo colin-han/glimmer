@@ -157,11 +157,22 @@ class _RecordingPageState extends State<RecordingPage> {
   void _fetchWeatherInBackground() {
     () async {
       try {
+        debugPrint('[天气] 开始获取位置...');
         final loc = await _locationService.getCurrentLocation();
-        if (loc == null) return;
+        if (loc == null) {
+          debugPrint('[天气] 定位失败，跳过天气获取');
+          return;
+        }
+        debugPrint('[天气] 定位成功: lat=${loc.lat}, lon=${loc.lon}');
         _currentLocation = loc;
         _currentWeatherLocation =
             await _weatherService.fetchWeatherAndLocation(loc.lat, loc.lon);
+        if (_currentWeatherLocation != null) {
+          debugPrint('[天气] 获取成功: icon=${_currentWeatherLocation!.icon} ${_currentWeatherLocation!.locationName} ${_currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°');
+          if (mounted) setState(() {});
+        } else {
+          debugPrint('[天气] 天气 API 返回 null');
+        }
       } catch (e) {
         debugPrint('[天气] 获取失败（不阻塞）: $e');
       }
@@ -450,6 +461,14 @@ class _RecordingPageState extends State<RecordingPage> {
                     ? Colors.red
                     : Theme.of(context).colorScheme.primary,
               ),
+              if (_currentWeatherLocation != null &&
+                  _state == RecordingState.recording) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ],
               if (_realtimeText.isNotEmpty &&
                   _state == RecordingState.recording) ...[
                 const SizedBox(height: 16),

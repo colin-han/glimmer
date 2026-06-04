@@ -34,20 +34,26 @@ class WeatherService {
     final token = _token!;
     final host = _host!;
 
+    final locParam = '${lon.toStringAsFixed(2)},${lat.toStringAsFixed(2)}';
+
     try {
       // 1. 逆地理编码获取城市名
+      debugPrint('[天气] 请求 GeoAPI: host=$host, loc=$locParam');
       final geoResponse = await _dio.get(
         'https://$host/geo/v2/city/lookup',
         queryParameters: {
-          'location': '${lon.toStringAsFixed(2)},${lat.toStringAsFixed(2)}',
+          'location': locParam,
           'number': 1,
           'lang': 'zh',
+          'key': token,
         },
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       final geoCode = geoResponse.data['code']?.toString();
-      if (geoCode != '200') return null;
+      if (geoCode != '200') {
+        debugPrint('[天气] GeoAPI 返回 code=$geoCode, body=${geoResponse.data}');
+        return null;
+      }
 
       final locations = geoResponse.data['location'] as List;
       if (locations.isEmpty) return null;
@@ -58,14 +64,17 @@ class WeatherService {
       final weatherResponse = await _dio.get(
         'https://$host/v7/weather/now',
         queryParameters: {
-          'location': '${lon.toStringAsFixed(2)},${lat.toStringAsFixed(2)}',
+          'location': locParam,
           'lang': 'zh',
+          'key': token,
         },
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       final weatherCode = weatherResponse.data['code']?.toString();
-      if (weatherCode != '200') return null;
+      if (weatherCode != '200') {
+        debugPrint('[天气] 天气API 返回 code=$weatherCode, body=${weatherResponse.data}');
+        return null;
+      }
 
       final now = weatherResponse.data['now'];
       return WeatherLocation(
@@ -74,6 +83,9 @@ class WeatherService {
         temp: now['temp'] as String,
         locationName: locationName,
       );
+    } on DioException catch (e) {
+      debugPrint('[天气] HTTP 错误: status=${e.response?.statusCode}, body=${e.response?.data}');
+      return null;
     } catch (e) {
       debugPrint('[天气] 获取失败: $e');
       return null;
