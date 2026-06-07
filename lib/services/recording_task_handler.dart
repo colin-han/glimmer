@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:record/record.dart' show Amplitude;
+import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
 import '../models/utterance.dart';
@@ -11,8 +12,11 @@ import 'asr_service.dart';
 import 'audio_recorder_service.dart';
 import 'diary_storage_service.dart';
 import 'llm_service.dart';
+import 'location_service.dart';
 import 'realtime_asr_service.dart';
 import 'tos_upload_service.dart';
+import 'tts_service.dart';
+import 'weather_service.dart';
 
 /// 前台服务入口函数，必须为顶层函数并标注 @pragma('vm:entry-point')
 @pragma('vm:entry-point')
@@ -20,11 +24,10 @@ void startCallback() {
   FlutterForegroundTask.setTaskHandler(RecordingTaskHandler());
 }
 
-/// 录音 + 处理的 TaskHandler，运行在独立 Dart isolate 中。
+/// 录音 + 处理的 TaskHandler，运行在独立 Dart isolate 中（老张）。
 ///
-/// 所有 service 实例必须在此内部创建，不能从 UI 传入。
-/// 通过 [FlutterForegroundTask.saveData] 向 UI 传递状态（轮询方式），
-/// 通过 [onReceiveData] 接收 UI 的 stop 指令。
+/// 承担所有职责：建文件夹、天气获取、录音、ASR、LLM、保存、TTS、通知管理。
+/// 通过 [FlutterForegroundTask.sendDataToMain] 向 UI（小丽）传递实时状态。
 class RecordingTaskHandler extends TaskHandler {
   // --- 内部创建的 service 实例 ---
   AudioRecorderService? _recorderService;
@@ -33,6 +36,10 @@ class RecordingTaskHandler extends TaskHandler {
   final _tosService = TosUploadService();
   final _llmService = LlmService();
   final _storageService = DiaryStorageService();
+  final _locationService = LocationService();
+  final _weatherService = WeatherService();
+  final _ttsService = TtsService();
+  final _uuid = const Uuid();
 
   // --- 状态 ---
   String? _folderId;
@@ -40,25 +47,20 @@ class RecordingTaskHandler extends TaskHandler {
   bool _stopRequested = false;
   Timer? _durationTimer;
   int _recordingSeconds = 0;
-  StreamSubscription<Uint8List>? _audioStreamSub;
-  StreamSubscription<String>? _partialResultSub;
+  StreamSubscription? _audioStreamSub;
+  StreamSubscription? _partialResultSub;
   StreamSubscription<Amplitude>? _amplitudeSub;
 
-  /// 保存事件状态供 UI 轮询读取
-  Future<void> _emit(String event, {int? duration, int? step, String? entryId, String? error}) async {
-    await FlutterForegroundTask.saveData(key: 'taskEvent', value: event);
-    if (duration != null) {
-      await FlutterForegroundTask.saveData(key: 'taskDuration', value: duration);
-    }
-    if (step != null) {
-      await FlutterForegroundTask.saveData(key: 'taskStep', value: step);
-    }
-    if (entryId != null) {
-      await FlutterForegroundTask.saveData(key: 'taskEntryId', value: entryId);
-    }
-    if (error != null) {
-      await FlutterForegroundTask.saveData(key: 'taskError', value: error);
-    }
+  // 当前阶段（用于通知点击时告诉 UI 该跳哪个页面）
+  String _currentState = 'recording'; // recording | processing | completed | failed
+
+  // 天气/位置（异步获取，处理阶段使用）
+  WeatherLocation? _weatherLocation;
+  ({double lat, double lon})? _location;
+
+  /// 向 UI 发送消息
+  void _sendToMain(Map<String, dynamic> data) {
+    FlutterForegroundTask.sendDataToMain(data);
   }
 
   @override
@@ -74,13 +76,19 @@ class RecordingTaskHandler extends TaskHandler {
 
     // 从 UI 保存的数据中读取 folderId 和 folderPath
     _folderId = await FlutterForegroundTask.getData(key: 'folderId') as String?;
-    _folderPath = await FlutterForegroundTask.getData(key: 'folderPath') as String?;
+    _folderPath =
+        await FlutterForegroundTask.getData(key: 'folderPath') as String?;
 
-    if (_folderId == null || _folderPath == null) {
-      debugPrint('[TaskHandler] 缺少 folderId 或 folderPath，无法启动');
-      await _emit('failed', entryId: _folderId ?? '', step: 0, error: '缺少 folderId 或 folderPath');
-      return;
+    if (_folderId == null) {
+      // UI 没有传 folderId，自己生成
+      _folderId = _uuid.v4();
+      _folderPath = await _storageService.createDiaryFolder(_folderId!);
+      debugPrint('[TaskHandler] 自动创建文件夹: $_folderId');
+    } else if (_folderPath == null) {
+      _folderPath = await _storageService.createDiaryFolder(_folderId!);
     }
+
+    _currentState = 'recording';
 
     // 更新通知
     FlutterForegroundTask.updateService(
@@ -103,11 +111,11 @@ class RecordingTaskHandler extends TaskHandler {
         }
       });
 
-      // 监听振幅，保存供 UI 读取
+      // 监听振幅，发送给 UI
       _amplitudeSub = _recorderService!
           .onAmplitudeChanged(const Duration(milliseconds: 80))
           .listen((amp) {
-        FlutterForegroundTask.saveData(key: 'taskAmplitude', value: amp.current);
+        _sendToMain({'type': 'amplitude', 'value': amp.current});
       });
 
       // 启动计时器
@@ -115,8 +123,8 @@ class RecordingTaskHandler extends TaskHandler {
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _recordingSeconds++;
 
-        // 保存录音时长供 UI 轮询
-        _emit('recording', duration: _recordingSeconds);
+        // 发送录音时长给 UI
+        _sendToMain({'type': 'recording', 'duration': _recordingSeconds});
 
         // 更新通知文字
         final minutes = _recordingSeconds ~/ 60;
@@ -133,11 +141,24 @@ class RecordingTaskHandler extends TaskHandler {
         }
       });
 
-      await _emit('recording', duration: 0);
+      _sendToMain({'type': 'recording', 'duration': 0});
       debugPrint('[TaskHandler] 录音启动成功');
+
+      // 异步获取天气和位置（不阻塞录音）
+      _fetchWeatherInBackground();
     } catch (e) {
       debugPrint('[TaskHandler] 录音启动失败: $e');
-      await _emit('failed', entryId: _folderId ?? '', step: 0, error: '录音启动失败: $e');
+      _currentState = 'failed';
+      _sendToMain({
+        'type': 'failed',
+        'entryId': _folderId ?? '',
+        'step': 0,
+        'error': '录音启动失败: $e',
+      });
+      FlutterForegroundTask.updateService(
+        notificationTitle: '处理失败',
+        notificationText: '语音日记 - 录音启动失败',
+      );
     }
   }
 
@@ -148,8 +169,31 @@ class RecordingTaskHandler extends TaskHandler {
     });
 
     _partialResultSub = _realtimeAsr!.onPartialResult.listen((text) {
-      FlutterForegroundTask.saveData(key: 'taskPartial', value: text);
+      _sendToMain({'type': 'partialText', 'text': text});
     });
+  }
+
+  void _fetchWeatherInBackground() {
+    () async {
+      try {
+        final loc = await _locationService.getCurrentLocation();
+        if (loc == null) return;
+        _location = loc;
+        _weatherLocation =
+            await _weatherService.fetchWeatherAndLocation(loc.lat, loc.lon);
+        if (_weatherLocation != null) {
+          _sendToMain({
+            'type': 'weather',
+            'icon': _weatherLocation!.icon,
+            'text': _weatherLocation!.text,
+            'temp': _weatherLocation!.temp,
+            'locationName': _weatherLocation!.locationName,
+          });
+        }
+      } catch (e) {
+        debugPrint('[TaskHandler] 天气获取失败（不阻塞）: $e');
+      }
+    }();
   }
 
   @override
@@ -173,6 +217,7 @@ class RecordingTaskHandler extends TaskHandler {
   /// 停止录音后执行完整处理流程
   Future<void> _processRecording() async {
     debugPrint('[TaskHandler] 开始处理流程');
+    _currentState = 'processing';
 
     // 停止计时和振幅监听
     _durationTimer?.cancel();
@@ -190,13 +235,33 @@ class RecordingTaskHandler extends TaskHandler {
 
     final duration = _recordingSeconds;
 
-    // 通知 UI 进入 processing 状态
-    await _emit('processing', step: 0);
-
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 处理中...',
     );
+
+    // 先创建 processing 状态的数据库记录，日记列表立即可见
+    try {
+      final processingEntry = DiaryEntry(
+        id: _folderId!,
+        title: '正在处理中...',
+        folderPath: _folderPath!,
+        durationSeconds: duration,
+        createdAt: DateTime.now(),
+        audioFormat: 'ogg',
+        status: EntryStatus.processing,
+        weatherIcon: _weatherLocation?.icon,
+        weatherText: _weatherLocation?.text,
+        temperature: _weatherLocation?.temp,
+        locationName: _weatherLocation?.locationName,
+        locationLat: _location?.lat,
+        locationLon: _location?.lon,
+      );
+      await _storageService.createEntry(processingEntry);
+      debugPrint('[TaskHandler] processing 条目已创建');
+    } catch (e) {
+      debugPrint('[TaskHandler] 创建 processing 条目失败: $e');
+    }
 
     String? tosKey;
     String? audioFilePath;
@@ -212,7 +277,7 @@ class RecordingTaskHandler extends TaskHandler {
     }
 
     // --- 步骤 1: 上传 TOS + Flash ASR ---
-    await _emit('processing', step: 1);
+    _sendToMain({'type': 'processing', 'step': 1});
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 语音识别...',
@@ -236,21 +301,42 @@ class RecordingTaskHandler extends TaskHandler {
       }
     } catch (e) {
       debugPrint('[TaskHandler] TOS 上传或 ASR 失败: $e');
-      // ASR 失败，保存为未命名日记
       await _saveMinimalEntry('未命名日记', duration);
-      await _emit('failed', entryId: _folderId!, step: 1, error: '语音识别失败: $e');
+      _currentState = 'failed';
+      _sendToMain({
+        'type': 'failed',
+        'entryId': _folderId!,
+        'step': 1,
+        'error': '语音识别失败: $e',
+      });
+      FlutterForegroundTask.updateService(
+        notificationTitle: '处理失败',
+        notificationText: '语音日记 - 语音识别失败',
+      );
+      await _stopService();
       return;
     }
 
     if (asrResult == null) {
       debugPrint('[TaskHandler] ASR 结果为空');
       await _saveMinimalEntry('未命名日记', duration);
-      await _emit('failed', entryId: _folderId!, step: 1, error: '语音识别结果为空');
+      _currentState = 'failed';
+      _sendToMain({
+        'type': 'failed',
+        'entryId': _folderId!,
+        'step': 1,
+        'error': '语音识别结果为空',
+      });
+      FlutterForegroundTask.updateService(
+        notificationTitle: '处理失败',
+        notificationText: '语音日记 - 语音识别结果为空',
+      );
+      await _stopService();
       return;
     }
 
     // --- 步骤 2: LLM 润色 ---
-    await _emit('processing', step: 2);
+    _sendToMain({'type': 'processing', 'step': 2});
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - AI 总结...',
@@ -273,14 +359,24 @@ class RecordingTaskHandler extends TaskHandler {
       debugPrint('[TaskHandler] LLM summarize 完成');
     } catch (e) {
       debugPrint('[TaskHandler] LLM 失败: $e');
-      // LLM 失败，保存为未命名日记
       await _saveMinimalEntry('未命名日记', duration);
-      await _emit('failed', entryId: _folderId!, step: 2, error: 'AI 总结失败: $e');
+      _currentState = 'failed';
+      _sendToMain({
+        'type': 'failed',
+        'entryId': _folderId!,
+        'step': 2,
+        'error': 'AI 总结失败: $e',
+      });
+      FlutterForegroundTask.updateService(
+        notificationTitle: '处理失败',
+        notificationText: '语音日记 - AI 总结失败',
+      );
+      await _stopService();
       return;
     }
 
     // --- 步骤 3: 保存元数据 ---
-    await _emit('processing', step: 3);
+    _sendToMain({'type': 'processing', 'step': 3});
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 保存数据...',
@@ -295,12 +391,18 @@ class RecordingTaskHandler extends TaskHandler {
       tosKey: tosKey,
       audioFormat: 'ogg',
       uploadedAt: DateTime.now(),
+      weatherIcon: _weatherLocation?.icon,
+      weatherText: _weatherLocation?.text,
+      temperature: _weatherLocation?.temp,
+      locationName: _weatherLocation?.locationName,
+      locationLat: _location?.lat,
+      locationLon: _location?.lon,
     );
     await _storageService.createEntry(entry);
     debugPrint('[TaskHandler] 保存元数据完成');
 
     // --- 步骤 4: 自动归类（非阻塞） ---
-    await _emit('processing', step: 4);
+    _sendToMain({'type': 'processing', 'step': 4});
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 自动归类...',
@@ -328,13 +430,40 @@ class RecordingTaskHandler extends TaskHandler {
     }
 
     // --- 完成 ---
+    _currentState = 'completed';
     FlutterForegroundTask.updateService(
       notificationTitle: '处理完成',
       notificationText: '语音日记 - ${llmResult.title}',
     );
 
     debugPrint('[TaskHandler] 发送 completed 事件');
-    await _emit('completed', entryId: _folderId!);
+    _sendToMain({'type': 'completed', 'entryId': _folderId!});
+
+    // TTS 播报
+    await _speakReply();
+
+    await _stopService();
+  }
+
+  static const _replyTemplates = [
+    '录音完成，我来帮你整理日记',
+    '录音完成，日记整理马上就好',
+    '录音完成，稍等我帮你整理一下',
+    '录音完成，今天说了好多呢，我慢慢整理',
+    '录音完成，放心交给我吧',
+    '录音完成，内容收到，马上帮你整理成日记',
+    '录音完成，让我想想怎么帮你写这篇日记',
+    '录音完成，今天记录了不少呢，我来整理',
+  ];
+
+  Future<void> _speakReply() async {
+    try {
+      final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
+      debugPrint('[TaskHandler] TTS 播报: "$text"');
+      await _ttsService.speak(text, VoiceType.femaleSweet);
+    } catch (e) {
+      debugPrint('[TaskHandler] TTS 播报失败（不阻塞）: $e');
+    }
   }
 
   /// 保存最小元数据条目（用于失败场景）
@@ -347,12 +476,35 @@ class RecordingTaskHandler extends TaskHandler {
         durationSeconds: duration,
         createdAt: DateTime.now(),
         audioFormat: 'ogg',
+        weatherIcon: _weatherLocation?.icon,
+        weatherText: _weatherLocation?.text,
+        temperature: _weatherLocation?.temp,
+        locationName: _weatherLocation?.locationName,
+        locationLat: _location?.lat,
+        locationLon: _location?.lon,
       );
       await _storageService.createEntry(entry);
       debugPrint('[TaskHandler] 已保存最小元数据条目');
     } catch (e) {
       debugPrint('[TaskHandler] 保存最小元数据失败: $e');
     }
+  }
+
+  /// 延迟后停止服务
+  Future<void> _stopService() async {
+    await Future.delayed(const Duration(seconds: 2));
+    FlutterForegroundTask.stopService();
+  }
+
+  @override
+  void onNotificationPressed() {
+    debugPrint('[TaskHandler] 通知被点击, state=$_currentState');
+    FlutterForegroundTask.launchApp('/');
+    _sendToMain({
+      'type': 'notificationPressed',
+      'state': _currentState,
+      'entryId': _folderId ?? '',
+    });
   }
 
   @override

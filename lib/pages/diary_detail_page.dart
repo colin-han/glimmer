@@ -11,6 +11,7 @@ import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
+import '../services/tts_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/tag_editor_sheet.dart';
@@ -20,8 +21,13 @@ import 'diary_list_page.dart';
 
 class DiaryDetailPage extends StatefulWidget {
   final DiaryEntry entry;
+  final bool autoPlaySummary;
 
-  const DiaryDetailPage({super.key, required this.entry});
+  const DiaryDetailPage({
+    super.key,
+    required this.entry,
+    this.autoPlaySummary = false,
+  });
 
   @override
   State<DiaryDetailPage> createState() => _DiaryDetailPageState();
@@ -106,6 +112,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         _transcriptData = transcriptData;
         _loading = false;
       });
+
+      // 自动播放 summary TTS
+      if (widget.autoPlaySummary && summary.isNotEmpty) {
+        _speakSummary(summary);
+      }
     }
     _loadTags();
   }
@@ -114,6 +125,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     final tags = await _storageService.getFullTagsForDiary(widget.entry.id);
     if (mounted) {
       setState(() => _tags = tags);
+    }
+  }
+
+  Future<void> _speakSummary(String text) async {
+    try {
+      final tts = TtsService();
+      await tts.speak(text, VoiceType.femaleSweet);
+    } catch (e) {
+      debugPrint('[详情页] TTS 播放失败（不阻塞）: $e');
     }
   }
 
