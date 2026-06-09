@@ -191,6 +191,94 @@ DB    INSERT       tosKey       asrTaskId     —             —            sta
                                                                           'completed'
 ```
 
+## 双 FGS 架构
+
+`flutter_foreground_task` 同时只能运行一个 FGS。系统使用两个互斥的 FGS 来保证录音和处理都不会被系统杀掉。
+
+### 两个 FGS 的职责
+
+| | Recording FGS | Processing FGS |
+|---|---|---|
+| **类型** | microphone | dataSync |
+| **职责** | 阶段 1（录制） | 阶段 2~5（上传/ASR/LLM/标签） |
+| **运行时机** | 用户点击录音 → 点击停止 | 录音结束后，直到队列清空 |
+| **运行环境** | 独立 Dart isolate（TaskHandler） | 独立 Dart isolate（TaskHandler） |
+| **数据传递** | 通过 sendDataToMain 发给主 isolate | 通过 sendDataToMain 发给主 isolate |
+
+### FGS 切换时序
+
+```
+用户点击录音
+  │
+  ├─ 1. 主 isolate: stopService()（停掉可能正在运行的 Processing FGS）
+  ├─ 2. 主 isolate: startService(microphone, RecordingTaskHandler)
+  ├─ 3. Recording FGS: 录音中...
+  │
+用户点击停止
+  │
+  ├─ 4. Recording FGS: 保存音频 → INSERT DB 条目 → stopService() → 通知主 isolate
+  ├─ 5. 主 isolate: 收到完成消息 → 任务入队
+  ├─ 6. 主 isolate: startService(dataSync, ProcessingTaskHandler)
+  ├─ 7. Processing FGS: 按 processingStage 恢复/开始处理...
+  │
+（用户再次点击录音）
+  │
+  ├─ 8. 主 isolate: stopService()（中断 Processing FGS）
+  ├─ 9. Processing FGS: onDestroy() → 当前任务保留 processingStage（已写入 DB）
+  ├─ 10. 主 isolate: startService(microphone, RecordingTaskHandler)
+  ├─ 11. Recording FGS: 新录音...
+  │
+用户停止新录音
+  │
+  ├─ 12. Recording FGS: 保存 → INSERT → stopService() → 通知主 isolate
+  ├─ 13. 主 isolate: 新任务入队（排在之前中断的任务后面）
+  ├─ 14. 主 isolate: startService(dataSync, ProcessingTaskHandler)
+  ├─ 15. Processing FGS: 处理队列（先处理之前中断的任务，再处理新任务）
+```
+
+### Processing FGS 中断设计
+
+**中断时机**：用户点击开始新录音时，主 isolate 调用 `stopService()`
+
+**中断行为**：
+1. Processing FGS 的 `onDestroy()` 被调用
+2. 此时当前正在处理的任务的 `processingStage` 已经在各个步骤中逐步更新到 DB（每次推进阶段都会 `UPDATE`）
+3. 因此中断时不需要额外的保存操作——DB 中的 `processingStage` 值就是准确的恢复点
+4. 被中断的任务 status 保持 `processing`（不标记为 failed，因为不是处理失败，只是被打断）
+
+**恢复行为**：
+1. Processing FGS 重新启动后，从 DB 查询所有 `status=processing` 的条目，按 `createdAt` 升序排列（FIFO）
+2. 对每个条目，根据 `processingStage` 执行恢复逻辑
+3. 如果某一步骤的中产物（如 ASR 结果）已被 TOS 服务端丢弃（超时等），则标记为 failed
+
+### Processing FGS 队列管理
+
+Processing FGS 从 DB 中查询待处理任务，而非依赖内存队列：
+
+```dart
+Future<List<DiaryEntry>> getPendingEntries() {
+  // 查询所有 status=processing 的条目，按创建时间升序
+  return (select(diaryEntries)
+        ..where((t) => t.status.equals('processing'))
+        ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+      .get();
+}
+```
+
+**优势**：
+- 无需在主 isolate 维护内存队列——DB 就是队列
+- Processing FGS 崩溃或被杀后重启，队列不丢失
+- 新任务入队只需 INSERT 一条 processing 状态的 DB 记录
+
+### 主 isolate 协调职责
+
+主 isolate（RecordingPage）负责：
+1. **启动录音前**：检查 RECORD_AUDIO 权限 → `stopService()` → 启动 Recording FGS
+2. **录音结束后**：收到 Recording FGS 的完成消息 → 启动 Processing FGS
+3. **从列表页返回后**：刷新 Badge 计数（查询 processing + failed 数量）
+
+Processing FGS 的启动/停止完全由主 isolate 控制，Processing FGS 本身只负责处理任务。
+
 ## 已确认的设计决策
 
 1. **ASR 失败策略**：ASR 返回 failed 时直接标记整条日记为 failed，不自动重试。用户可通过重试按钮手动恢复。
