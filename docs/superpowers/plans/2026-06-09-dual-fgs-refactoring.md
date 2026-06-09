@@ -12,16 +12,9 @@
 
 ---
 
-## Spec 与实际代码偏差说明
+## Spec 与实际代码偏差说明（已解决）
 
-Spec 中说 ASR 是"异步（提交识别任务 → 轮询状态 → 获取结果）"，但实际代码中 `AsrService` 使用的是火山引擎 **Flash ASR**（`/api/v3/auc/bigmodel/recognize/flash`），这是一个**同步 API**——单次 POST 直接返回识别结果，没有 taskId，没有轮询。
-
-**影响**：
-- **不需要 `asrTaskId` 字段**——当前 ASR 没有 taskId 概念
-- **ASR 阶段的恢复逻辑更简单**：不需要区分"有 taskId 直接查询"和"无 taskId 重新提交"，统一就是"重新调 transcribeFromUrl"
-- 如果未来切换到异步 ASR API（如长音频识别），再按 spec 添加 asrTaskId 字段即可
-
-**决策**：本次实施跳过 `asrTaskId` 字段，ASR 阶段统一为"重新识别"。
+Spec 中说 ASR 是"异步（提交识别任务 → 轮询状态 → 获取结果）"。当前代码使用火山引擎 **Flash ASR**（同步 API），本计划通过 Task 2 改为使用异步 ASR API，使代码与 spec 完全一致。
 
 ---
 
@@ -37,12 +30,13 @@ Spec 中说 ASR 是"异步（提交识别任务 → 轮询状态 → 获取结�
 
 | 文件 | 改动 |
 |------|------|
-| `lib/services/database/tables.dart` | 新增 processingStage 字段 |
+| `lib/services/database/tables.dart` | 新增 processingStage、asrTaskId 字段 |
 | `lib/services/database/app_database.dart` | 新增 migration (v5→v6)，新增 getPendingEntries() |
 | `lib/services/database/app_database.g.dart` | 自动生成，build_runner 重新生成 |
-| `lib/models/diary_entry.dart` | DiaryEntry 新增 processingStage 字段 |
-| `lib/services/diary_storage_service.dart` | 新增 processingStage 相关方法，parse 逻辑更新 |
-| `lib/services/recording_task_handler.dart` | 精简为只做录音，删除 ASR/LLM/TOS 逻辑；新增 RecordingCompleteHandler；删除 RetryTaskHandler |
+| `lib/models/diary_entry.dart` | DiaryEntry 新增 processingStage、asrTaskId 字段 |
+| `lib/services/diary_storage_service.dart` | 新增 processingStage/asrTaskId 相关方法，parse 逻辑更新 |
+| `lib/services/asr_service.dart` | 新增异步识别方法（submit + query） |
+| `lib/services/recording_task_handler.dart` | 精简为只做录音，删除 ASR/LLM/TOS 逻辑；删除 RetryTaskHandler |
 | `lib/services/recording_processor.dart` | 重写为 ProcessingTaskHandler + processingCallback，基于 DB 队列和 processingStage 恢复 |
 | `lib/pages/recording_page.dart` | 双 FGS 协调逻辑（录音结束后启动 Processing FGS，录音开始前停止 Processing FGS） |
 | `lib/pages/diary_list_page.dart` | 重试按钮改为启动 Processing FGS |
@@ -51,7 +45,6 @@ Spec 中说 ASR 是"异步（提交识别任务 → 轮询状态 → 获取结�
 
 | 文件 | 原因 |
 |------|------|
-| `lib/services/asr_service.dart` | 同步 API，不改动 |
 | `lib/services/llm_service.dart` | 同步 API，不改动 |
 | `lib/services/tos_upload_service.dart` | 同步 API，不改动 |
 | `android/app/src/main/AndroidManifest.xml` | 已有 microphone + dataSync 声明 |
@@ -94,12 +87,13 @@ enum ProcessingStage {
 }
 ```
 
-- [ ] **Step 2: 更新 tables.dart，新增 processingStage 字段**
+- [ ] **Step 2: 更新 tables.dart，新增 processingStage 和 asrTaskId 字段**
 
 在 `lib/services/database/tables.dart` 的 `DiaryEntries` 类中，在 `status` 字段后添加：
 
 ```dart
 TextColumn get processingStage => text().withDefault(const Constant('uploading'))();
+TextColumn get asrTaskId => text().nullable()();
 ```
 
 - [ ] **Step 3: 更新 app_database.dart，新增 migration v5→v6**
@@ -112,6 +106,7 @@ TextColumn get processingStage => text().withDefault(const Constant('uploading')
 ```dart
 if (from < 6) {
   try { await m.addColumn(diaryEntries, diaryEntries.processingStage); } catch (_) {}
+  try { await m.addColumn(diaryEntries, diaryEntries.asrTaskId); } catch (_) {}
 }
 ```
 
@@ -131,8 +126,16 @@ Future<List<DiaryEntry>> getPendingEntries() {
 在 `lib/models/diary_entry.dart` 中：
 
 1. 添加 import: `import 'processing_stage.dart';`
-2. 在 `DiaryEntry` 类中添加字段: `final ProcessingStage processingStage;`
-3. 构造函数中添加: `this.processingStage = ProcessingStage.uploading,`
+2. 在 `DiaryEntry` 类中添加字段:
+   ```dart
+   final ProcessingStage processingStage;
+   final String? asrTaskId;
+   ```
+3. 构造函数中添加:
+   ```dart
+   this.processingStage = ProcessingStage.uploading,
+   this.asrTaskId,
+   ```
 4. 在 `getAllEntries()` 映射和 `getEntryById()` 映射中解析 processingStage（在 diary_storage_service.dart 中处理）
 
 - [ ] **Step 5: 重新生成 drift 代码**
@@ -142,16 +145,18 @@ Expected: 成功生成 app_database.g.dart
 
 - [ ] **Step 6: 更新 diary_storage_service.dart 中的解析逻辑**
 
-在 `lib/services/diary_storage_service.dart` 的 `getAllEntries()` 和 `getEntryById()` 方法中，给 DiaryEntry 构造添加 processingStage 参数：
+在 `lib/services/diary_storage_service.dart` 的 `getAllEntries()` 和 `getEntryById()` 方法中，给 DiaryEntry 构造添加：
 
 ```dart
 processingStage: ProcessingStage.fromString(r.processingStage),
+asrTaskId: r.asrTaskId,
 ```
 
 同时更新 `createEntry` 方法，在 `DiaryEntriesCompanion.insert` 中添加：
 
 ```dart
 processingStage: Value(entry.processingStage.value),
+asrTaskId: Value(entry.asrTaskId),
 ```
 
 以及 `updateEntry` 方法中添加对应字段。
@@ -180,6 +185,21 @@ Future<void> updateTosKeyAndStage(String id, String tosKey, ProcessingStage stag
     processingStage: Value(stage.value),
   ));
 }
+
+/// 更新处理阶段和 asrTaskId
+Future<void> updateAsrTaskIdAndStage(String id, String asrTaskId, ProcessingStage stage) async {
+  await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
+      .write(DiaryEntriesCompanion(
+    asrTaskId: Value(asrTaskId),
+    processingStage: Value(stage.value),
+  ));
+}
+
+/// 获取条目的 tosKey
+Future<String?> getTosKey(String id) async {
+  final entry = await _db.getEntryById(id);
+  return entry.tosKey;
+}
 ```
 
 - [ ] **Step 8: 运行 analyze 确认无错误**
@@ -196,7 +216,154 @@ git commit -m "refactor: 新增 ProcessingStage 枚举和数据库字段"
 
 ---
 
-## Task 2: 精简 RecordingTaskHandler
+## Task 2: 异步 ASR 服务
+
+在 `AsrService` 中新增异步识别方法（submit + query），替代当前的同步 Flash ASR。异步 ASR 支持中断恢复：提交后记录 asrTaskId，中断后可直接查询结果而无需重新识别。
+
+**Files:**
+- Modify: `lib/services/asr_service.dart`
+
+### 火山引擎异步 ASR API 调研结论
+
+| | Flash ASR（当前） | 异步 ASR（新增） |
+|---|---|---|
+| 提交端点 | `/api/v3/auc/bigmodel/recognize/flash` | `/api/v3/auc/bigmodel/submit` |
+| 查询端点 | 无 | `/api/v3/auc/bigmodel/query` |
+| 认证 | `X-Api-App-Key` + `X-Api-Access-Key` | `x-api-key`（新版控制台 UUID 格式密钥） |
+| Resource-Id | `volc.bigasr.auc_turbo` | `volc.seedasr.auc` |
+| 模式 | 同步（单次请求直接返回） | 异步（提交 → 轮询 → 获取结果） |
+| 任务 ID | 无 | `X-Api-Request-Id`（自己生成的 UUID，提交和查询复用） |
+| 状态码 | `20000000`=成功 | `20000001`=排队中，`20000002`=处理中，`20000000`=完成 |
+
+**新增环境变量**：`VOLCENGINE_SPEECH_API_KEY`（新版语音控制台的 UUID 格式 API Key）
+
+- [ ] **Step 1: 在 `.env.local.example` 中添加新变量**
+
+```
+# 异步 ASR（新版语音控制台 API Key）
+VOLCENGINE_SPEECH_API_KEY=
+```
+
+- [ ] **Step 2: 在 AsrService 中添加异步识别方法**
+
+在 `lib/services/asr_service.dart` 中添加以下方法：
+
+```dart
+/// 提交异步 ASR 识别任务，返回 asrTaskId（即 requestId）
+Future<String> submitAsync(String audioUrl) async {
+  final apiKey = dotenv.get('VOLCENGINE_SPEECH_API_KEY');
+  final requestId = _uuid.v4();
+
+  await _dio.post(
+    'https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit',
+    data: {
+      'user': {'uid': 'voice_diary'},
+      'audio': {
+        'url': audioUrl,
+        'format': 'ogg_opus',
+      },
+      'request': {
+        'model_name': 'bigmodel',
+        'show_utterances': true,
+      },
+    },
+    options: Options(headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'X-Api-Resource-Id': 'volc.seedasr.auc',
+      'X-Api-Request-Id': requestId,
+      'X-Api-Sequence': '-1',
+    }),
+  );
+
+  return requestId;
+}
+
+/// 查询异步 ASR 任务状态。返回 null 表示仍在处理中，返回 AsrResult 表示完成。
+Future<AsrResult?> queryAsync(String requestId) async {
+  final apiKey = dotenv.get('VOLCENGINE_SPEECH_API_KEY');
+
+  final response = await _dio.post(
+    'https://openspeech.bytedance.com/api/v3/auc/bigmodel/query',
+    data: {},
+    options: Options(headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'X-Api-Resource-Id': 'volc.seedasr.auc',
+      'X-Api-Request-Id': requestId,
+    }),
+  );
+
+  final statusCode = response.headers.value('X-Api-Status-Code');
+  if (statusCode == '20000001' || statusCode == '20000002') {
+    // 排队中或处理中
+    return null;
+  }
+  if (statusCode == '20000003') {
+    // 静音音频
+    throw Exception('ASR 识别结果为空（静音音频）');
+  }
+  if (statusCode != '20000000') {
+    final message = response.headers.value('X-Api-Message') ?? '未知错误';
+    throw Exception('ASR 识别失败 ($statusCode): $message');
+  }
+
+  final result = response.data['result'] as Map<String, dynamic>?;
+  if (result == null) {
+    throw Exception('ASR 识别结果为空');
+  }
+
+  final text = result['text'] as String? ?? '';
+  if (text.isEmpty) {
+    throw Exception('ASR 识别结果为空');
+  }
+
+  final utterancesList = result['utterances'] as List<dynamic>?;
+  if (utterancesList == null || utterancesList.isEmpty) {
+    throw Exception('ASR 未返回 utterances 数据');
+  }
+
+  final utterances = utterancesList
+      .map((u) => Utterance(
+            text: u['text'] as String,
+            startTime: u['start_time'] as int,
+            endTime: u['end_time'] as int,
+          ))
+      .toList();
+
+  return AsrResult(text: text, utterances: utterances);
+}
+
+/// 轮询异步 ASR 直到完成或超时
+Future<AsrResult> pollAsyncResult(String requestId, {
+  Duration interval = const Duration(seconds: 3),
+  Duration timeout = const Duration(minutes: 10),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    final result = await queryAsync(requestId);
+    if (result != null) return result;
+    await Future.delayed(interval);
+  }
+  throw Exception('ASR 识别超时');
+}
+```
+
+- [ ] **Step 3: 运行 analyze 确认无错误**
+
+Run: `flutter analyze`
+Expected: 无 error
+
+- [ ] **Step 4: 提交**
+
+```bash
+git add -A
+git commit -m "feat: AsrService 新增异步识别方法（submit + query + poll）"
+```
+
+---
+
+## Task 3: 精简 RecordingTaskHandler
 
 将 `RecordingTaskHandler` 从"录音 + 处理"精简为"只做录音"。录音结束后保存音频文件、INSERT DB 条目、通知主 isolate、停止 FGS。删除所有 ASR/LLM/TOS 相关逻辑。
 
@@ -310,7 +477,7 @@ git commit -m "refactor: 精简 RecordingTaskHandler 为只做录音"
 
 ---
 
-## Task 3: 创建 ProcessingTaskHandler
+## Task 4: 创建 ProcessingTaskHandler
 
 新建 ProcessingTaskHandler，基于 DB 中的 processingStage 执行阶段恢复。替代原有的 RecordingProcessor 和 RetryTaskHandler。
 
@@ -447,7 +614,7 @@ class ProcessingTaskHandler extends TaskHandler {
     debugPrint('[ProcessingHandler] 上传完成: $tosKey');
   }
 
-  /// 阶段 3: ASR 识别（同步 Flash ASR）
+  /// 阶段 3: ASR 识别（异步 submit + query）
   Future<void> _doAsr(DiaryEntry entry) async {
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
@@ -460,7 +627,19 @@ class ProcessingTaskHandler extends TaskHandler {
     }
 
     final presignedUrl = await _tosService.getPresignedUrl(tosKey);
-    final asrResult = await _asrService.transcribeFromUrl(presignedUrl);
+
+    AsrResult asrResult;
+    if (entry.asrTaskId != null) {
+      // 有 asrTaskId → 直接查询已有任务结果（中断恢复）
+      debugPrint('[ProcessingHandler] 恢复 ASR 查询: ${entry.asrTaskId}');
+      asrResult = await _asrService.pollAsyncResult(entry.asrTaskId!);
+    } else {
+      // 无 asrTaskId → 提交新的异步识别任务
+      final asrTaskId = await _asrService.submitAsync(presignedUrl);
+      // 记录 asrTaskId（中断恢复用）
+      await _storageService.updateAsrTaskIdAndStage(entry.id, asrTaskId, ProcessingStage.asr);
+      asrResult = await _asrService.pollAsyncResult(asrTaskId);
+    }
 
     await _storageService.writeTranscriptJson(
       entry.folderPath,
@@ -597,14 +776,7 @@ class ProcessingTaskHandler extends TaskHandler {
 }
 ```
 
-注意：需要新增 `getTosKey` 方法到 `DiaryStorageService`:
-
-```dart
-Future<String?> getTosKey(String id) async {
-  final entry = await _db.getEntryById(id);
-  return entry.tosKey;
-}
-```
+（`getTosKey` 和 `updateAsrTaskIdAndStage` 已在 Task 1 Step 7 中添加到 DiaryStorageService）
 
 - [ ] **Step 2: 运行 analyze 确认无错误**
 
@@ -620,7 +792,7 @@ git commit -m "refactor: 创建 ProcessingTaskHandler，基于 processingStage �
 
 ---
 
-## Task 4: 更新主 isolate 协调逻辑
+## Task 5: 更新主 isolate 协调逻辑
 
 更新 RecordingPage 的 FGS 协调逻辑：录音结束后启动 Processing FGS，录音开始前停止 Processing FGS。更新 DiaryListPage 的重试逻辑。
 
@@ -759,7 +931,7 @@ git commit -m "refactor: 主 isolate 双 FGS 协调，录音结束后启动 Proc
 
 ---
 
-## Task 5: 清理和验证
+## Task 6: 清理和验证
 
 清理废弃代码，确保整体一致性。
 
@@ -806,15 +978,17 @@ git commit -m "refactor: 清理废弃代码，确保双 FGS 架构一致性"
 | Spec 要求 | 对应 Task |
 |-----------|----------|
 | ProcessingStage 枚举（uploading/asr/llm/tagging/completed） | Task 1 |
-| DB 新增 processingStage 字段 | Task 1 |
-| RecordingTaskHandler 只做录音 | Task 2 |
-| ProcessingTaskHandler 基于 processingStage 恢复 | Task 3 |
-| DB 即队列（getPendingEntries） | Task 1 (DB) + Task 3 (Handler) |
-| FGS 切换：录音开始前 stopService | Task 4 |
-| FGS 切换：录音结束后启动 Processing FGS | Task 4 |
-| 失败标记为 failed，processingStage 保持 | Task 3 |
-| 重试从 processingStage 恢复 | Task 3 + Task 4 |
+| DB 新增 processingStage、asrTaskId 字段 | Task 1 |
+| RecordingTaskHandler 只做录音 | Task 3 |
+| ProcessingTaskHandler 基于 processingStage 恢复 | Task 4 |
+| DB 即队列（getPendingEntries） | Task 1 (DB) + Task 4 (Handler) |
+| FGS 切换：录音开始前 stopService | Task 5 |
+| FGS 切换：录音结束后启动 Processing FGS | Task 5 |
+| 失败标记为 failed，processingStage 保持 | Task 4 |
+| 重试从 processingStage 恢复 | Task 4 + Task 5 |
 | FIFO 顺序 | Task 1 (getPendingEntries 按 createdAt ASC) |
-| 标签归类失败不阻塞 | Task 3 (_doTagging try-catch) |
+| 标签归类失败不阻塞 | Task 4 (_doTagging try-catch) |
 | Badge 统计 processing + failed | 已在前次提交实现，无需改动 |
-| ASR 失败直接标记 failed | Task 3 (异常由 _processEntry 的 catch 处理) |
+| ASR 失败直接标记 failed | Task 4 (异常由 _processEntry 的 catch 处理) |
+| 异步 ASR（submit + query + asrTaskId 恢复） | Task 2 |
+| asrTaskId 中断恢复：有 taskId 直接查询，无则重新提交 | Task 2 + Task 4 |
