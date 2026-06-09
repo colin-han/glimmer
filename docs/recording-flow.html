@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>录音数据处理流程</title>
+<style>
+:root {
+  --bg: #0b1020;
+  --bg2: #0f1629;
+  --panel: #151d33;
+  --line: #283452;
+  --txt: #e6edf7;
+  --dim: #9fb0cc;
+  --faint: #5f6f8f;
+  --cyan: #38e0d0;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --violet: #a78bfa;
+  --rose: #fb7185;
+  --blue: #60a5fa;
+  --mono: "SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--txt); font-family:var(--sans); padding:2rem 2rem 4rem; line-height:1.6; }
+h1 { font-size:2rem; margin-bottom:.5rem; }
+h1 em { font-style:normal; color:var(--cyan); }
+.subtitle { color:var(--dim); font-size:1rem; margin-bottom:2.5rem; }
+
+/* 状态标签 */
+.badge { display:inline-block; font-family:var(--mono); font-size:.75rem; font-weight:600; padding:.2rem .6rem; border-radius:4px; letter-spacing:.04em; vertical-align:middle; }
+.badge-processing { background:rgba(56,224,208,.15); color:var(--cyan); border:1px solid rgba(56,224,208,.35); }
+.badge-completed { background:rgba(74,222,128,.15); color:var(--green); border:1px solid rgba(74,222,128,.35); }
+.badge-failed    { background:rgba(251,113,133,.15); color:var(--rose); border:1px solid rgba(251,113,133,.35); }
+.badge-none      { background:rgba(95,111,143,.12); color:var(--faint); border:1px solid rgba(95,111,143,.3); }
+
+/* FGS 区域 */
+.phase { border:1.5px solid var(--line); border-radius:16px; padding:1.5rem 1.8rem; margin-bottom:1.2rem; position:relative; }
+.phase-label { position:absolute; top:-.85rem; left:1.2rem; font-family:var(--mono); font-size:.78rem; letter-spacing:.1em; padding:0 .5rem; background:var(--bg); font-weight:600; }
+.phase-label.fgs-recording { color:var(--cyan); }
+.phase-label.fgs-processing { color:var(--violet); }
+.phase-label.main-isolate { color:var(--amber); }
+
+/* 流程行 */
+.flow { display:flex; flex-direction:column; gap:0; }
+.step-row { display:flex; align-items:center; gap:1rem; padding:.65rem 0; position:relative; }
+.step-num { font-family:var(--mono); font-size:.85rem; color:var(--faint); min-width:2.2rem; text-align:right; flex-shrink:0; }
+.step-box { flex:1; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:.7rem 1.1rem; position:relative; }
+.step-box .title { font-weight:600; font-size:.95rem; }
+.step-box .title code { font-family:var(--mono); color:var(--cyan); font-size:.85rem; }
+.step-box .desc { color:var(--dim); font-size:.82rem; margin-top:.2rem; }
+.step-box .output { font-family:var(--mono); font-size:.78rem; color:var(--green); margin-top:.3rem; background:rgba(74,222,128,.07); padding:.3rem .6rem; border-radius:4px; display:inline-block; }
+
+/* 状态变化指示 */
+.state-change { display:inline-flex; align-items:center; gap:.4rem; font-family:var(--mono); font-size:.75rem; margin-left:auto; flex-shrink:0; }
+.state-arrow { color:var(--faint); font-size:.7rem; }
+
+/* 连接线 */
+.connector { display:flex; justify-content:center; padding:0; position:relative; height:28px; }
+.connector .line { width:2px; height:100%; background:var(--line); }
+.connector .arrow { position:absolute; bottom:-2px; color:var(--line); font-size:.7rem; }
+.connector.cross-phase { position:relative; }
+.connector.cross-phase::before { content:''; position:absolute; left:50%; top:0; bottom:0; width:2px; background:var(--faint); border-left:2px dashed var(--faint); }
+
+/* 中断路径 */
+.interrupt { border:1px dashed var(--amber); border-radius:10px; padding:.8rem 1rem; margin-top:.8rem; background:rgba(251,191,36,.04); }
+.interrupt .int-title { font-family:var(--mono); font-size:.8rem; color:var(--amber); margin-bottom:.4rem; letter-spacing:.04em; }
+.interrupt .int-desc { font-size:.85rem; color:var(--dim); }
+
+/* 图例 */
+.legend { margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid var(--line); }
+.legend h2 { font-size:1rem; color:var(--dim); margin-bottom:.8rem; font-weight:500; }
+.legend-grid { display:flex; gap:1.5rem; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--dim); }
+
+/* 两列布局用于中断场景 */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:.6rem; }
+.col-box { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:.8rem 1rem; }
+.col-box h4 { font-size:.85rem; margin-bottom:.3rem; }
+.col-box .desc { font-size:.8rem; color:var(--dim); }
+
+/* 重试路径说明 */
+.retry-note { display:flex; align-items:flex-start; gap:.8rem; background:rgba(167,139,250,.06); border:1px solid rgba(167,139,250,.25); border-radius:10px; padding:1rem 1.2rem; margin-top:1rem; }
+.retry-note .icon { font-size:1.2rem; flex-shrink:0; margin-top:.1rem; }
+.retry-note .text { font-size:.85rem; color:var(--dim); }
+.retry-note .text strong { color:var(--txt); }
+</style>
+</head>
+<body>
+
+<h1>录音数据处理流程 · <em>双 FGS 架构</em></h1>
+<p class="subtitle">一次录音的完整数据生命周期，包含日记条目的状态变化与中断恢复策略</p>
+
+<!-- ═══ 状态 0：无条目 ═══ -->
+<div class="flow">
+  <div class="step-row">
+    <div class="step-num"></div>
+    <div class="step-box" style="border-color:rgba(95,111,143,.3);">
+      <div class="title">用户点击录音按钮</div>
+      <div class="desc">检查 RECORD_AUDIO 权限 → 启动 Recording FGS</div>
+      <div class="state-change">
+        <span class="badge badge-none">无条目</span>
+        <span class="state-arrow">→</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector cross-phase"><div class="line" style="background:var(--cyan);"></div></div>
+
+<!-- ═══ 阶段 1：Recording FGS (microphone) ═══ -->
+<div class="phase">
+  <div class="phase-label fgs-recording">🔴 RECORDING FGS · foregroundServiceType="microphone"</div>
+  <div class="flow">
+
+    <div class="step-row">
+      <div class="step-num">R1</div>
+      <div class="step-box">
+        <div class="title">创建录音文件夹 + <code>INSERT</code> 数据库条目</div>
+        <div class="desc">UUID 文件夹，title="正在处理中..."，status=processing</div>
+        <div class="output">📁 {uuid}/ &nbsp; 📝 DB: id, folderPath, status</div>
+        <div class="state-change">
+          <span class="badge badge-processing">processing</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">R2</div>
+      <div class="step-box">
+        <div class="title">录音中 <code>AudioRecorder</code></div>
+        <div class="desc">PCM 流 → OGG 编码 → 实时 ASR（WebSocket）→ 振幅/时长/实时文字发给 UI</div>
+        <div class="output">📡 → UI: amplitude / duration / partialText / weather</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">R3</div>
+      <div class="step-box">
+        <div class="title">异步获取天气/位置（不阻塞录音）</div>
+        <div class="desc">Geolocator → 和风天气 API → 存入内存变量</div>
+        <div class="output">🌤 weatherIcon / weatherText / temp / locationName / lat / lon</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">R4</div>
+      <div class="step-box" style="border-color:var(--cyan);">
+        <div class="title">用户点击停止 → 保存音频文件 → 停止 Recording FGS</div>
+        <div class="desc">停止录音器 → 保存 audio.ogg → 断开实时 ASR → 发任务数据给主 isolate → FGS 停止</div>
+        <div class="output">📁 audio.ogg &nbsp; 📡 → 主 isolate: {folderId, folderPath, audioFilePath, duration, weather}</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="connector cross-phase"><div class="line" style="background:var(--amber);"></div></div>
+
+<!-- ═══ 主 Isolate 协调 ═══ -->
+<div class="phase" style="border-color:var(--amber);">
+  <div class="phase-label main-isolate">⏳ 主 ISOLATE 协调</div>
+  <div class="flow">
+    <div class="step-row">
+      <div class="step-num"></div>
+      <div class="step-box" style="border-color:var(--amber);">
+        <div class="title">收到 Recording FGS 完成消息 → 任务入队 → 启动 Processing FGS</div>
+        <div class="desc">如果当前已有 Processing FGS 在运行 → 将新任务追加到队列尾部</div>
+        <div class="state-change">
+          <span class="badge badge-processing">processing</span>
+          <span class="state-arrow">（保持不变）</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector cross-phase"><div class="line" style="background:var(--violet);"></div></div>
+
+<!-- ═══ 阶段 2：Processing FGS (dataSync) ═══ -->
+<div class="phase">
+  <div class="phase-label fgs-processing">🟣 PROCESSING FGS · foregroundServiceType="dataSync"</div>
+  <div class="flow">
+
+    <div class="step-row">
+      <div class="step-num">P1</div>
+      <div class="step-box">
+        <div class="title">上传音频到 TOS <code>同步</code></div>
+        <div class="desc">读取 audio.ogg → 上传到对象存储 → 获得 tosKey</div>
+        <div class="output">🔑 tosKey &nbsp; ⚠️ 中断后需重新上传</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">P2</div>
+      <div class="step-box">
+        <div class="title">调用火山引擎 ASR 识别 <code>异步</code></div>
+        <div class="desc">生成预签名 URL → 调用 ASR API（提交识别任务）→ 轮询识别状态 → 获取结果</div>
+        <div class="output">📝 utterances[]（带时间戳的识别文本） → 写入 transcript.json</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">P3</div>
+      <div class="step-box">
+        <div class="title">LLM 四段润色 <code>Doubao</code></div>
+        <div class="desc">传入 utterances → LLM 输出：润色正文 / 日记体提炼 / 播报大纲 / 标题</div>
+        <div class="output">📝 title / content / summary / outline → 写入 llm_result.json</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">P4</div>
+      <div class="step-box">
+        <div class="title"><code>UPDATE</code> 数据库条目为完成状态</div>
+        <div class="desc">更新 title / tosKey / uploadedAt / status=completed</div>
+        <div class="state-change">
+          <span class="badge badge-processing">processing</span>
+          <span class="state-arrow">→</span>
+          <span class="badge badge-completed">completed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">P5</div>
+      <div class="step-box">
+        <div class="title">自动归类（不阻塞）</div>
+        <div class="desc">LLM 匹配标签 → 写入 diary_tag_relations 表</div>
+        <div class="output">🏷 matchedTagIds[]</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div></div>
+
+    <div class="step-row">
+      <div class="step-num">P6</div>
+      <div class="step-box" style="border-color:var(--green);">
+        <div class="title">TTS 播报 → 通知 UI → 队列下一个任务 / 停止 FGS</div>
+        <div class="desc">播放"录音完成，我来帮你整理日记" → 发送 completed 给主 isolate</div>
+        <div class="output">📡 → UI: {type:'completed', entryId} &nbsp; 🔊 TTS</div>
+        <div class="state-change">
+          <span class="badge badge-completed">completed</span>
+          <span class="state-arrow">（最终态）</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ 失败路径 ═══ -->
+<div class="connector"><div class="line"></div></div>
+
+<div class="phase" style="border-color:var(--rose);">
+  <div class="phase-label" style="color:var(--rose);">💥 任意步骤失败</div>
+  <div class="flow">
+    <div class="step-row">
+      <div class="step-num">!</div>
+      <div class="step-box">
+        <div class="title"><code>UPDATE</code> 标记为 failed → 通知 UI → 停止 FGS</div>
+        <div class="desc">title="处理失败"，status=failed。UI 列表中显示红色卡片 + 重试按钮</div>
+        <div class="state-change">
+          <span class="badge badge-processing">processing</span>
+          <span class="state-arrow">→</span>
+          <span class="badge badge-failed">failed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 重试路径 ═══ -->
+<div class="connector"><div class="line"></div></div>
+
+<div class="retry-note">
+  <div class="icon">🔄</div>
+  <div class="text">
+    <strong>重试路径：</strong>用户点击"重试" → 主 isolate 将条目状态改回 <span class="badge badge-processing" style="font-size:.7rem;">processing</span>
+    → 保存重试参数到 SharedPreferences → 启动 Processing FGS（dataSync） → <strong>RetryTaskHandler</strong> 从音频文件重新执行 P1~P6。
+  </div>
+</div>
+
+<!-- ═══ 中断恢复策略 ═══ -->
+<h2 style="margin-top:2.5rem; font-size:1.3rem; color:var(--amber);">⚡ 中断恢复策略</h2>
+<p style="color:var(--dim); font-size:.9rem; margin-bottom:1rem;">Processing FGS 被停止（用户开始新录音）时，根据中断点决定恢复方式：</p>
+
+<div class="two-col">
+  <div class="col-box" style="border-color:rgba(251,191,36,.35);">
+    <h4 style="color:var(--amber);">P1 中断（TOS 上传中）</h4>
+    <div class="desc">
+      音频文件未完全上传，tosKey 未获得。<br>
+      <strong>恢复：</strong>重新上传整个文件。<br>
+      <span style="color:var(--faint);">（后续可优化：断点续传）</span>
+    </div>
+  </div>
+  <div class="col-box" style="border-color:rgba(251,191,36,.35);">
+    <h4 style="color:var(--amber);">P2 中断（ASR 识别中）</h4>
+    <div class="desc">
+      音频已上传到 TOS，ASR 任务已提交。<br>
+      <strong>恢复：</strong>已有 tosKey → 生成预签名 URL → 直接查询识别状态，无需重新上传。
+    </div>
+  </div>
+  <div class="col-box" style="border-color:rgba(251,191,36,.35);">
+    <h4 style="color:var(--amber);">P3 中断（LLM 处理中）</h4>
+    <div class="desc">
+      ASR 已完成，transcript.json 已写入。<br>
+      <strong>恢复：</strong>读取 transcript.json → 直接执行 LLM，无需重新 ASR。
+    </div>
+  </div>
+  <div class="col-box" style="border-color:rgba(251,191,36,.35);">
+    <h4 style="color:var(--amber);">P4~P6 中断</h4>
+    <div class="desc">
+      LLM 已完成，llm_result.json 已写入。<br>
+      <strong>恢复：</strong>读取 llm_result.json → 直接更新数据库条目为 completed。
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 状态迁移图 ═══ -->
+<h2 style="margin-top:2.5rem; font-size:1.3rem; color:var(--cyan);">📊 日记条目状态迁移图</h2>
+
+<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-top:1rem; font-family:var(--mono); font-size:.9rem;">
+  <div style="padding:.6rem 1.2rem; border-radius:10px; border:1.5px solid var(--faint); color:var(--faint);">不存在</div>
+  <div style="color:var(--faint); font-size:.8rem;">R1 INSERT →</div>
+  <div style="padding:.6rem 1.2rem; border-radius:10px; border:1.5px solid rgba(56,224,208,.5); background:rgba(56,224,208,.08); color:var(--cyan); font-weight:600;">processing</div>
+
+  <div style="color:var(--faint); font-size:.75rem; display:flex; flex-direction:column; align-items:center; gap:.1rem;">
+    <div>P4 成功 →</div>
+    <div>失败 →</div>
+    <div>重试 →</div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:.5rem;">
+    <div style="padding:.6rem 1.2rem; border-radius:10px; border:1.5px solid rgba(74,222,128,.5); background:rgba(74,222,128,.08); color:var(--green); font-weight:600;">completed</div>
+    <div style="padding:.6rem 1.2rem; border-radius:10px; border:1.5px solid rgba(251,113,133,.5); background:rgba(251,113,133,.08); color:var(--rose); font-weight:600;">failed</div>
+  </div>
+
+  <div style="color:var(--faint); font-size:.8rem;">用户重试 →</div>
+  <div style="padding:.6rem 1.2rem; border-radius:10px; border:1.5px solid rgba(56,224,208,.5); background:rgba(56,224,208,.08); color:var(--cyan); font-weight:600;">processing</div>
+  <div style="color:var(--faint); font-size:.75rem;">（循环）</div>
+</div>
+
+<div style="margin-top:1.2rem; font-size:.82rem; color:var(--dim);">
+  <code style="color:var(--green);">completed</code> 是终态（不可变） &nbsp;|&nbsp;
+  <code style="color:var(--rose);">failed</code> 可通过重试回到 <code style="color:var(--cyan);">processing</code> &nbsp;|&nbsp;
+  <code style="color:var(--cyan);">processing</code> 可转为 completed 或 failed
+</div>
+
+<!-- ═══ 图例 ═══ -->
+<div class="legend">
+  <h2>图例</h2>
+  <div class="legend-grid">
+    <div class="legend-item"><span class="badge badge-processing">processing</span> 处理中</div>
+    <div class="legend-item"><span class="badge badge-completed">completed</span> 已完成</div>
+    <div class="legend-item"><span class="badge badge-failed">failed</span> 处理失败</div>
+    <div class="legend-item"><span class="badge badge-none">无条目</span> 条目不存在</div>
+    <div class="legend-item"><span style="color:var(--cyan);">🔴</span> Recording FGS</div>
+    <div class="legend-item"><span style="color:var(--violet);">🟣</span> Processing FGS</div>
+    <div class="legend-item"><span style="color:var(--amber);">⏳</span> 主 Isolate</div>
+  </div>
+</div>
+
+</body>
+</html>
