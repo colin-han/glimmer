@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:record/record.dart' show Amplitude;
+import 'package:record/record.dart' show Amplitude, AudioRecorder;
 
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
@@ -28,6 +28,7 @@ class _RecordingPageState extends State<RecordingPage> {
   RecordingState _state = RecordingState.idle;
   int _recordingSeconds = 0;
   String _realtimeText = '';
+  int _processingCount = 0;
   final _realtimeScrollController = ScrollController();
   WeatherLocation? _currentWeatherLocation;
 
@@ -38,6 +39,7 @@ class _RecordingPageState extends State<RecordingPage> {
   void initState() {
     super.initState();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+    _refreshProcessingCount();
   }
 
   @override
@@ -82,6 +84,10 @@ class _RecordingPageState extends State<RecordingPage> {
             locationName: data['locationName'] as String,
           );
         });
+      case 'completed':
+      case 'failed':
+        // 处理完成或失败时刷新 Badge 数量
+        _refreshProcessingCount();
       case 'notificationPressed':
         _handleNotificationPressed(data);
     }
@@ -151,6 +157,12 @@ class _RecordingPageState extends State<RecordingPage> {
 
   Future<void> _startRecording() async {
     try {
+      // 检查麦克风权限（Android 15+ 启动 microphone FGS 前必须已授权）
+      if (!await AudioRecorder().hasPermission()) {
+        _showError('需要麦克风权限才能录音');
+        return;
+      }
+
       // 设置通信端口
       FlutterForegroundTask.initCommunicationPort();
 
@@ -181,6 +193,18 @@ class _RecordingPageState extends State<RecordingPage> {
       _realtimeText = '';
       _currentWeatherLocation = null;
     });
+    // 停止录音后刷新处理中数量
+    _refreshProcessingCount();
+  }
+
+  /// 刷新处理中的日记数量
+  Future<void> _refreshProcessingCount() async {
+    try {
+      final count = await _storageService.getProcessingEntryCount();
+      if (mounted) {
+        setState(() => _processingCount = count);
+      }
+    } catch (_) {}
   }
 
   void _showError(String msg) {
@@ -204,13 +228,19 @@ class _RecordingPageState extends State<RecordingPage> {
                 );
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.history),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DiaryListPage()),
-                );
-              },
+            Badge(
+              label: Text('$_processingCount'),
+              isLabelVisible: _processingCount > 0,
+              child: IconButton(
+                icon: const Icon(Icons.history),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DiaryListPage()),
+                  );
+                  // 从列表页返回后刷新处理中数量
+                  _refreshProcessingCount();
+                },
+              ),
             ),
           ],
         ),

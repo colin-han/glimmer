@@ -73,6 +73,22 @@ class DiaryStorageService {
         .write(DiaryEntriesCompanion(title: Value(title)));
   }
 
+  Future<void> updateEntryStatus(String id, EntryStatus status) async {
+    await (_db.update(_db.diaryEntries)
+          ..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(status: Value(status.name)));
+  }
+
+  Future<void> updateEntryTitleAndStatus(
+      String id, String title, EntryStatus status) async {
+    await (_db.update(_db.diaryEntries)
+          ..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(
+      title: Value(title),
+      status: Value(status.name),
+    ));
+  }
+
   // --- transcript.json ---
 
   Future<void> writeTranscriptJson(
@@ -137,8 +153,12 @@ class DiaryStorageService {
 
   // --- 查询 ---
 
+  /// 查询处理中的日记数量
+  Future<int> getProcessingEntryCount() => _db.getProcessingEntryCount();
+
   EntryStatus _parseStatus(String? status) {
     if (status == 'processing') return EntryStatus.processing;
+    if (status == 'failed') return EntryStatus.failed;
     return EntryStatus.completed;
   }
 

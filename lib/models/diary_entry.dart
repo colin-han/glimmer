@@ -1,4 +1,4 @@
-enum EntryStatus { processing, completed }
+enum EntryStatus { processing, completed, failed }
 
 class DiaryEntry {
   final String id;

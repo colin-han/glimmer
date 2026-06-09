@@ -132,6 +132,15 @@ class AppDatabase extends _$AppDatabase {
         .get()
         .then((rows) => rows.length);
   }
+
+  /// 查询未完成的日记数量（processing + failed）
+  Future<int> getProcessingEntryCount() {
+    return (select(diaryEntries)
+          ..where((t) =>
+              t.status.equals('processing') | t.status.equals('failed')))
+        .get()
+        .then((rows) => rows.length);
+  }
 }
 
 LazyDatabase _openConnection() {

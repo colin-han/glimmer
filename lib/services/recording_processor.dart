@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../models/diary_entry.dart';
 import '../models/utterance.dart';
 import 'asr_service.dart';
 import 'diary_storage_service.dart';
 import 'llm_service.dart';
+import 'recording_task_handler.dart';
 import 'tos_upload_service.dart';
 import 'weather_service.dart';
 
@@ -219,7 +222,7 @@ class RecordingProcessor {
     try {
       await _storageService.updateEntry(DiaryEntry(
         id: task.folderId,
-        title: '未命名日记',
+        title: '处理失败',
         folderPath: task.folderPath,
         durationSeconds: task.durationSeconds,
         createdAt: task.createdAt,
@@ -231,12 +234,64 @@ class RecordingProcessor {
         locationName: task.weatherLocation?.locationName,
         locationLat: task.location?.lat,
         locationLon: task.location?.lon,
-        status: EntryStatus.completed,
+        status: EntryStatus.failed,
       ));
     } catch (e) {
       debugPrint('[后台处理] 更新兜底条目失败: $e');
     }
     debugPrint('[后台处理] 保存兜底条目: ${task.folderId}');
+  }
+
+  /// 重试失败的任务：通过 FGS 重新跑 ASR + LLM，确保进程不被杀
+  Future<bool> retryEntry(DiaryEntry entry) async {
+    // 查找音频文件
+    final dir = Directory(entry.folderPath);
+    if (!await dir.exists()) {
+      debugPrint('[后台处理] 重试失败：文件夹不存在 ${entry.folderPath}');
+      return false;
+    }
+
+    String? audioFilePath;
+    for (final name in ['audio.ogg', 'audio.wav']) {
+      final f = File('${entry.folderPath}/$name');
+      if (await f.exists()) {
+        audioFilePath = f.path;
+        break;
+      }
+    }
+    if (audioFilePath == null) {
+      debugPrint('[后台处理] 重试失败：音频文件不存在');
+      return false;
+    }
+
+    // 更新状态为 processing
+    await _storageService.updateEntryTitleAndStatus(
+        entry.id, '正在处理中...', EntryStatus.processing);
+
+    // 保存参数供 FGS isolate 读取
+    await FlutterForegroundTask.saveData(key: 'retryFolderId', value: entry.id);
+    await FlutterForegroundTask.saveData(key: 'retryFolderPath', value: entry.folderPath);
+    await FlutterForegroundTask.saveData(key: 'retryAudioFilePath', value: audioFilePath);
+    await FlutterForegroundTask.saveData(key: 'retryDurationSeconds', value: entry.durationSeconds);
+
+    // 启动 FGS（dataSync 类型，不需要麦克风权限）
+    final result = await FlutterForegroundTask.startService(
+      serviceTypes: [ForegroundServiceTypes.dataSync],
+      notificationTitle: '正在重新处理',
+      notificationText: '语音日记 - 处理中...',
+      callback: retryCallback,
+    );
+
+    if (result is ServiceRequestFailure) {
+      debugPrint('[后台处理] 启动重试 FGS 失败: ${result.error}');
+      // 回退到本地处理
+      await _storageService.updateEntryTitleAndStatus(
+          entry.id, '处理失败', EntryStatus.failed);
+      return false;
+    }
+
+    debugPrint('[后台处理] 重试 FGS 已启动: ${entry.id}');
+    return true;
   }
 
   Future<void> dispose() async {

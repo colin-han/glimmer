@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
@@ -48,6 +49,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
         _loadData();
       }
     });
+    // 监听 FGS 消息，重试完成/失败时刷新列表
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
   }
 
   Future<void> _loadData() async {
@@ -93,9 +96,19 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   @override
   void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _tasksSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// 接收 FGS 消息，重试完成/失败时刷新列表
+  void _onTaskData(Object data) {
+    if (data is! Map<String, dynamic>) return;
+    final type = data['type'] as String;
+    if (type == 'completed' || type == 'failed') {
+      _loadData();
+    }
   }
 
   @override
@@ -302,8 +315,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
   Widget _buildEntryCard(DiaryEntry entry) {
     final tags = _entryTags[entry.id] ?? [];
     final isProcessing = entry.status == EntryStatus.processing;
+    final isFailed = entry.status == EntryStatus.failed;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      color: isFailed ? Colors.red[50] : null,
       child: ListTile(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,17 +361,30 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400]),
               )
-            : const Icon(Icons.chevron_right),
+            : isFailed
+                ? TextButton.icon(
+                    onPressed: () => _retryEntry(entry),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('重试'),
+                  )
+                : const Icon(Icons.chevron_right),
         onTap: isProcessing
             ? null
-            : () {
-                Navigator.of(context)
-                    .push(MaterialPageRoute(
-                        builder: (_) => DiaryDetailPage(entry: entry)))
-                    .then((_) => _loadData());
-              },
+            : isFailed
+                ? () => _retryEntry(entry)
+                : () {
+                    Navigator.of(context)
+                        .push(MaterialPageRoute(
+                            builder: (_) => DiaryDetailPage(entry: entry)))
+                        .then((_) => _loadData());
+                  },
       ),
     );
+  }
+
+  Future<void> _retryEntry(DiaryEntry entry) async {
+    await RecordingProcessor.instance.retryEntry(entry);
+    _loadData();
   }
 
   Color _getTagColor(Tag tag) {
