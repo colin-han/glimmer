@@ -14,7 +14,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,6 +43,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             try { await m.addColumn(diaryEntries, diaryEntries.status); } catch (_) {}
           }
+          if (from < 6) {
+            try { await m.addColumn(diaryEntries, diaryEntries.processingStage); } catch (_) {}
+            try { await m.addColumn(diaryEntries, diaryEntries.asrTaskId); } catch (_) {}
+          }
         },
       );
 
@@ -69,6 +73,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteEntry(String id) {
     return (delete(diaryEntries)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<List<DiaryEntry>> getPendingEntries() {
+    return (select(diaryEntries)
+          ..where((t) => t.status.equals('processing'))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
   }
 
   // --- Tags ---

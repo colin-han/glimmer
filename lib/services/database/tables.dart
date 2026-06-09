@@ -16,6 +16,8 @@ class DiaryEntries extends Table {
   RealColumn get locationLat => real().nullable()();
   RealColumn get locationLon => real().nullable()();
   TextColumn get status => text().withDefault(const Constant('completed'))();
+  TextColumn get processingStage => text().withDefault(const Constant('uploading'))();
+  TextColumn get asrTaskId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

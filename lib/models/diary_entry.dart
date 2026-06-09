@@ -1,3 +1,5 @@
+import 'processing_stage.dart';
+
 enum EntryStatus { processing, completed, failed }
 
 class DiaryEntry {
@@ -16,6 +18,8 @@ class DiaryEntry {
   final double? locationLat;
   final double? locationLon;
   final EntryStatus status;
+  final ProcessingStage processingStage;
+  final String? asrTaskId;
 
   const DiaryEntry({
     required this.id,
@@ -33,6 +37,8 @@ class DiaryEntry {
     this.locationLat,
     this.locationLon,
     this.status = EntryStatus.completed,
+    this.processingStage = ProcessingStage.uploading,
+    this.asrTaskId,
   });
 
   String get displayTitle =>

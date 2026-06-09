@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/diary_entry.dart';
+import '../models/processing_stage.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
 import 'database/app_database.dart' hide DiaryEntry, Tag, DiaryTagRelation;
@@ -44,6 +45,8 @@ class DiaryStorageService {
       locationLat: Value(entry.locationLat),
       locationLon: Value(entry.locationLon),
       status: Value(entry.status.name),
+      processingStage: Value(entry.processingStage.value),
+      asrTaskId: Value(entry.asrTaskId),
     ));
   }
 
@@ -64,6 +67,8 @@ class DiaryStorageService {
       locationLat: Value(entry.locationLat),
       locationLon: Value(entry.locationLon),
       status: Value(entry.status.name),
+      processingStage: Value(entry.processingStage.value),
+      asrTaskId: Value(entry.asrTaskId),
     ));
   }
 
@@ -183,6 +188,8 @@ class DiaryStorageService {
               locationLat: r.locationLat,
               locationLon: r.locationLon,
               status: _parseStatus(r.status),
+              processingStage: ProcessingStage.fromString(r.processingStage),
+              asrTaskId: r.asrTaskId,
             ))
         .toList();
   }
@@ -207,6 +214,8 @@ class DiaryStorageService {
       locationLat: r.locationLat,
       locationLon: r.locationLon,
       status: _parseStatus(r.status),
+      processingStage: ProcessingStage.fromString(r.processingStage),
+      asrTaskId: r.asrTaskId,
     );
   }
 
@@ -372,5 +381,65 @@ class DiaryStorageService {
       } catch (_) {}
     }
     return results;
+  }
+
+  /// 查询所有待处理的条目（status=processing），按创建时间升序
+  Future<List<DiaryEntry>> getPendingEntries() async {
+    final rows = await _db.getPendingEntries();
+    return rows
+        .map((r) => DiaryEntry(
+              id: r.id,
+              title: r.title,
+              folderPath: r.folderPath,
+              durationSeconds: r.durationSeconds,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+              tosKey: r.tosKey,
+              audioFormat: r.audioFormat,
+              uploadedAt: r.uploadedAt != null
+                  ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+                  : null,
+              weatherIcon: r.weatherIcon,
+              weatherText: r.weatherText,
+              temperature: r.temperature,
+              locationName: r.locationName,
+              locationLat: r.locationLat,
+              locationLon: r.locationLon,
+              status: _parseStatus(r.status),
+              processingStage: ProcessingStage.fromString(r.processingStage),
+              asrTaskId: r.asrTaskId,
+            ))
+        .toList();
+  }
+
+  /// 更新处理阶段
+  Future<void> updateProcessingStage(String id, ProcessingStage stage) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(
+      processingStage: Value(stage.value),
+    ));
+  }
+
+  /// 更新处理阶段和 tosKey
+  Future<void> updateTosKeyAndStage(String id, String tosKey, ProcessingStage stage) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(
+      tosKey: Value(tosKey),
+      processingStage: Value(stage.value),
+    ));
+  }
+
+  /// 更新处理阶段和 asrTaskId
+  Future<void> updateAsrTaskIdAndStage(String id, String asrTaskId, ProcessingStage stage) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
+        .write(DiaryEntriesCompanion(
+      asrTaskId: Value(asrTaskId),
+      processingStage: Value(stage.value),
+    ));
+  }
+
+  /// 获取条目的 tosKey
+  Future<String?> getTosKey(String id) async {
+    final entry = await _db.getEntryById(id);
+    return entry.tosKey;
   }
 }

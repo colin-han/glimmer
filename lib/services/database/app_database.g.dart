@@ -168,6 +168,29 @@ class $DiaryEntriesTable extends DiaryEntries
     requiredDuringInsert: false,
     defaultValue: const Constant('completed'),
   );
+  static const VerificationMeta _processingStageMeta = const VerificationMeta(
+    'processingStage',
+  );
+  @override
+  late final GeneratedColumn<String> processingStage = GeneratedColumn<String>(
+    'processing_stage',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('uploading'),
+  );
+  static const VerificationMeta _asrTaskIdMeta = const VerificationMeta(
+    'asrTaskId',
+  );
+  @override
+  late final GeneratedColumn<String> asrTaskId = GeneratedColumn<String>(
+    'asr_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -185,6 +208,8 @@ class $DiaryEntriesTable extends DiaryEntries
     locationLat,
     locationLon,
     status,
+    processingStage,
+    asrTaskId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -319,6 +344,21 @@ class $DiaryEntriesTable extends DiaryEntries
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('processing_stage')) {
+      context.handle(
+        _processingStageMeta,
+        processingStage.isAcceptableOrUnknown(
+          data['processing_stage']!,
+          _processingStageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('asr_task_id')) {
+      context.handle(
+        _asrTaskIdMeta,
+        asrTaskId.isAcceptableOrUnknown(data['asr_task_id']!, _asrTaskIdMeta),
+      );
+    }
     return context;
   }
 
@@ -388,6 +428,14 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      processingStage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}processing_stage'],
+      )!,
+      asrTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asr_task_id'],
+      ),
     );
   }
 
@@ -413,6 +461,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
   final double? locationLat;
   final double? locationLon;
   final String status;
+  final String processingStage;
+  final String? asrTaskId;
   const DiaryEntry({
     required this.id,
     required this.title,
@@ -429,6 +479,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     this.locationLat,
     this.locationLon,
     required this.status,
+    required this.processingStage,
+    this.asrTaskId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -464,6 +516,10 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       map['location_lon'] = Variable<double>(locationLon);
     }
     map['status'] = Variable<String>(status);
+    map['processing_stage'] = Variable<String>(processingStage);
+    if (!nullToAbsent || asrTaskId != null) {
+      map['asr_task_id'] = Variable<String>(asrTaskId);
+    }
     return map;
   }
 
@@ -500,6 +556,10 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ? const Value.absent()
           : Value(locationLon),
       status: Value(status),
+      processingStage: Value(processingStage),
+      asrTaskId: asrTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(asrTaskId),
     );
   }
 
@@ -524,6 +584,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       locationLat: serializer.fromJson<double?>(json['locationLat']),
       locationLon: serializer.fromJson<double?>(json['locationLon']),
       status: serializer.fromJson<String>(json['status']),
+      processingStage: serializer.fromJson<String>(json['processingStage']),
+      asrTaskId: serializer.fromJson<String?>(json['asrTaskId']),
     );
   }
   @override
@@ -545,6 +607,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       'locationLat': serializer.toJson<double?>(locationLat),
       'locationLon': serializer.toJson<double?>(locationLon),
       'status': serializer.toJson<String>(status),
+      'processingStage': serializer.toJson<String>(processingStage),
+      'asrTaskId': serializer.toJson<String?>(asrTaskId),
     };
   }
 
@@ -564,6 +628,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     Value<double?> locationLat = const Value.absent(),
     Value<double?> locationLon = const Value.absent(),
     String? status,
+    String? processingStage,
+    Value<String?> asrTaskId = const Value.absent(),
   }) => DiaryEntry(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -580,6 +646,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     locationLat: locationLat.present ? locationLat.value : this.locationLat,
     locationLon: locationLon.present ? locationLon.value : this.locationLon,
     status: status ?? this.status,
+    processingStage: processingStage ?? this.processingStage,
+    asrTaskId: asrTaskId.present ? asrTaskId.value : this.asrTaskId,
   );
   DiaryEntry copyWithCompanion(DiaryEntriesCompanion data) {
     return DiaryEntry(
@@ -618,6 +686,10 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ? data.locationLon.value
           : this.locationLon,
       status: data.status.present ? data.status.value : this.status,
+      processingStage: data.processingStage.present
+          ? data.processingStage.value
+          : this.processingStage,
+      asrTaskId: data.asrTaskId.present ? data.asrTaskId.value : this.asrTaskId,
     );
   }
 
@@ -638,7 +710,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ..write('locationName: $locationName, ')
           ..write('locationLat: $locationLat, ')
           ..write('locationLon: $locationLon, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('processingStage: $processingStage, ')
+          ..write('asrTaskId: $asrTaskId')
           ..write(')'))
         .toString();
   }
@@ -660,6 +734,8 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     locationLat,
     locationLon,
     status,
+    processingStage,
+    asrTaskId,
   );
   @override
   bool operator ==(Object other) =>
@@ -679,7 +755,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           other.locationName == this.locationName &&
           other.locationLat == this.locationLat &&
           other.locationLon == this.locationLon &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.processingStage == this.processingStage &&
+          other.asrTaskId == this.asrTaskId);
 }
 
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
@@ -698,6 +776,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
   final Value<double?> locationLat;
   final Value<double?> locationLon;
   final Value<String> status;
+  final Value<String> processingStage;
+  final Value<String?> asrTaskId;
   final Value<int> rowid;
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
@@ -715,6 +795,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.locationLat = const Value.absent(),
     this.locationLon = const Value.absent(),
     this.status = const Value.absent(),
+    this.processingStage = const Value.absent(),
+    this.asrTaskId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiaryEntriesCompanion.insert({
@@ -733,6 +815,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.locationLat = const Value.absent(),
     this.locationLon = const Value.absent(),
     this.status = const Value.absent(),
+    this.processingStage = const Value.absent(),
+    this.asrTaskId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -755,6 +839,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Expression<double>? locationLat,
     Expression<double>? locationLon,
     Expression<String>? status,
+    Expression<String>? processingStage,
+    Expression<String>? asrTaskId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -773,6 +859,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       if (locationLat != null) 'location_lat': locationLat,
       if (locationLon != null) 'location_lon': locationLon,
       if (status != null) 'status': status,
+      if (processingStage != null) 'processing_stage': processingStage,
+      if (asrTaskId != null) 'asr_task_id': asrTaskId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -793,6 +881,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Value<double?>? locationLat,
     Value<double?>? locationLon,
     Value<String>? status,
+    Value<String>? processingStage,
+    Value<String?>? asrTaskId,
     Value<int>? rowid,
   }) {
     return DiaryEntriesCompanion(
@@ -811,6 +901,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       locationLat: locationLat ?? this.locationLat,
       locationLon: locationLon ?? this.locationLon,
       status: status ?? this.status,
+      processingStage: processingStage ?? this.processingStage,
+      asrTaskId: asrTaskId ?? this.asrTaskId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -863,6 +955,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (processingStage.present) {
+      map['processing_stage'] = Variable<String>(processingStage.value);
+    }
+    if (asrTaskId.present) {
+      map['asr_task_id'] = Variable<String>(asrTaskId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -887,6 +985,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
           ..write('locationLat: $locationLat, ')
           ..write('locationLon: $locationLon, ')
           ..write('status: $status, ')
+          ..write('processingStage: $processingStage, ')
+          ..write('asrTaskId: $asrTaskId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1609,6 +1709,8 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       Value<double?> locationLat,
       Value<double?> locationLon,
       Value<String> status,
+      Value<String> processingStage,
+      Value<String?> asrTaskId,
       Value<int> rowid,
     });
 typedef $$DiaryEntriesTableUpdateCompanionBuilder =
@@ -1628,6 +1730,8 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<double?> locationLat,
       Value<double?> locationLon,
       Value<String> status,
+      Value<String> processingStage,
+      Value<String?> asrTaskId,
       Value<int> rowid,
     });
 
@@ -1744,6 +1848,16 @@ class $$DiaryEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get processingStage => $composableBuilder(
+    column: $table.processingStage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get asrTaskId => $composableBuilder(
+    column: $table.asrTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> diaryTagRelationsRefs(
     Expression<bool> Function($$DiaryTagRelationsTableFilterComposer f) f,
   ) {
@@ -1853,6 +1967,16 @@ class $$DiaryEntriesTableOrderingComposer
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get processingStage => $composableBuilder(
+    column: $table.processingStage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get asrTaskId => $composableBuilder(
+    column: $table.asrTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DiaryEntriesTableAnnotationComposer
@@ -1929,6 +2053,14 @@ class $$DiaryEntriesTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get processingStage => $composableBuilder(
+    column: $table.processingStage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get asrTaskId =>
+      $composableBuilder(column: $table.asrTaskId, builder: (column) => column);
+
   Expression<T> diaryTagRelationsRefs<T extends Object>(
     Expression<T> Function($$DiaryTagRelationsTableAnnotationComposer a) f,
   ) {
@@ -1999,6 +2131,8 @@ class $$DiaryEntriesTableTableManager
                 Value<double?> locationLat = const Value.absent(),
                 Value<double?> locationLon = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String> processingStage = const Value.absent(),
+                Value<String?> asrTaskId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion(
                 id: id,
@@ -2016,6 +2150,8 @@ class $$DiaryEntriesTableTableManager
                 locationLat: locationLat,
                 locationLon: locationLon,
                 status: status,
+                processingStage: processingStage,
+                asrTaskId: asrTaskId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2035,6 +2171,8 @@ class $$DiaryEntriesTableTableManager
                 Value<double?> locationLat = const Value.absent(),
                 Value<double?> locationLon = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String> processingStage = const Value.absent(),
+                Value<String?> asrTaskId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion.insert(
                 id: id,
@@ -2052,6 +2190,8 @@ class $$DiaryEntriesTableTableManager
                 locationLat: locationLat,
                 locationLon: locationLon,
                 status: status,
+                processingStage: processingStage,
+                asrTaskId: asrTaskId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
