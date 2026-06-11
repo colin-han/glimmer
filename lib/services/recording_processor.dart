@@ -140,9 +140,17 @@ class ProcessingTaskHandler extends TaskHandler {
 
     AsrResult asrResult;
     if (entry.asrTaskId != null) {
-      // 有 asrTaskId → 直接查询已有任务结果（中断恢复）
+      // 有 asrTaskId → 尝试查询已有任务结果（中断恢复）
       debugPrint('[ProcessingHandler] 恢复 ASR 查询: ${entry.asrTaskId}');
-      asrResult = await _asrService.pollAsyncResult(entry.asrTaskId!);
+      try {
+        asrResult = await _asrService.pollAsyncResult(entry.asrTaskId!);
+      } catch (e) {
+        // taskId 可能已过期，回退到重新提交
+        debugPrint('[ProcessingHandler] ASR 查询失败，重新提交: $e');
+        final newTaskId = await _asrService.submitAsync(presignedUrl);
+        await _storageService.updateAsrTaskIdAndStage(entry.id, newTaskId, ProcessingStage.asr);
+        asrResult = await _asrService.pollAsyncResult(newTaskId);
+      }
     } else {
       // 无 asrTaskId → 提交新的异步识别任务
       final asrTaskId = await _asrService.submitAsync(presignedUrl);
