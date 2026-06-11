@@ -7,15 +7,11 @@ import 'package:record/record.dart' show Amplitude;
 import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
-import '../models/utterance.dart';
-import 'asr_service.dart';
+import '../models/processing_stage.dart';
 import 'audio_recorder_service.dart';
 import 'diary_storage_service.dart';
-import 'llm_service.dart';
 import 'location_service.dart';
 import 'realtime_asr_service.dart';
-import 'tos_upload_service.dart';
-import 'tts_service.dart';
 import 'weather_service.dart';
 
 /// 前台服务入口函数，必须为顶层函数并标注 @pragma('vm:entry-point')
@@ -24,21 +20,18 @@ void startCallback() {
   FlutterForegroundTask.setTaskHandler(RecordingTaskHandler());
 }
 
-/// 录音 + 处理的 TaskHandler，运行在独立 Dart isolate 中（老张）。
+/// 录音 TaskHandler，运行在独立 Dart isolate 中。
 ///
-/// 承担所有职责：建文件夹、天气获取、录音、ASR、LLM、保存、TTS、通知管理。
-/// 通过 [FlutterForegroundTask.sendDataToMain] 向 UI（小丽）传递实时状态。
+/// 只负责录音阶段：建文件夹、天气获取、录音。
+/// 录音结束后保存音频文件、INSERT DB 条目、通知主 isolate、停止 FGS。
+/// ASR/LLM/TOS 等处理由 ProcessingTaskHandler 负责。
 class RecordingTaskHandler extends TaskHandler {
   // --- 内部创建的 service 实例 ---
   AudioRecorderService? _recorderService;
   RealtimeAsrService? _realtimeAsr;
-  final _asrService = AsrService();
-  final _tosService = TosUploadService();
-  final _llmService = LlmService();
   final _storageService = DiaryStorageService();
   final _locationService = LocationService();
   final _weatherService = WeatherService();
-  final _ttsService = TtsService();
   final _uuid = const Uuid();
 
   // --- 状态 ---
@@ -51,10 +44,7 @@ class RecordingTaskHandler extends TaskHandler {
   StreamSubscription? _partialResultSub;
   StreamSubscription<Amplitude>? _amplitudeSub;
 
-  // 当前阶段（用于通知点击时告诉 UI 该跳哪个页面）
-  String _currentState = 'recording'; // recording | processing | completed | failed
-
-  // 天气/位置（异步获取，处理阶段使用）
+  // 天气/位置（异步获取，创建条目时使用）
   WeatherLocation? _weatherLocation;
   ({double lat, double lon})? _location;
 
@@ -87,8 +77,6 @@ class RecordingTaskHandler extends TaskHandler {
     } else if (_folderPath == null) {
       _folderPath = await _storageService.createDiaryFolder(_folderId!);
     }
-
-    _currentState = 'recording';
 
     // 更新通知
     FlutterForegroundTask.updateService(
@@ -148,7 +136,6 @@ class RecordingTaskHandler extends TaskHandler {
       _fetchWeatherInBackground();
     } catch (e) {
       debugPrint('[TaskHandler] 录音启动失败: $e');
-      _currentState = 'failed';
       _sendToMain({
         'type': 'failed',
         'entryId': _folderId ?? '',
@@ -207,282 +194,68 @@ class RecordingTaskHandler extends TaskHandler {
   @override
   void onRepeatEvent(DateTime timestamp) {}
 
-  /// 收到 stop 指令后停止录音并开始处理
+  /// 收到 stop 指令后停止录音，创建 DB 条目，通知主 isolate
   void _requestStop() {
     if (_stopRequested) return;
     _stopRequested = true;
+
     () async {
       try {
-        await _processRecording();
+        // 停止计时和监听
+        _durationTimer?.cancel();
+        _durationTimer = null;
+        await _amplitudeSub?.cancel();
+        _amplitudeSub = null;
+        _realtimeAsr?.sendLastFrame();
+        _realtimeAsr?.disconnect();
+        await _audioStreamSub?.cancel();
+        _audioStreamSub = null;
+        await _partialResultSub?.cancel();
+        _partialResultSub = null;
+
+        // 停止录音
+        int duration = _recordingSeconds;
+        try {
+          final result = await _recorderService!.stopRecording();
+          duration = result.durationSeconds;
+        } catch (e) {
+          debugPrint('[TaskHandler] stopRecording 失败: $e');
+        }
+
+        // 创建 DB 条目
+        await _storageService.createEntry(DiaryEntry(
+          id: _folderId!,
+          title: '正在处理中...',
+          folderPath: _folderPath!,
+          durationSeconds: duration,
+          createdAt: DateTime.now(),
+          audioFormat: 'ogg',
+          status: EntryStatus.processing,
+          processingStage: ProcessingStage.uploading,
+          weatherIcon: _weatherLocation?.icon,
+          weatherText: _weatherLocation?.text,
+          temperature: _weatherLocation?.temp,
+          locationName: _weatherLocation?.locationName,
+          locationLat: _location?.lat,
+          locationLon: _location?.lon,
+        ));
+
+        debugPrint('[TaskHandler] 录音完成，已创建 DB 条目');
+
+        // 通知主 isolate
+        _sendToMain({'type': 'recordingComplete', 'entryId': _folderId!});
       } catch (e) {
-        debugPrint('[TaskHandler] 处理流程异常: $e');
+        debugPrint('[TaskHandler] 停止录音异常: $e');
+        _sendToMain({
+          'type': 'failed',
+          'entryId': _folderId ?? '',
+          'step': 0,
+          'error': '停止录音失败: $e',
+        });
       } finally {
-        // 无论如何都停止 FGS，防止服务泄漏
         await _stopService();
       }
     }();
-  }
-
-  /// 停止录音后执行完整处理流程
-  Future<void> _processRecording() async {
-    debugPrint('[TaskHandler] 开始处理流程');
-    _currentState = 'processing';
-
-    // 停止计时和振幅监听
-    _durationTimer?.cancel();
-    _durationTimer = null;
-    await _amplitudeSub?.cancel();
-    _amplitudeSub = null;
-
-    // 停止实时 ASR
-    _realtimeAsr?.sendLastFrame();
-    _realtimeAsr?.disconnect();
-    await _audioStreamSub?.cancel();
-    _audioStreamSub = null;
-    await _partialResultSub?.cancel();
-    _partialResultSub = null;
-
-    final duration = _recordingSeconds;
-
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在处理',
-      notificationText: '语音日记 - 处理中...',
-    );
-
-    // 先创建 processing 状态的数据库记录，日记列表立即可见
-    try {
-      final processingEntry = DiaryEntry(
-        id: _folderId!,
-        title: '正在处理中...',
-        folderPath: _folderPath!,
-        durationSeconds: duration,
-        createdAt: DateTime.now(),
-        audioFormat: 'ogg',
-        status: EntryStatus.processing,
-        weatherIcon: _weatherLocation?.icon,
-        weatherText: _weatherLocation?.text,
-        temperature: _weatherLocation?.temp,
-        locationName: _weatherLocation?.locationName,
-        locationLat: _location?.lat,
-        locationLon: _location?.lon,
-      );
-      await _storageService.createEntry(processingEntry);
-      debugPrint('[TaskHandler] processing 条目已创建');
-    } catch (e) {
-      debugPrint('[TaskHandler] 创建 processing 条目失败: $e');
-    }
-
-    String? tosKey;
-    String? audioFilePath;
-
-    // --- 停止录音 ---
-    try {
-      final recordingResult = await _recorderService!.stopRecording();
-      audioFilePath = recordingResult.filePath;
-      debugPrint(
-          '[TaskHandler] stopRecording 完成: ${recordingResult.durationSeconds}s');
-    } catch (e) {
-      debugPrint('[TaskHandler] stopRecording 失败: $e');
-    }
-
-    // --- 步骤 1: 上传 TOS + Flash ASR ---
-    _sendToMain({'type': 'processing', 'step': 1});
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在处理',
-      notificationText: '语音日记 - 语音识别...',
-    );
-
-    AsrResult? asrResult;
-    try {
-      if (audioFilePath != null) {
-        tosKey = await _tosService.uploadAudio(audioFilePath, _folderId!);
-        debugPrint('[TaskHandler] TOS 上传完成: $tosKey');
-
-        final presignedUrl = await _tosService.getPresignedUrl(tosKey);
-        debugPrint('[TaskHandler] 预签名 URL 生成完成');
-
-        asrResult = await _asrService.transcribeFromUrl(presignedUrl);
-        await _storageService.writeTranscriptJson(
-          _folderPath!,
-          TranscriptData(version: 1, utterances: asrResult.utterances),
-        );
-        debugPrint('[TaskHandler] Flash ASR 完成');
-      }
-    } catch (e) {
-      debugPrint('[TaskHandler] TOS 上传或 ASR 失败: $e');
-      await _markEntryAsFailed('处理失败');
-      _currentState = 'failed';
-      _sendToMain({
-        'type': 'failed',
-        'entryId': _folderId!,
-        'step': 1,
-        'error': '语音识别失败: $e',
-      });
-      FlutterForegroundTask.updateService(
-        notificationTitle: '处理失败',
-        notificationText: '语音日记 - 语音识别失败',
-      );
-      return;
-    }
-
-    if (asrResult == null) {
-      debugPrint('[TaskHandler] ASR 结果为空');
-      await _markEntryAsFailed('处理失败');
-      _currentState = 'failed';
-      _sendToMain({
-        'type': 'failed',
-        'entryId': _folderId!,
-        'step': 1,
-        'error': '语音识别结果为空',
-      });
-      FlutterForegroundTask.updateService(
-        notificationTitle: '处理失败',
-        notificationText: '语音日记 - 语音识别结果为空',
-      );
-      return;
-    }
-
-    // --- 步骤 2: LLM 润色 ---
-    _sendToMain({'type': 'processing', 'step': 2});
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在处理',
-      notificationText: '语音日记 - AI 总结...',
-    );
-
-    LlmResult? llmResult;
-    try {
-      llmResult = await _llmService.summarize(asrResult.utterances);
-      await _storageService.writeLlmResult(
-        _folderPath!,
-        LlmResultData(
-          version: 1,
-          title: llmResult.title,
-          content: llmResult.content,
-          summary: llmResult.summary,
-          outline: llmResult.outline,
-          utterances: llmResult.utterances,
-        ),
-      );
-      debugPrint('[TaskHandler] LLM summarize 完成');
-    } catch (e) {
-      debugPrint('[TaskHandler] LLM 失败: $e');
-      await _markEntryAsFailed('处理失败');
-      _currentState = 'failed';
-      _sendToMain({
-        'type': 'failed',
-        'entryId': _folderId!,
-        'step': 2,
-        'error': 'AI 总结失败: $e',
-      });
-      FlutterForegroundTask.updateService(
-        notificationTitle: '处理失败',
-        notificationText: '语音日记 - AI 总结失败',
-      );
-      return;
-    }
-
-    // --- 步骤 3: 保存元数据 ---
-    _sendToMain({'type': 'processing', 'step': 3});
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在处理',
-      notificationText: '语音日记 - 保存数据...',
-    );
-
-    final entry = DiaryEntry(
-      id: _folderId!,
-      title: llmResult.title,
-      folderPath: _folderPath!,
-      durationSeconds: duration,
-      createdAt: DateTime.now(),
-      tosKey: tosKey,
-      audioFormat: 'ogg',
-      uploadedAt: DateTime.now(),
-      weatherIcon: _weatherLocation?.icon,
-      weatherText: _weatherLocation?.text,
-      temperature: _weatherLocation?.temp,
-      locationName: _weatherLocation?.locationName,
-      locationLat: _location?.lat,
-      locationLon: _location?.lon,
-    );
-    await _storageService.updateEntry(entry);
-    debugPrint('[TaskHandler] 保存元数据完成');
-
-    // --- 步骤 4: 自动归类（非阻塞） ---
-    _sendToMain({'type': 'processing', 'step': 4});
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在处理',
-      notificationText: '语音日记 - 自动归类...',
-    );
-
-    try {
-      final allTags = await _storageService.getAllTags();
-      final tagsWithPrompt =
-          allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
-      if (tagsWithPrompt.isNotEmpty) {
-        final tagInfos = tagsWithPrompt
-            .map((t) =>
-                TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
-            .toList();
-        final matchedTagIds =
-            await _llmService.matchTags(llmResult.content, tagInfos);
-        if (matchedTagIds.isNotEmpty) {
-          await _storageService.autoTagDiary(_folderId!, matchedTagIds);
-        }
-        debugPrint(
-            '[TaskHandler] 自动归类完成: 匹配 ${matchedTagIds.length} 个标签');
-      }
-    } catch (e) {
-      debugPrint('[TaskHandler] 自动归类失败（不阻塞）: $e');
-    }
-
-    // --- 完成 ---
-    _currentState = 'completed';
-    FlutterForegroundTask.updateService(
-      notificationTitle: '处理完成',
-      notificationText: '语音日记 - ${llmResult.title}',
-    );
-
-    debugPrint('[TaskHandler] 发送 completed 事件');
-    _sendToMain({'type': 'completed', 'entryId': _folderId!});
-
-    // TTS 播报
-    await _speakReply();
-  }
-
-  static const _replyTemplates = [
-    '录音完成，我来帮你整理日记',
-    '录音完成，日记整理马上就好',
-    '录音完成，稍等我帮你整理一下',
-    '录音完成，今天说了好多呢，我慢慢整理',
-    '录音完成，放心交给我吧',
-    '录音完成，内容收到，马上帮你整理成日记',
-    '录音完成，让我想想怎么帮你写这篇日记',
-    '录音完成，今天记录了不少呢，我来整理',
-  ];
-
-  Future<void> _speakReply() async {
-    try {
-      final text = _replyTemplates[DateTime.now().millisecond % _replyTemplates.length];
-      debugPrint('[TaskHandler] TTS 播报: "$text"');
-      await _ttsService.speak(text, VoiceType.femaleSweet);
-    } catch (e) {
-      debugPrint('[TaskHandler] TTS 播报失败（不阻塞）: $e');
-    }
-  }
-
-  /// 保存最小元数据条目（用于失败场景）
-  /// 将处理中的条目标记为失败
-  Future<void> _markEntryAsFailed(String title) async {
-    try {
-      await _storageService.updateEntryTitleAndStatus(
-        _folderId!,
-        title,
-        EntryStatus.failed,
-      );
-      debugPrint('[TaskHandler] 条目已标记为 failed');
-    } catch (e) {
-      debugPrint('[TaskHandler] 标记 failed 失败: $e');
-    }
   }
 
   /// 延迟后停止服务
@@ -493,11 +266,11 @@ class RecordingTaskHandler extends TaskHandler {
 
   @override
   void onNotificationPressed() {
-    debugPrint('[TaskHandler] 通知被点击, state=$_currentState');
+    debugPrint('[TaskHandler] 通知被点击');
     FlutterForegroundTask.launchApp('/');
     _sendToMain({
       'type': 'notificationPressed',
-      'state': _currentState,
+      'state': 'recording',
       'entryId': _folderId ?? '',
     });
   }
@@ -513,185 +286,5 @@ class RecordingTaskHandler extends TaskHandler {
 
     _realtimeAsr?.disconnect();
     await _recorderService?.dispose();
-  }
-}
-
-// ============================================================
-// 重试处理的 TaskHandler
-// ============================================================
-
-/// 重试入口函数，必须为顶层函数
-@pragma('vm:entry-point')
-void retryCallback() {
-  FlutterForegroundTask.setTaskHandler(RetryTaskHandler());
-}
-
-/// 重试失败日记的 TaskHandler，运行在 FGS isolate 中。
-/// 只负责 ASR + LLM 处理（无录音），通过 dataSync 类型 FGS 保证进程不被杀。
-class RetryTaskHandler extends TaskHandler {
-  final _asrService = AsrService();
-  final _tosService = TosUploadService();
-  final _llmService = LlmService();
-  final _storageService = DiaryStorageService();
-
-  String? _folderId;
-
-  void _sendToMain(Map<String, dynamic> data) {
-    FlutterForegroundTask.sendDataToMain(data);
-  }
-
-  @override
-  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
-    debugPrint('[RetryHandler] onStart');
-
-    // 加载 dotenv（FGS isolate 中未初始化）
-    try {
-      await dotenv.load(fileName: '.env.local');
-    } catch (e) {
-      debugPrint('[RetryHandler] dotenv.load 失败: $e');
-    }
-
-    // 读取重试参数
-    _folderId = await FlutterForegroundTask.getData(key: 'retryFolderId') as String?;
-    final folderPath = await FlutterForegroundTask.getData(key: 'retryFolderPath') as String?;
-    final audioFilePath = await FlutterForegroundTask.getData(key: 'retryAudioFilePath') as String?;
-    final durationSeconds = await FlutterForegroundTask.getData(key: 'retryDurationSeconds') as int?;
-
-    if (_folderId == null || folderPath == null || audioFilePath == null) {
-      debugPrint('[RetryHandler] 缺少必要参数，退出');
-      await _stopService();
-      return;
-    }
-
-    final duration = durationSeconds ?? 0;
-
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在重新处理',
-      notificationText: '语音日记 - 语音识别...',
-    );
-
-    // --- 步骤 1: TOS 上传 + ASR ---
-    AsrResult? asrResult;
-    String? tosKey;
-    try {
-      tosKey = await _tosService.uploadAudio(audioFilePath, _folderId!);
-      final presignedUrl = await _tosService.getPresignedUrl(tosKey);
-      asrResult = await _asrService.transcribeFromUrl(presignedUrl);
-      await _storageService.writeTranscriptJson(
-        folderPath,
-        TranscriptData(version: 1, utterances: asrResult.utterances),
-      );
-      debugPrint('[RetryHandler] ASR 完成');
-    } catch (e) {
-      debugPrint('[RetryHandler] ASR 失败: $e');
-      await _markFailed('处理失败');
-      await _stopService();
-      return;
-    }
-
-    // --- 步骤 2: LLM ---
-    FlutterForegroundTask.updateService(
-      notificationTitle: '正在重新处理',
-      notificationText: '语音日记 - AI 总结...',
-    );
-
-    LlmResult? llmResult;
-    try {
-      llmResult = await _llmService.summarize(asrResult.utterances);
-      await _storageService.writeLlmResult(
-        folderPath,
-        LlmResultData(
-          version: 1,
-          title: llmResult.title,
-          content: llmResult.content,
-          summary: llmResult.summary,
-          outline: llmResult.outline,
-          utterances: llmResult.utterances,
-        ),
-      );
-      debugPrint('[RetryHandler] LLM 完成');
-    } catch (e) {
-      debugPrint('[RetryHandler] LLM 失败: $e');
-      await _markFailed('处理失败');
-      await _stopService();
-      return;
-    }
-
-    // --- 步骤 3: 更新元数据 ---
-    final entry = DiaryEntry(
-      id: _folderId!,
-      title: llmResult.title,
-      folderPath: folderPath,
-      durationSeconds: duration,
-      createdAt: DateTime.now(),
-      tosKey: tosKey,
-      audioFormat: 'ogg',
-      uploadedAt: DateTime.now(),
-    );
-    await _storageService.updateEntry(entry);
-    debugPrint('[RetryHandler] 元数据更新完成');
-
-    // --- 步骤 4: 自动归类（失败不阻塞） ---
-    try {
-      final allTags = await _storageService.getAllTags();
-      final tagsWithPrompt =
-          allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
-      if (tagsWithPrompt.isNotEmpty) {
-        final tagInfos = tagsWithPrompt
-            .map((t) => TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
-            .toList();
-        final matchedTagIds =
-            await _llmService.matchTags(llmResult.content, tagInfos);
-        if (matchedTagIds.isNotEmpty) {
-          await _storageService.autoTagDiary(_folderId!, matchedTagIds);
-        }
-      }
-    } catch (e) {
-      debugPrint('[RetryHandler] 自动归类失败（不阻塞）: $e');
-    }
-
-    debugPrint('[RetryHandler] 重试完成');
-    _sendToMain({'type': 'completed', 'entryId': _folderId!});
-    await _stopService();
-  }
-
-  Future<void> _markFailed(String title) async {
-    if (_folderId == null) return;
-    try {
-      await _storageService.updateEntryTitleAndStatus(
-        _folderId!,
-        title,
-        EntryStatus.failed,
-      );
-    } catch (e) {
-      debugPrint('[RetryHandler] 标记 failed 失败: $e');
-    }
-    _sendToMain({'type': 'failed', 'entryId': _folderId!, 'step': 0, 'error': ''});
-  }
-
-  Future<void> _stopService() async {
-    await Future.delayed(const Duration(seconds: 2));
-    FlutterForegroundTask.stopService();
-  }
-
-  @override
-  void onRepeatEvent(DateTime timestamp) {}
-
-  @override
-  void onReceiveData(Object data) {}
-
-  @override
-  void onNotificationPressed() {
-    FlutterForegroundTask.launchApp('/');
-    _sendToMain({
-      'type': 'notificationPressed',
-      'state': 'processing',
-      'entryId': _folderId ?? '',
-    });
-  }
-
-  @override
-  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
-    debugPrint('[RetryHandler] onDestroy');
   }
 }
