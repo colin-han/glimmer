@@ -6,6 +6,7 @@ import 'package:record/record.dart' show Amplitude, AudioRecorder;
 
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
+import '../services/recording_processor.dart' show processingCallback;
 import '../services/recording_task_handler.dart';
 import '../services/weather_service.dart';
 import '../widgets/app_title.dart';
@@ -84,6 +85,9 @@ class _RecordingPageState extends State<RecordingPage> {
             locationName: data['locationName'] as String,
           );
         });
+      case 'recordingComplete':
+        // 录音完成，启动 Processing FGS
+        _startProcessingFgs();
       case 'completed':
       case 'failed':
         // 处理完成或失败时刷新 Badge 数量
@@ -163,6 +167,9 @@ class _RecordingPageState extends State<RecordingPage> {
         return;
       }
 
+      // 先停止可能正在运行的 Processing FGS
+      FlutterForegroundTask.stopService();
+
       // 设置通信端口
       FlutterForegroundTask.initCommunicationPort();
 
@@ -195,6 +202,23 @@ class _RecordingPageState extends State<RecordingPage> {
     });
     // 停止录音后刷新处理中数量
     _refreshProcessingCount();
+  }
+
+  Future<void> _startProcessingFgs() async {
+    try {
+      final result = await FlutterForegroundTask.startService(
+        serviceTypes: [ForegroundServiceTypes.dataSync],
+        notificationTitle: '正在处理',
+        notificationText: '语音日记 - 处理中...',
+        callback: processingCallback,
+      );
+      if (result is ServiceRequestFailure) {
+        debugPrint('[RecordingPage] 启动 Processing FGS 失败: ${result.error}');
+      }
+      _refreshProcessingCount();
+    } catch (e) {
+      debugPrint('[RecordingPage] 启动 Processing FGS 异常: $e');
+    }
   }
 
   /// 刷新处理中的日记数量

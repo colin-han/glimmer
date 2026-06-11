@@ -1,12 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
-import '../services/recording_processor.dart';
+import '../services/recording_processor.dart' show processingCallback;
 import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
 import 'diary_detail_page.dart';
@@ -33,23 +31,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
   bool _isSearching = false;
   final _searchController = TextEditingController();
 
-  List<ProcessingTask> _processingTasks = [];
-  StreamSubscription<List<ProcessingTask>>? _tasksSubscription;
-
   @override
   void initState() {
     super.initState();
     _loadData();
-    _tasksSubscription =
-        RecordingProcessor.instance.tasksStream.listen((tasks) {
-      final prevCount = _processingTasks.length;
-      setState(() => _processingTasks = tasks);
-      // 任务减少说明有任务完成，刷新列表
-      if (tasks.length < prevCount) {
-        _loadData();
-      }
-    });
-    // 监听 FGS 消息，重试完成/失败时刷新列表
+    // 监听 FGS 消息，处理完成/失败时刷新列表
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
   }
 
@@ -97,7 +83,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
   @override
   void dispose() {
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
-    _tasksSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -154,7 +139,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _entries.isEmpty && _processingTasks.isEmpty
+          : _entries.isEmpty
               ? _buildEmptyState()
               : Column(
                   children: [
@@ -383,7 +368,28 @@ class _DiaryListPageState extends State<DiaryListPage> {
   }
 
   Future<void> _retryEntry(DiaryEntry entry) async {
-    await RecordingProcessor.instance.retryEntry(entry);
+    // 更新状态为 processing（processingStage 保持 failed 时的值）
+    await DiaryStorageService().updateEntryTitleAndStatus(
+      entry.id,
+      '正在处理中...',
+      EntryStatus.processing,
+    );
+
+    // 启动 Processing FGS
+    try {
+      final result = await FlutterForegroundTask.startService(
+        serviceTypes: [ForegroundServiceTypes.dataSync],
+        notificationTitle: '正在重新处理',
+        notificationText: '语音日记 - 处理中...',
+        callback: processingCallback,
+      );
+      if (result is ServiceRequestFailure) {
+        debugPrint('[DiaryListPage] 启动 Processing FGS 失败: ${result.error}');
+      }
+    } catch (e) {
+      debugPrint('[DiaryListPage] 启动 Processing FGS 异常: $e');
+    }
+
     _loadData();
   }
 
