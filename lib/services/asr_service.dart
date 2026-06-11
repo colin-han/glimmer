@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
 
@@ -147,29 +148,39 @@ class AsrService {
     final apiKey = dotenv.get('VOLCENGINE_SPEECH_API_KEY');
     final requestId = _uuid.v4();
 
-    await _dio.post(
-      'https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit',
-      data: {
-        'user': {'uid': 'voice_diary'},
-        'audio': {
-          'url': audioUrl,
-          'format': 'ogg_opus',
-        },
-        'request': {
-          'model_name': 'bigmodel',
-          'show_utterances': true,
-        },
-      },
-      options: Options(headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'X-Api-Resource-Id': 'volc.seedasr.auc',
-        'X-Api-Request-Id': requestId,
-        'X-Api-Sequence': '-1',
-      }),
-    );
+    debugPrint('[ASR] submitAsync: requestId=$requestId, url=${audioUrl.substring(0, audioUrl.indexOf("?"))}...');
 
-    return requestId;
+    try {
+      final response = await _dio.post(
+        'https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit',
+        data: {
+          'user': {'uid': 'voice_diary'},
+          'audio': {
+            'url': audioUrl,
+            'format': 'ogg_opus',
+          },
+          'request': {
+            'model_name': 'bigmodel',
+            'show_utterances': true,
+          },
+        },
+        options: Options(headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'X-Api-Resource-Id': 'volc.seedasr.auc',
+          'X-Api-Request-Id': requestId,
+          'X-Api-Sequence': '-1',
+        }),
+      );
+
+      debugPrint('[ASR] submitAsync 成功: statusCode=${response.statusCode}, data=${response.data}');
+      return requestId;
+    } on DioException catch (e) {
+      debugPrint('[ASR] submitAsync 失败: ${e.type}, status=${e.response?.statusCode}');
+      debugPrint('[ASR] submitAsync 响应头: ${e.response?.headers.map}');
+      debugPrint('[ASR] submitAsync 响应体: ${e.response?.data}');
+      rethrow;
+    }
   }
 
   /// 查询异步 ASR 任务状态。返回 null 表示仍在处理中，返回 AsrResult 表示完成。
