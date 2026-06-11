@@ -258,9 +258,8 @@ class RecordingTaskHandler extends TaskHandler {
     }();
   }
 
-  /// 延迟后停止服务
+  /// 停止服务
   Future<void> _stopService() async {
-    await Future.delayed(const Duration(seconds: 2));
     FlutterForegroundTask.stopService();
   }
 

@@ -206,8 +206,9 @@ class _RecordingPageState extends State<RecordingPage> {
 
   Future<void> _startProcessingFgs() async {
     try {
-      // 先停止可能仍在运行的 Recording FGS
+      // 先停止可能仍在运行的 Recording FGS，等待其完全停止
       FlutterForegroundTask.stopService();
+      await Future.delayed(const Duration(milliseconds: 500));
 
       final result = await FlutterForegroundTask.startService(
         serviceTypes: [ForegroundServiceTypes.dataSync],

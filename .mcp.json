@@ -1,14 +1,3 @@
 {
-  "mcpServers": {
-    "open-mobile-mcp": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "/tmp/open-mobile-mcp/build/index.js"
-      ],
-      "env": {
-        "PATH": "/Users/colinhan/Library/Android/sdk/platform-tools:/Users/colinhan/Library/Python/3.9/bin:/Users/colinhan/.local/bin:/Users/colinhan/.codeium/windsurf/bin:~/.bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Users/colinhan/.cargo/bin:/Users/colinhan/.volta/bin:/Applications/Ghostty.app/Contents/MacOS:/usr/local/opt/fzf/bin:/Users/colinhan/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/bin:/Users/colinhan/.claude/plugins/cache/claude-plugins-official/context7/3449c10cd1f2/bin:/Users/colinhan/.claude/plugins/cache/claude-plugins-official/frontend-design/3449c10cd1f2/bin:/Users/colinhan/.claude/plugins/cache/claude-plugins-official/typescript-lsp/1.0.0/bin"
-      }
-    }
-  }
+  "mcpServers": {}
 }
