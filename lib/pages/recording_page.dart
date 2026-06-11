@@ -45,6 +45,7 @@ class _RecordingPageState extends State<RecordingPage> {
     super.initState();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
     _refreshProcessingCount();
+    _scheduleStartupRecovery();
   }
 
   @override
@@ -230,6 +231,22 @@ class _RecordingPageState extends State<RecordingPage> {
     // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
   }
 
+  /// 应用启动时延迟恢复未完成条目
+  void _scheduleStartupRecovery() {
+    _scheduleStartupRecoveryWithDelay();
+  }
+
+  Future<void> _scheduleStartupRecoveryWithDelay() async {
+    final delay = await SettingsPage.getProcessingDelay();
+    final seconds = delay <= 0 ? 5 : delay;
+    _processingDelayTimer = Timer(Duration(seconds: seconds), () {
+      _processingDelayTimer = null;
+      if (mounted && _state == RecordingState.idle) {
+        _startProcessingFgs();
+      }
+    });
+  }
+
   /// 延迟启动 Processing FGS（按用户设置的延迟秒数）
   Future<void> _scheduleProcessingFgs() async {
     final delay = await SettingsPage.getProcessingDelay();
@@ -302,9 +319,9 @@ class _RecordingPageState extends State<RecordingPage> {
               },
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.only(right: 12),
               child: Badge(
-                offset: const Offset(-6, -6),
+                offset: const Offset(-8, -4),
                 label: Text('$_processingCount'),
                 isLabelVisible: _processingCount > 0,
                 child: IconButton(
