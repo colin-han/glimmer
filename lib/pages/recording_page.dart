@@ -36,6 +36,10 @@ class _RecordingPageState extends State<RecordingPage> {
   // 振幅流（从 FGS 接收振幅数据，转为 Stream<Amplitude> 给波形组件）
   final _amplitudeController = StreamController<Amplitude>.broadcast();
 
+  // Processing FGS 状态跟踪
+  Timer? _processingDelayTimer;
+  bool _isProcessingFgsRunning = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +49,7 @@ class _RecordingPageState extends State<RecordingPage> {
 
   @override
   void dispose() {
+    _processingDelayTimer?.cancel();
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _amplitudeController.close();
     _realtimeScrollController.dispose();
@@ -86,12 +91,17 @@ class _RecordingPageState extends State<RecordingPage> {
           );
         });
       case 'recordingComplete':
-        // 录音完成，启动 Processing FGS
-        _startProcessingFgs();
+        // 录音完成，延迟启动 Processing FGS
+        _scheduleProcessingFgs();
       case 'completed':
       case 'failed':
         // 处理完成或失败时刷新 Badge 数量
+        _isProcessingFgsRunning = false;
         _refreshProcessingCount();
+        if (_state == RecordingState.processing) {
+          // 用户在等待 Processing FGS 停止后启动录音
+          _doStartRecording();
+        }
       case 'notificationPressed':
         _handleNotificationPressed(data);
     }
@@ -154,26 +164,41 @@ class _RecordingPageState extends State<RecordingPage> {
         _startRecording();
       case RecordingState.recording:
         _stopRecording();
-      default:
+      case RecordingState.processing:
+        // processing 状态下不响应点击（等待自动恢复录音）
         break;
     }
   }
 
   Future<void> _startRecording() async {
+    // 取消待执行的延迟定时器（用户在延迟窗口内重新录音）
+    _processingDelayTimer?.cancel();
+    _processingDelayTimer = null;
+
+    if (_isProcessingFgsRunning) {
+      // Processing FGS 正在运行 → 显示加载状态，停止 Processing FGS，等待回调后自动启动录音
+      setState(() => _state = RecordingState.processing);
+      FlutterForegroundTask.stopService();
+      return;
+    }
+
+    await _doStartRecording();
+  }
+
+  /// 实际启动录音（权限检查 + FGS 启动）
+  Future<void> _doStartRecording() async {
     try {
       // 检查麦克风权限（Android 15+ 启动 microphone FGS 前必须已授权）
       if (!await AudioRecorder().hasPermission()) {
         _showError('需要麦克风权限才能录音');
+        setState(() => _state = RecordingState.idle);
         return;
       }
-
-      // 先停止可能正在运行的 Processing FGS
-      FlutterForegroundTask.stopService();
 
       // 设置通信端口
       FlutterForegroundTask.initCommunicationPort();
 
-      // 启动 FGS（老张负责建文件夹、录音、天气等所有事情）
+      // 启动 Recording FGS
       final result = await FlutterForegroundTask.startService(
         serviceTypes: [ForegroundServiceTypes.microphone],
         notificationTitle: '正在录音',
@@ -188,6 +213,7 @@ class _RecordingPageState extends State<RecordingPage> {
       setState(() => _state = RecordingState.recording);
     } catch (e) {
       _showError('录音启动失败：$e');
+      setState(() => _state = RecordingState.idle);
     }
   }
 
@@ -200,12 +226,29 @@ class _RecordingPageState extends State<RecordingPage> {
       _realtimeText = '';
       _currentWeatherLocation = null;
     });
-    // 停止录音后刷新处理中数量
     _refreshProcessingCount();
+    // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
+  }
+
+  /// 延迟启动 Processing FGS（按用户设置的延迟秒数）
+  Future<void> _scheduleProcessingFgs() async {
+    final delay = await SettingsPage.getProcessingDelay();
+    if (delay <= 0) {
+      _startProcessingFgs();
+      return;
+    }
+    _processingDelayTimer = Timer(Duration(seconds: delay), () {
+      _processingDelayTimer = null;
+      if (mounted && _state == RecordingState.idle) {
+        _startProcessingFgs();
+      }
+    });
   }
 
   Future<void> _startProcessingFgs() async {
     try {
+      _isProcessingFgsRunning = true;
+
       // 先停止可能仍在运行的 Recording FGS，等待其完全停止
       FlutterForegroundTask.stopService();
       await Future.delayed(const Duration(milliseconds: 500));
@@ -218,10 +261,12 @@ class _RecordingPageState extends State<RecordingPage> {
       );
       if (result is ServiceRequestFailure) {
         debugPrint('[RecordingPage] 启动 Processing FGS 失败: ${result.error}');
+        _isProcessingFgsRunning = false;
       }
       _refreshProcessingCount();
     } catch (e) {
       debugPrint('[RecordingPage] 启动 Processing FGS 异常: $e');
+      _isProcessingFgsRunning = false;
     }
   }
 
