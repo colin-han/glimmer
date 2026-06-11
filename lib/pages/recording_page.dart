@@ -256,18 +256,22 @@ class _RecordingPageState extends State<RecordingPage> {
                 );
               },
             ),
-            Badge(
-              label: Text('$_processingCount'),
-              isLabelVisible: _processingCount > 0,
-              child: IconButton(
-                icon: const Icon(Icons.history),
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DiaryListPage()),
-                  );
-                  // 从列表页返回后刷新处理中数量
-                  _refreshProcessingCount();
-                },
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Badge(
+                offset: const Offset(-6, -6),
+                label: Text('$_processingCount'),
+                isLabelVisible: _processingCount > 0,
+                child: IconButton(
+                  icon: const Icon(Icons.history),
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const DiaryListPage()),
+                    );
+                    // 从列表页返回后刷新处理中数量
+                    _refreshProcessingCount();
+                  },
+                ),
               ),
             ),
           ],
