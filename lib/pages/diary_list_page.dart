@@ -347,22 +347,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400]),
               )
             : isFailed
-                ? TextButton.icon(
-                    onPressed: () => _retryEntry(entry),
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('重试'),
-                  )
+                ? Icon(Icons.error_outline, color: Colors.red[400], size: 20)
                 : const Icon(Icons.chevron_right),
-        onTap: isProcessing
-            ? null
-            : isFailed
-                ? () => _retryEntry(entry)
-                : () {
-                    Navigator.of(context)
-                        .push(MaterialPageRoute(
-                            builder: (_) => DiaryDetailPage(entry: entry)))
-                        .then((_) => _loadData());
-                  },
+        onTap: () {
+          Navigator.of(context)
+              .push(MaterialPageRoute(
+                  builder: (_) => DiaryDetailPage(entry: entry)))
+              .then((_) => _loadData());
+        },
       ),
     );
   }
