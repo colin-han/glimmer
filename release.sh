@@ -70,7 +70,8 @@ sed -i '' "s/flutter.versionCode=.*/flutter.versionCode=${NEW_BUILD}/" android/l
 
 # ─── 提交 + 打 tag ─────────────────────────────────────────────
 echo "==> 提交版本变更..."
-git add pubspec.yaml android/local.properties
+git add pubspec.yaml
+git add -f android/local.properties
 git commit -m "release: ${TAG}"
 git tag "$TAG"
 echo ""
