@@ -94,6 +94,13 @@ class _RecordingPageState extends State<RecordingPage> {
       case 'recordingComplete':
         // 录音完成，延迟启动 Processing FGS
         _scheduleProcessingFgs();
+      case 'processingDone':
+        // Processing FGS 结束（无论是否有条目被处理）
+        _isProcessingFgsRunning = false;
+        _refreshProcessingCount();
+        if (_state == RecordingState.processing) {
+          _doStartRecording();
+        }
       case 'completed':
       case 'failed':
         // 处理完成或失败时刷新 Badge 数量

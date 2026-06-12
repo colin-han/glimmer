@@ -45,6 +45,7 @@ class ProcessingTaskHandler extends TaskHandler {
     final entries = await _storageService.getPendingEntries();
     if (entries.isEmpty) {
       debugPrint('[ProcessingHandler] 无待处理任务，停止');
+      _sendToMain({'type': 'processingDone'});
       await _stopService();
       return;
     }
@@ -61,6 +62,7 @@ class ProcessingTaskHandler extends TaskHandler {
     }
 
     debugPrint('[ProcessingHandler] 全部处理完成');
+    _sendToMain({'type': 'processingDone'});
     await _stopService();
   }
 
