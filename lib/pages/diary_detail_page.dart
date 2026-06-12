@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/diary_entry.dart';
@@ -13,12 +12,12 @@ import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
-import '../services/tts_service.dart';
 import '../widgets/app_title.dart';
-import '../widgets/audio_player_bar.dart';
+import '../widgets/detail/detail_content_section.dart';
+import '../widgets/detail/detail_info_bar.dart';
+import '../widgets/detail/detail_player_section.dart';
 import '../widgets/tag_editor_sheet.dart';
 import '../widgets/tag_selector_sheet.dart';
-import '../widgets/timestamped_text_view.dart';
 import 'diary_list_page.dart';
 
 class DiaryDetailPage extends StatefulWidget {
@@ -43,12 +42,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   bool _loading = true;
   bool _audioExists = false;
-  bool _transcriptExists = false;
   bool _hasLlm = false;
-  String _summary = '';
   String _content = '';
-  List<Utterance> _summaryUtterances = [];
-  TranscriptData? _transcriptData;
+  List<Utterance> _activeUtterances = [];
+  bool _hasTranscript = false;
   List<Tag> _tags = [];
   bool _retrying = false;
 
@@ -91,35 +88,35 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       } catch (_) {}
     }
 
-    String summary = '';
     String content = '';
     List<Utterance> summaryUtterances = [];
 
     if (hasLlm) {
       final llmData =
           await _storageService.readLlmResult(widget.entry.folderPath);
-      summary = llmData.summary.isNotEmpty ? llmData.summary : llmData.content;
       content = llmData.content;
       summaryUtterances = llmData.utterances;
-    } else if (transcriptExists) {
-      summary = transcriptData?.fullText ?? '';
+    }
+
+    // utterances 优先级：LLM > Transcript
+    List<Utterance> activeUtterances = [];
+    final hasTranscript = transcriptExists || hasLlm;
+
+    if (hasLlm && summaryUtterances.isNotEmpty) {
+      activeUtterances = summaryUtterances;
+    } else if (transcriptData != null) {
+      activeUtterances = transcriptData.utterances;
     }
 
     if (mounted) {
       setState(() {
         _audioExists = audioExists;
-        _transcriptExists = transcriptExists;
         _hasLlm = hasLlm;
-        _summary = summary;
         _content = content;
-        _summaryUtterances = summaryUtterances;
-        _transcriptData = transcriptData;
+        _activeUtterances = activeUtterances;
+        _hasTranscript = hasTranscript;
         _loading = false;
       });
-
-      if (widget.autoPlaySummary && summary.isNotEmpty && hasLlm) {
-        _speakSummary(summary);
-      }
     }
     _loadTags();
   }
@@ -128,15 +125,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     final tags = await _storageService.getFullTagsForDiary(widget.entry.id);
     if (mounted) {
       setState(() => _tags = tags);
-    }
-  }
-
-  Future<void> _speakSummary(String text) async {
-    try {
-      final tts = TtsService();
-      await tts.speak(text, VoiceType.femaleSweet);
-    } catch (e) {
-      debugPrint('[详情页] TTS 播放失败（不阻塞）: $e');
     }
   }
 
@@ -370,11 +358,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 元信息行
-                  Text(
-                    '${widget.entry.formattedDate}  ${widget.entry.durationDisplay}${widget.entry.weatherDisplay.isNotEmpty ? '  ${widget.entry.weatherDisplay}' : ''}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  // 信息栏
+                  DetailInfoBar(entry: widget.entry),
                   // 标签行
                   if (!_hasLlm)
                     Padding(
@@ -457,47 +442,21 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  // 音频播放器
+                  // 播放器区域
                   if (_audioExists)
-                    AudioPlayerBar(
-                        playerService: _playerService,
-                        audioFilePath: audioPath),
+                    DetailPlayerSection(
+                      playerService: _playerService,
+                      audioFilePath: audioPath,
+                      utterances: _activeUtterances,
+                      hasTranscript: _hasTranscript,
+                    ),
                   const SizedBox(height: 16),
                   // 处理状态横幅
                   _buildStatusBanner(),
                   const SizedBox(height: 16),
-                  // 内容区域（渐进展示）
-                  if (_transcriptExists)
-                    ExpansionTile(
-                      title: const Text('原始识别文本'),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            _transcriptData?.fullText ?? '',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  if (_hasLlm) ...[
-                    if (_summaryUtterances.isNotEmpty)
-                      TimestampedTextView(
-                        utterances: _summaryUtterances,
-                        playerService: _playerService,
-                      )
-                    else
-                      MarkdownBody(data: _summary),
-                    ExpansionTile(
-                      title: const Text('润色正文'),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: MarkdownBody(data: _content),
-                        ),
-                      ],
-                    ),
-                  ],
+                  // 润色正文
+                  if (_hasLlm && _content.isNotEmpty)
+                    DetailContentSection(content: _content),
                 ],
               ),
             ),
