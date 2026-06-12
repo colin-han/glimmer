@@ -106,10 +106,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: '搜索日记...',
+                  hintStyle: TextStyle(color: WarmTokens.warmMuted),
                   border: InputBorder.none,
                 ),
+                style: TextStyle(color: WarmTokens.warmBrown),
                 onChanged: (val) => setState(() => _searchQuery = val),
               )
             : const AppTitle(title: '我的日记'),
@@ -138,7 +140,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                  color: WarmTokens.warmAmber.withValues(alpha: 0.6)))
           : _entries.isEmpty
               ? _buildEmptyState()
               : Column(
@@ -159,8 +163,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
                       ),
                     Expanded(
                       child: filtered.isEmpty
-                          ? const Center(child: Text('没有匹配的日记',
-                              style: TextStyle(color: WarmTokens.warmMuted)))
+                          ? Center(child: Text('没有匹配的日记',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  color: WarmTokens.warmMuted)))
                           : _groupMode == GroupMode.date
                               ? _buildDateGroups(filtered)
                               : _buildTagGroups(filtered),
@@ -178,19 +184,74 @@ class _DiaryListPageState extends State<DiaryListPage> {
     );
   }
 
+  // ─── 空状态 ───────────────────────────────────────────────
+
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 60),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: WarmTokens.warmSurface,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.auto_stories_outlined,
+                size: 40,
+                color: WarmTokens.warmAmber,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('还没有日记',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: WarmTokens.warmBrown)),
+            const SizedBox(height: 8),
+            Text('点击右下角 🎙️ 开始第一篇',
+                style: TextStyle(fontSize: 14, color: WarmTokens.warmMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── 分组标题（琥珀色竖线装饰） ──────────────────────────────────
+
+  Widget _buildGroupHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 10, left: 4),
+      child: Row(
         children: [
-          Icon(Icons.book_outlined, size: 64, color: WarmTokens.warmMuted),
-          const SizedBox(height: 16),
-          Text('还没有日记，点击 + 开始录音',
-              style: TextStyle(fontSize: 16, color: WarmTokens.warmMuted)),
+          Container(
+            width: 3,
+            height: 16,
+            decoration: BoxDecoration(
+              color: WarmTokens.warmAmber,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: WarmTokens.warmMuted,
+              letterSpacing: 0.3,
+            ),
+          ),
         ],
       ),
     );
   }
+
+  // ─── 日期分组 ───────────────────────────────────────────────
 
   Widget _buildDateGroups(List<DiaryEntry> entries) {
     final groups = <String, List<DiaryEntry>>{};
@@ -207,20 +268,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     return RefreshIndicator(
       onRefresh: _loadData,
+      color: WarmTokens.warmAmber,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: groups.entries
             .expand((group) => [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16, bottom: 8),
-                    child: Text(
-                      group.key,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: WarmTokens.warmMuted),
-                    ),
-                  ),
+                  _buildGroupHeader(group.key),
                   ...group.value.map((entry) => _buildEntryCard(entry)),
                 ])
             .toList(),
@@ -243,6 +296,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return monthDay;
   }
 
+  // ─── 标签分组 ───────────────────────────────────────────────
+
   Widget _buildTagGroups(List<DiaryEntry> entries) {
     final tagGroups = <Tag, List<DiaryEntry>>{};
     final taggedIds = <String>{};
@@ -262,35 +317,18 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     return RefreshIndicator(
       onRefresh: _loadData,
+      color: WarmTokens.warmAmber,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           ...tagGroups.entries
               .expand((group) => [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8),
-                      child: Text(
-                        '${group.key.name}（${group.value.length}）',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: WarmTokens.warmMuted),
-                      ),
-                    ),
+                    _buildGroupHeader('${group.key.name}（${group.value.length}）'),
                     ...group.value
                         .map((entry) => _buildEntryCard(entry)),
                   ]),
           if (untagged.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Text(
-                '未分类（${untagged.length}）',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: WarmTokens.warmMuted),
-              ),
-            ),
+            _buildGroupHeader('未分类（${untagged.length}）'),
             ...untagged.map((entry) => _buildEntryCard(entry)),
           ],
         ],
@@ -298,65 +336,178 @@ class _DiaryListPageState extends State<DiaryListPage> {
     );
   }
 
+  // ─── 日记卡片 ───────────────────────────────────────────────
+
   Widget _buildEntryCard(DiaryEntry entry) {
     final tags = _entryTags[entry.id] ?? [];
     final isProcessing = entry.status == EntryStatus.processing;
     final isFailed = entry.status == EntryStatus.failed;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: isFailed ? WarmTokens.failedBg : null,
-      child: ListTile(
-        title: Column(
+
+    // 卡片背景色
+    final bgColor = isFailed
+        ? WarmTokens.failedBg
+        : isProcessing
+            ? WarmTokens.warmProcessBg
+            : WarmTokens.warmCardBg;
+
+    // 边框色
+    final borderColor = isFailed
+        ? WarmTokens.failedAccent.withValues(alpha: 0.3)
+        : WarmTokens.warmDivider;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context)
+            .push(MaterialPageRoute(
+                builder: (_) => DiaryDetailPage(entry: entry)))
+            .then((_) => _loadData());
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(entry.displayTitle,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            // 第一行：标题 + 状态
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    entry.displayTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isFailed ? WarmTokens.failedText : WarmTokens.warmBrown,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                if (isProcessing)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: WarmTokens.warmAmber,
+                      ),
+                    ),
+                  ),
+                if (isFailed)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(Icons.error_outline,
+                        color: WarmTokens.failedAccent, size: 18),
+                  ),
+              ],
+            ),
+
+            // 第二行：元数据
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _buildMetadataRow(entry),
+            ),
+
+            // 第三行：标签
             if (tags.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  children: tags
-                      .map((tag) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: _getTagColor(tag)
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(tag.name,
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: _getTagColor(tag))),
-                          ))
-                      .toList(),
-                ),
+                padding: const EdgeInsets.only(top: 8),
+                child: _buildTagChips(tags),
               ),
           ],
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-              '${entry.formattedDate}  ${entry.durationDisplay}${entry.weatherDisplay.isNotEmpty ? '  ${entry.weatherDisplay}' : ''}'),
-        ),
-        trailing: isProcessing
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: WarmTokens.warmMuted),
-              )
-            : isFailed
-                ? Icon(Icons.error_outline, color: WarmTokens.failedAccent, size: 20)
-                : const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(
-                  builder: (_) => DiaryDetailPage(entry: entry)))
-              .then((_) => _loadData());
-        },
       ),
+    );
+  }
+
+  // ─── 元数据行 ───────────────────────────────────────────────
+
+  Widget _buildMetadataRow(DiaryEntry entry) {
+    final items = <Widget>[];
+
+    // 时间
+    items.add(_metaIconText(
+      Icons.access_time,
+      entry.formattedDate,
+    ));
+
+    // 时长
+    items.add(_metaIconText(
+      Icons.timer_outlined,
+      entry.durationDisplay,
+    ));
+
+    // 天气信息
+    if (entry.weatherDisplay.isNotEmpty) {
+      items.add(Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Text(
+          entry.weatherDisplay,
+          style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted, height: 1.3),
+        ),
+      ));
+    }
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: items,
+    );
+  }
+
+  Widget _metaIconText(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: WarmTokens.warmMuted),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted, height: 1.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── 标签 chips ───────────────────────────────────────────────
+
+  Widget _buildTagChips(List<Tag> tags) {
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: tags.map((tag) {
+        final color = _getTagColor(tag);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            tag.name,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.2,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
