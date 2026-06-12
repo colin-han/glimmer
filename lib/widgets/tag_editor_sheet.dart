@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design_tokens.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 
@@ -78,12 +79,12 @@ class _TagEditorContentState extends State<_TagEditorContent> {
           if (widget.isRemoval)
             Text(
               '已移除该标签。你可以调整匹配提示词，避免后续日记被自动打上此标签。',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: WarmTokens.warmMuted, fontSize: 13),
             )
           else
             Text(
               '你可以编辑匹配提示词，帮助 AI 更准确地自动归类。也可以直接跳过。',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: WarmTokens.warmMuted, fontSize: 13),
             ),
           const SizedBox(height: 12),
           TextField(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design_tokens.dart';
+
 enum RecordingState {
   idle,
   recording,
@@ -37,7 +39,7 @@ class RecordingButton extends StatelessWidget {
     final color = switch (state) {
       RecordingState.idle => Theme.of(context).colorScheme.primary,
       RecordingState.recording => Colors.red,
-      RecordingState.processing => Colors.grey,
+      RecordingState.processing => WarmTokens.warmMuted,
     };
 
     return Container(

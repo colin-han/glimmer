@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design_tokens.dart';
+
 class StepProgressIndicator extends StatelessWidget {
   final int currentStep;
   final bool hasError;
@@ -23,7 +25,7 @@ class StepProgressIndicator extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text('→',
                 style: TextStyle(
-                  color: stepIndex < currentStep ? Colors.green : Colors.grey,
+                  color: stepIndex < currentStep ? WarmTokens.warmAmber : WarmTokens.warmDivider,
                 )),
           );
         }
@@ -36,10 +38,10 @@ class StepProgressIndicator extends StatelessWidget {
     final isCompleted = index < currentStep;
     final isCurrent = index == currentStep;
     final color = isCompleted
-        ? Colors.green
+        ? WarmTokens.warmAmber
         : isCurrent
-            ? (hasError ? Colors.red : Theme.of(context).colorScheme.primary)
-            : Colors.grey;
+            ? (hasError ? WarmTokens.failedAccent : Theme.of(context).colorScheme.primary)
+            : WarmTokens.warmDivider;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -48,7 +50,7 @@ class StepProgressIndicator extends StatelessWidget {
           radius: 14,
           backgroundColor: color.withValues(alpha: 0.2),
           child: isCompleted
-              ? const Icon(Icons.check, size: 18, color: Colors.green)
+              ? const Icon(Icons.check, size: 18, color: WarmTokens.warmAmber)
               : Text('${index + 1}',
                   style: TextStyle(color: color, fontWeight: FontWeight.bold)),
         ),

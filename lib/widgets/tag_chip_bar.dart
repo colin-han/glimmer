@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design_tokens.dart';
 import '../models/tag.dart';
 
 enum GroupMode { date, tag }
@@ -70,7 +71,7 @@ class TagChipBar extends StatelessWidget {
   Widget _buildGroupToggle(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: WarmTokens.warmDivider,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -101,10 +102,10 @@ class TagChipBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? WarmTokens.warmCardBg : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 16, color: selected ? null : Colors.grey),
+        child: Icon(icon, size: 16, color: selected ? null : WarmTokens.warmMuted),
       ),
     );
   }
