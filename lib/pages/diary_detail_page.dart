@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/diary_entry.dart';
+import '../models/processing_stage.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
 import '../services/asr_service.dart';
@@ -38,20 +40,38 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   final _storageService = DiaryStorageService();
   final _asrService = AsrService();
   final _llmService = LlmService();
+
+  bool _loading = true;
+  bool _audioExists = false;
+  bool _transcriptExists = false;
+  bool _hasLlm = false;
   String _summary = '';
   String _content = '';
   List<Utterance> _summaryUtterances = [];
   TranscriptData? _transcriptData;
-  bool _loading = true;
-  bool _needsRetry = false;
-  bool _retrying = false;
-  String _retryError = '';
   List<Tag> _tags = [];
+  bool _retrying = false;
 
   @override
   void initState() {
     super.initState();
     _loadContent();
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+  }
+
+  @override
+  void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
+    _playerService.dispose();
+    super.dispose();
+  }
+
+  void _onTaskData(Object data) {
+    if (data is! Map<String, dynamic>) return;
+    final type = data['type'] as String;
+    if ((type == 'completed' || type == 'processingDone') && mounted) {
+      _loadContent();
+    }
   }
 
   Future<void> _loadContent() async {
@@ -63,22 +83,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             .exists();
     final hasLlm = await _storageService.hasLlmResult(widget.entry.folderPath);
 
-    if (audioExists && (!transcriptExists || !hasLlm)) {
-      if (mounted) {
-        setState(() {
-          _needsRetry = true;
-          _loading = false;
-        });
-      }
-      _loadTags();
-      return;
-    }
-
     TranscriptData? transcriptData;
-    try {
-      transcriptData =
-          await _storageService.readTranscriptJson(widget.entry.folderPath);
-    } catch (_) {}
+    if (transcriptExists) {
+      try {
+        transcriptData =
+            await _storageService.readTranscriptJson(widget.entry.folderPath);
+      } catch (_) {}
+    }
 
     String summary = '';
     String content = '';
@@ -90,22 +101,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       summary = llmData.summary.isNotEmpty ? llmData.summary : llmData.content;
       content = llmData.content;
       summaryUtterances = llmData.utterances;
-    } else {
-      try {
-        summary = await _storageService.readSummary(widget.entry.folderPath);
-      } catch (_) {
-        summary = '';
-      }
-      content = summary;
-      try {
-        final summaryData = await _storageService
-            .readSummaryUtterances(widget.entry.folderPath);
-        summaryUtterances = summaryData.utterances;
-      } catch (_) {}
+    } else if (transcriptExists) {
+      summary = transcriptData?.fullText ?? '';
     }
 
     if (mounted) {
       setState(() {
+        _audioExists = audioExists;
+        _transcriptExists = transcriptExists;
+        _hasLlm = hasLlm;
         _summary = summary;
         _content = content;
         _summaryUtterances = summaryUtterances;
@@ -113,8 +117,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         _loading = false;
       });
 
-      // 自动播放 summary TTS
-      if (widget.autoPlaySummary && summary.isNotEmpty) {
+      if (widget.autoPlaySummary && summary.isNotEmpty && hasLlm) {
         _speakSummary(summary);
       }
     }
@@ -137,17 +140,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _playerService.dispose();
-    super.dispose();
-  }
-
   Future<void> _retry() async {
-    setState(() {
-      _retrying = true;
-      _retryError = '';
-    });
+    setState(() => _retrying = true);
 
     try {
       final audioPath = _storageService.getAudioPath(
@@ -205,59 +199,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       }
 
       setState(() {
-        _needsRetry = false;
         _retrying = false;
         _loading = true;
       });
       await _loadContent();
     } catch (e) {
-      setState(() {
-        _retrying = false;
-        _retryError = e.toString();
-      });
+      if (mounted) {
+        setState(() => _retrying = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('重试失败: $e')),
+        );
+      }
     }
-  }
-
-  Widget _buildRetryView(String audioPath) {
-    final audioExists = File(audioPath).existsSync();
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text('处理未完成', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            const Text('网络请求失败，音频已保存。',
-                style: TextStyle(color: Colors.grey)),
-            if (_retryError.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(_retryError,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                  textAlign: TextAlign.center),
-            ],
-            const SizedBox(height: 24),
-            if (_retrying)
-              const CircularProgressIndicator()
-            else ...[
-              ElevatedButton.icon(
-                onPressed: _retry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
-              ),
-              if (audioExists) ...[
-                const SizedBox(height: 16),
-                AudioPlayerBar(
-                    playerService: _playerService,
-                    audioFilePath: audioPath),
-              ],
-            ],
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _deleteDiary() async {
@@ -289,11 +242,89 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
   }
 
+  Widget _buildStatusBanner() {
+    final isProcessing = widget.entry.status == EntryStatus.processing;
+    final isFailed = widget.entry.status == EntryStatus.failed;
+    if (!isProcessing && !isFailed) return const SizedBox.shrink();
+
+    if (isProcessing) {
+      final stageText = switch (widget.entry.processingStage) {
+        ProcessingStage.uploading => '上传中...',
+        ProcessingStage.asr => '语音识别中...',
+        ProcessingStage.llm => 'AI 总结中...',
+        ProcessingStage.tagging => '自动归类中...',
+        ProcessingStage.completed => '即将完成...',
+      };
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: Colors.blue[50],
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.blue[700]),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('🔄 正在处理: $stageText',
+                      style: TextStyle(color: Colors.blue[900])),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(color: Colors.blue[300]),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // failed
+    final failedStage = switch (widget.entry.processingStage) {
+      ProcessingStage.uploading => '上传失败',
+      ProcessingStage.asr => '语音识别失败',
+      ProcessingStage.llm => 'AI 总结失败',
+      ProcessingStage.tagging => '归类失败',
+      ProcessingStage.completed => '处理失败',
+    };
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: Colors.red[50],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('❌ $failedStage',
+                  style: TextStyle(color: Colors.red[900])),
+            ),
+            if (_retrying)
+              const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              TextButton.icon(
+                onPressed: _retry,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('重新处理'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final audioPath = _storageService.getAudioPath(
         widget.entry.folderPath, widget.entry.audioFormat);
-    final audioExists = File(audioPath).existsSync();
 
     return Scaffold(
       appBar: AppBar(
@@ -306,130 +337,142 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _needsRetry
-              ? _buildRetryView(audioPath)
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${widget.entry.formattedDate}  ${widget.entry.durationDisplay}${widget.entry.weatherDisplay.isNotEmpty ? '  ${widget.entry.weatherDisplay}' : ''}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      if (_tags.isNotEmpty ||
-                          !_needsRetry) ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            ..._tags.map((tag) => Chip(
-                                  label: Text(tag.name,
-                                      style: const TextStyle(fontSize: 12)),
-                                  onDeleted: () async {
-                                    await _storageService.removeDiaryTag(
-                                        widget.entry.id, tag.id);
-                                    final updatedTag =
-                                        await _storageService.getTagById(
-                                            tag.id);
-                                    if (mounted) {
-                                      await showTagEditorSheet(context,
-                                          tag: updatedTag, isRemoval: true);
-                                      _loadTags();
-                                    }
-                                  },
-                                  deleteIconColor: Colors.grey,
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  labelPadding: const EdgeInsets.symmetric(
-                                      horizontal: 4),
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                )),
-                            ActionChip(
-                              avatar: const Icon(Icons.add, size: 16),
-                              label: const Text('标签',
-                                  style: TextStyle(fontSize: 12)),
-                              onPressed: () async {
-                                final selectedIds =
-                                    await showTagSelectorSheet(
-                                  context,
-                                  selectedTagIds:
-                                      _tags.map((t) => t.id).toList(),
-                                );
-                                if (selectedIds != null && mounted) {
-                                  final currentIds =
-                                      _tags.map((t) => t.id).toSet();
-                                  final newIds = selectedIds.toSet();
-                                  for (final id
-                                      in newIds.difference(currentIds)) {
-                                    await _storageService.addDiaryTag(
-                                        widget.entry.id, id);
-                                    final tag = await _storageService
-                                        .getTagById(id);
-                                    if (mounted) {
-                                      await showTagEditorSheet(context,
-                                          tag: tag, isRemoval: false);
-                                    }
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 元信息行
+                  Text(
+                    '${widget.entry.formattedDate}  ${widget.entry.durationDisplay}${widget.entry.weatherDisplay.isNotEmpty ? '  ${widget.entry.weatherDisplay}' : ''}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  // 标签行
+                  if (!_hasLlm)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('⏳ 处理中...',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey[500])),
+                    )
+                  else if (_tags.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          ..._tags.map((tag) => Chip(
+                                label: Text(tag.name,
+                                    style: const TextStyle(fontSize: 12)),
+                                onDeleted: () async {
+                                  await _storageService.removeDiaryTag(
+                                      widget.entry.id, tag.id);
+                                  final updatedTag =
+                                      await _storageService.getTagById(tag.id);
+                                  if (mounted) {
+                                    await showTagEditorSheet(context,
+                                        tag: updatedTag, isRemoval: true);
+                                    _loadTags();
                                   }
-                                  for (final id
-                                      in currentIds.difference(newIds)) {
-                                    await _storageService.removeDiaryTag(
-                                        widget.entry.id, id);
-                                    final tag = await _storageService
-                                        .getTagById(id);
-                                    if (mounted) {
-                                      await showTagEditorSheet(context,
-                                          tag: tag, isRemoval: true);
-                                    }
+                                },
+                                deleteIconColor: Colors.grey,
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                labelPadding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              )),
+                          ActionChip(
+                            avatar: const Icon(Icons.add, size: 16),
+                            label: const Text('标签',
+                                style: TextStyle(fontSize: 12)),
+                            onPressed: () async {
+                              final selectedIds = await showTagSelectorSheet(
+                                context,
+                                selectedTagIds:
+                                    _tags.map((t) => t.id).toList(),
+                              );
+                              if (selectedIds != null && mounted) {
+                                final currentIds =
+                                    _tags.map((t) => t.id).toSet();
+                                final newIds = selectedIds.toSet();
+                                for (final id
+                                    in newIds.difference(currentIds)) {
+                                  await _storageService.addDiaryTag(
+                                      widget.entry.id, id);
+                                  final tag =
+                                      await _storageService.getTagById(id);
+                                  if (mounted) {
+                                    await showTagEditorSheet(context,
+                                        tag: tag, isRemoval: false);
                                   }
-                                  _loadTags();
                                 }
-                              },
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
+                                for (final id
+                                    in currentIds.difference(newIds)) {
+                                  await _storageService.removeDiaryTag(
+                                      widget.entry.id, id);
+                                  final tag =
+                                      await _storageService.getTagById(id);
+                                  if (mounted) {
+                                    await showTagEditorSheet(context,
+                                        tag: tag, isRemoval: true);
+                                  }
+                                }
+                                _loadTags();
+                              }
+                            },
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  // 音频播放器
+                  if (_audioExists)
+                    AudioPlayerBar(
+                        playerService: _playerService,
+                        audioFilePath: audioPath),
+                  const SizedBox(height: 16),
+                  // 处理状态横幅
+                  _buildStatusBanner(),
+                  const SizedBox(height: 16),
+                  // 内容区域（渐进展示）
+                  if (_transcriptExists)
+                    ExpansionTile(
+                      title: const Text('原始识别文本'),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            _transcriptData?.fullText ?? '',
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      if (audioExists)
-                        AudioPlayerBar(
-                            playerService: _playerService,
-                            audioFilePath: audioPath),
-                      const SizedBox(height: 16),
-                      if (audioExists && _summaryUtterances.isNotEmpty)
-                        TimestampedTextView(
-                          utterances: _summaryUtterances,
-                          playerService: _playerService,
-                        )
-                      else
-                        MarkdownBody(data: _summary),
-                      const SizedBox(height: 24),
-                      ExpansionTile(
-                        title: const Text('润色正文'),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: MarkdownBody(data: _content),
-                          ),
-                        ],
-                      ),
-                      ExpansionTile(
-                        title: const Text('原始识别文本'),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              _transcriptData?.fullText ?? '',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  if (_hasLlm) ...[
+                    if (_summaryUtterances.isNotEmpty)
+                      TimestampedTextView(
+                        utterances: _summaryUtterances,
+                        playerService: _playerService,
+                      )
+                    else
+                      MarkdownBody(data: _summary),
+                    ExpansionTile(
+                      title: const Text('润色正文'),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: MarkdownBody(data: _content),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
