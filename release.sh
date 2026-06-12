@@ -41,6 +41,13 @@ TAG="v${NEW_VER}"
 echo "==> 版本变更: ${CURRENT} → ${NEW_VERSION}"
 echo ""
 
+# ─── 检查分支 ─────────────────────────────────────────────────
+BRANCH=$(git branch --show-current)
+if [[ "$BRANCH" != "main" ]]; then
+  echo "❌ 仅支持在 main 分支上发布，当前分支: $BRANCH"
+  exit 1
+fi
+
 # ─── 检查工作区是否干净 ─────────────────────────────────────────
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "❌ 工作区有未提交的变更，请先提交或暂存"
