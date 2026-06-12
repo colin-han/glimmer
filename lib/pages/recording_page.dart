@@ -321,7 +321,7 @@ class _RecordingPageState extends State<RecordingPage> {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Badge(
-                offset: const Offset(-8, -4),
+                offset: const Offset(-8, 4),
                 label: Text('$_processingCount'),
                 isLabelVisible: _processingCount > 0,
                 child: IconButton(
