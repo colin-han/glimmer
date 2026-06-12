@@ -243,30 +243,32 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         ProcessingStage.tagging => '自动归类中...',
         ProcessingStage.completed => '即将完成...',
       };
-      return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        color: Colors.blue[50],
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.blue[700]),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('🔄 正在处理: $stageText',
-                      style: TextStyle(color: Colors.blue[900])),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(color: Colors.blue[300]),
-            ],
-          ),
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0EBE3),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: const Color(0xFF9B8E7E)),
+                ),
+                const SizedBox(width: 8),
+                Text('正在处理: $stageText',
+                    style: const TextStyle(
+                        color: Color(0xFF5D4E3C), fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(color: const Color(0xFFC4956A)),
+          ],
         ),
       );
     }
@@ -279,32 +281,38 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       ProcessingStage.tagging => '归类失败',
       ProcessingStage.completed => '处理失败',
     };
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      color: Colors.red[50],
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red[700], size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('❌ $failedStage',
-                  style: TextStyle(color: Colors.red[900])),
-            ),
-            if (_retrying)
-              const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-            else
-              TextButton.icon(
-                onPressed: _retry,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('重新处理'),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF0EE),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFC47A6A), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(failedStage,
+                style: const TextStyle(
+                    color: Color(0xFF8B4E3C), fontSize: 13)),
+          ),
+          if (_retrying)
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            TextButton.icon(
+              onPressed: _retry,
+              icon: const Icon(Icons.refresh, size: 14),
+              label: const Text('重新处理',
+                  style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFC47A6A),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -354,7 +362,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -363,21 +371,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   // 标签行
                   if (!_hasLlm)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.only(top: 10),
                       child: Text('⏳ 处理中...',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500])),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF9B8E7E))),
                     )
                   else if (_tags.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.only(top: 10),
                       child: Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         children: [
                           ..._tags.map((tag) => Chip(
                                 label: Text(tag.name,
-                                    style: const TextStyle(fontSize: 12)),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF5D4E3C))),
                                 onDeleted: () async {
                                   await _storageService.removeDiaryTag(
                                       widget.entry.id, tag.id);
@@ -389,18 +399,24 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                     _loadTags();
                                   }
                                 },
-                                deleteIconColor: Colors.grey,
+                                deleteIconColor: const Color(0xFF9B8E7E),
                                 visualDensity: VisualDensity.compact,
                                 padding: EdgeInsets.zero,
                                 labelPadding:
                                     const EdgeInsets.symmetric(horizontal: 4),
                                 materialTapTargetSize:
                                     MaterialTapTargetSize.shrinkWrap,
+                                side: const BorderSide(
+                                    color: Color(0xFFE8E2DA)),
+                                backgroundColor: const Color(0xFFFAF8F5),
                               )),
                           ActionChip(
-                            avatar: const Icon(Icons.add, size: 16),
+                            avatar: const Icon(Icons.add, size: 16,
+                                color: Color(0xFF9B8E7E)),
                             label: const Text('标签',
-                                style: TextStyle(fontSize: 12)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF9B8E7E))),
                             onPressed: () async {
                               final selectedIds = await showTagSelectorSheet(
                                 context,
@@ -437,11 +453,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                               }
                             },
                             visualDensity: VisualDensity.compact,
+                            side: const BorderSide(
+                                color: Color(0xFFE8E2DA)),
+                            backgroundColor: const Color(0xFFFAF8F5),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  // 分隔线
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Divider(
+                        height: 1, color: Color(0xFFE8E2DA)),
+                  ),
                   // 播放器区域
                   if (_audioExists)
                     DetailPlayerSection(
@@ -450,13 +474,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       utterances: _activeUtterances,
                       hasTranscript: _hasTranscript,
                     ),
-                  const SizedBox(height: 16),
                   // 处理状态横幅
                   _buildStatusBanner(),
-                  const SizedBox(height: 16),
+                  // 分隔线
+                  if (_hasLlm && _content.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      child: Divider(
+                          height: 1, color: Color(0xFFE8E2DA)),
+                    ),
                   // 润色正文
                   if (_hasLlm && _content.isNotEmpty)
                     DetailContentSection(content: _content),
+                  // 底部安全区
+                  const SizedBox(height: 32),
                 ],
               ),
             ),

@@ -5,6 +5,15 @@ import '../../models/utterance.dart';
 import '../../services/audio_player_service.dart';
 import '../audio_player_bar.dart';
 
+/// 暖色设计常量
+class _DesignTokens {
+  static const Color warmBrown = Color(0xFF5D4E3C);
+  static const Color warmAmber = Color(0xFFC4956A);
+  static const Color warmMuted = Color(0xFF9B8E7E);
+  static const Color warmCardBg = Color(0xFFF7F3EE);
+  static const Color warmDivider = Color(0xFFE8E2DA);
+}
+
 class DetailPlayerSection extends StatefulWidget {
   final AudioPlayerService playerService;
   final String audioFilePath;
@@ -58,8 +67,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
     return widget.utterances[idx].text;
   }
 
-  String get _fullText =>
-      widget.utterances.map((u) => u.text).join();
+  String get _fullText => widget.utterances.map((u) => u.text).join();
 
   void _copyFullText() {
     Clipboard.setData(ClipboardData(text: _fullText));
@@ -73,7 +81,6 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final hasUtterances = widget.hasTranscript && widget.utterances.isNotEmpty;
 
     return Column(
@@ -84,8 +91,8 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
           audioFilePath: widget.audioFilePath,
         ),
         if (hasUtterances) ...[
-          const SizedBox(height: 8),
-          // 字幕行（可点击跳转，无复制按钮）
+          const SizedBox(height: 12),
+          // 字幕行 —— 签名时刻：平滑过渡 + 暖色高亮
           if (_currentText.isNotEmpty)
             GestureDetector(
               onTap: () {
@@ -96,71 +103,126 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                   );
                 }
               },
-              child: Text(
-                _currentText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.primary,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: Text(
+                  _currentText,
+                  // 用 index 作 key 触发切换动画
+                  key: ValueKey(_currentIndex),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: _DesignTokens.warmAmber,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           // 展开/收起按钮
-          InkWell(
+          GestureDetector(
             onTap: () => setState(() => _expanded = !_expanded),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _expanded ? '收起识别文本' : '展开识别文本',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _expanded
+                    ? _DesignTokens.warmCardBg
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _expanded
+                      ? _DesignTokens.warmDivider
+                      : Colors.transparent,
+                  width: 1,
                 ),
-                Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 16,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ],
-            ),
-          ),
-          // 展开区域
-          if (_expanded)
-            SizedBox(
-              height: 200,
-              child: Stack(
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.only(
-                      top: 8,
-                      bottom: 8,
-                      right: 32,
+                  Text(
+                    _expanded ? '收起识别文本' : '展开识别文本',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _DesignTokens.warmMuted,
+                      letterSpacing: 0.2,
                     ),
-                    child: _buildExpandedText(theme),
                   ),
-                  // 右上角复制按钮
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.copy_outlined, size: 18),
-                      tooltip: '复制',
-                      onPressed: _copyFullText,
+                  const SizedBox(width: 2),
+                  AnimatedRotation(
+                    turns: _expanded ? -0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 16,
+                      color: _DesignTokens.warmMuted,
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+          // 展开区域
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: SizedBox(
+              height: 220,
+              child: Stack(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: _DesignTokens.warmCardBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(
+                        top: 16,
+                        bottom: 16,
+                        left: 16,
+                        right: 40,
+                      ),
+                      child: _buildExpandedText(),
+                    ),
+                  ),
+                  // 右上角复制按钮
+                  Positioned(
+                    top: 12,
+                    right: 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: _copyFullText,
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.copy_outlined,
+                            size: 16,
+                            color: _DesignTokens.warmMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState:
+                _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeOutCubic,
+          ),
         ],
       ],
     );
   }
 
-  Widget _buildExpandedText(ThemeData theme) {
+  Widget _buildExpandedText() {
     final currentIndex = _currentIndex;
 
     return Column(
@@ -171,7 +233,6 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
             widget.utterances[i],
             i == currentIndex,
             i < currentIndex,
-            theme,
           ),
       ],
     );
@@ -181,20 +242,23 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
     Utterance utterance,
     bool isCurrent,
     bool isPlayed,
-    ThemeData theme,
   ) {
     final Color textColor;
     final FontWeight fontWeight;
+    final double fontSize;
 
     if (isCurrent) {
-      textColor = theme.colorScheme.primary;
+      textColor = _DesignTokens.warmAmber;
       fontWeight = FontWeight.w600;
+      fontSize = 15;
     } else if (isPlayed) {
-      textColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
+      textColor = _DesignTokens.warmMuted.withValues(alpha: 0.45);
       fontWeight = FontWeight.normal;
+      fontSize = 14;
     } else {
-      textColor = theme.colorScheme.onSurface;
+      textColor = _DesignTokens.warmBrown;
       fontWeight = FontWeight.normal;
+      fontSize = 14;
     }
 
     return GestureDetector(
@@ -203,15 +267,17 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
             .seek(Duration(milliseconds: utterance.startTime));
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Text(
-          utterance.text,
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 200),
           style: TextStyle(
-            fontSize: 14,
+            fontSize: fontSize,
             color: textColor,
             fontWeight: fontWeight,
-            height: 1.8,
+            height: 1.9,
+            letterSpacing: 0.2,
           ),
+          child: Text(utterance.text),
         ),
       ),
     );
