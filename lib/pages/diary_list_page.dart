@@ -4,7 +4,6 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
-import '../services/recording_processor.dart' show processingCallback;
 import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
 import 'diary_detail_page.dart';
@@ -357,32 +356,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
         },
       ),
     );
-  }
-
-  Future<void> _retryEntry(DiaryEntry entry) async {
-    // 更新状态为 processing（processingStage 保持 failed 时的值）
-    await DiaryStorageService().updateEntryTitleAndStatus(
-      entry.id,
-      '正在处理中...',
-      EntryStatus.processing,
-    );
-
-    // 启动 Processing FGS
-    try {
-      final result = await FlutterForegroundTask.startService(
-        serviceTypes: [ForegroundServiceTypes.dataSync],
-        notificationTitle: '正在重新处理',
-        notificationText: '语音日记 - 处理中...',
-        callback: processingCallback,
-      );
-      if (result is ServiceRequestFailure) {
-        debugPrint('[DiaryListPage] 启动 Processing FGS 失败: ${result.error}');
-      }
-    } catch (e) {
-      debugPrint('[DiaryListPage] 启动 Processing FGS 异常: $e');
-    }
-
-    _loadData();
   }
 
   Color _getTagColor(Tag tag) {
