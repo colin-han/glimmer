@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/app_title.dart';
@@ -27,6 +28,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _ttsEnabled = true;
   double _processingDelay = 5;
+  String _version = '';
 
   @override
   void initState() {
@@ -37,10 +39,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final enabled = await SettingsPage.isTtsEnabled();
     final delay = await SettingsPage.getProcessingDelay();
+    final info = await PackageInfo.fromPlatform();
     if (mounted) {
       setState(() {
         _ttsEnabled = enabled;
         _processingDelay = delay.toDouble();
+        _version = '${info.version} (${info.buildNumber})';
       });
     }
   }
@@ -104,6 +108,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('版本'),
+            subtitle: Text(_version),
           ),
         ],
       ),
