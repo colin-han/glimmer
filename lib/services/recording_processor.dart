@@ -292,5 +292,7 @@ class ProcessingTaskHandler extends TaskHandler {
   @override
   Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
     debugPrint('[ProcessingHandler] onDestroy, isTimeout=$isTimeout');
+    // 通知主 isolate 服务已停止，避免用户等待录音时 UI 卡住
+    _sendToMain({'type': 'processingDone'});
   }
 }
