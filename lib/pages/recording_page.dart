@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:record/record.dart' show Amplitude, AudioRecorder;
 
+import '../design_tokens.dart';
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
 import '../services/recording_processor.dart' show processingCallback;
@@ -367,7 +368,7 @@ class _RecordingPageState extends State<RecordingPage> {
                   const SizedBox(height: 8),
                   Text(
                     '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted),
                   ),
                 ],
                 if (_realtimeText.isNotEmpty &&
@@ -381,7 +382,7 @@ class _RecordingPageState extends State<RecordingPage> {
                         _realtimeText,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[600],
+                          color: WarmTokens.warmBrown,
                         ),
                         textAlign: TextAlign.center,
                       ),

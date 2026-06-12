@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../design_tokens.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../services/llm_service.dart';
@@ -271,7 +272,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('删除',
-                  style: TextStyle(color: Colors.red))),
+                  style: TextStyle(color: WarmTokens.failedAccent))),
         ],
       ),
     );
@@ -298,11 +299,11 @@ class _TagManagementPageState extends State<TagManagementPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.label_off,
-                              size: 64, color: Colors.grey[400]),
+                              size: 64, color: WarmTokens.warmMuted),
                           const SizedBox(height: 16),
                           Text('还没有标签',
                               style: TextStyle(
-                                  fontSize: 16, color: Colors.grey[600])),
+                                  fontSize: 16, color: WarmTokens.warmMuted)),
                         ],
                       ),
                     )
@@ -329,7 +330,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
                             subtitle: Text(
                                 '$count 篇日记${tag.matchPrompt.isNotEmpty ? ' · 已设置匹配规则' : ''}',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[600])),
+                                    fontSize: 12, color: WarmTokens.warmMuted)),
                             trailing: PopupMenuButton(
                               itemBuilder: (_) => [
                                 const PopupMenuItem(
@@ -374,7 +375,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
     try {
       return Color(int.parse(hex.replaceFirst('#', '0xFF')));
     } catch (_) {
-      return Colors.blue;
+      return WarmTokens.warmAmber;
     }
   }
 }

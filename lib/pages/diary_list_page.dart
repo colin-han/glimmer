@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import '../design_tokens.dart';
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
@@ -158,7 +159,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
                       ),
                     Expanded(
                       child: filtered.isEmpty
-                          ? const Center(child: Text('没有匹配的日记'))
+                          ? const Center(child: Text('没有匹配的日记',
+                              style: TextStyle(color: WarmTokens.warmMuted)))
                           : _groupMode == GroupMode.date
                               ? _buildDateGroups(filtered)
                               : _buildTagGroups(filtered),
@@ -181,10 +183,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.book_outlined, size: 64, color: Colors.grey[400]),
+          Icon(Icons.book_outlined, size: 64, color: WarmTokens.warmMuted),
           const SizedBox(height: 16),
           Text('还没有日记，点击 + 开始录音',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+              style: TextStyle(fontSize: 16, color: WarmTokens.warmMuted)),
         ],
       ),
     );
@@ -216,7 +218,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[600]),
+                          color: WarmTokens.warmMuted),
                     ),
                   ),
                   ...group.value.map((entry) => _buildEntryCard(entry)),
@@ -272,7 +274,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[600]),
+                            color: WarmTokens.warmMuted),
                       ),
                     ),
                     ...group.value
@@ -286,7 +288,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[600]),
+                    color: WarmTokens.warmMuted),
               ),
             ),
             ...untagged.map((entry) => _buildEntryCard(entry)),
@@ -302,7 +304,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final isFailed = entry.status == EntryStatus.failed;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isFailed ? Colors.red[50] : null,
+      color: isFailed ? WarmTokens.failedBg : null,
       child: ListTile(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,10 +345,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
             ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400]),
+                child: CircularProgressIndicator(strokeWidth: 2, color: WarmTokens.warmMuted),
               )
             : isFailed
-                ? Icon(Icons.error_outline, color: Colors.red[400], size: 20)
+                ? Icon(Icons.error_outline, color: WarmTokens.failedAccent, size: 20)
                 : const Icon(Icons.chevron_right),
         onTap: () {
           Navigator.of(context)
