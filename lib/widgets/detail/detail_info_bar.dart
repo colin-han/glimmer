@@ -62,21 +62,11 @@ class DetailInfoBar extends StatelessWidget {
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (var i = 0; i < parts.length; i++) ...[
-            _buildInfoChip(parts[i]),
-            if (i < parts.length - 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  '·',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: WarmTokens.warmMuted.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
+          for (var i = 0; i < parts.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: _buildInfoChip(parts[i]),
+            ),
         ],
       ),
     );
