@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import 'design_tokens.dart';
 import 'pages/recording_page.dart';
 import 'services/diary_storage_service.dart';
 import 'services/migration_service.dart';
@@ -65,7 +66,7 @@ class VoiceDiaryApp extends StatelessWidget {
       title: '语音日记',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF6750A4),
+        colorSchemeSeed: WarmTokens.seedColor,
         useMaterial3: true,
       ),
       home: const RecordingPage(),
@@ -83,7 +84,7 @@ class VoiceDiaryApp extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 64,
                     fontWeight: FontWeight.w900,
-                    color: Colors.grey.withValues(alpha: 0.08),
+                    color: WarmTokens.warmMuted.withValues(alpha: 0.08),
                   ),
                 ),
               ),
