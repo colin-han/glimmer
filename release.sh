@@ -64,14 +64,9 @@ echo ""
 echo "==> 更新版本号..."
 sed -i '' "s/^version: .*/version: ${NEW_VERSION}/" pubspec.yaml
 
-# 同步 local.properties（Flutter build 会自动更新，但保持一致性）
-sed -i '' "s/flutter.versionName=.*/flutter.versionName=${NEW_VER}/" android/local.properties
-sed -i '' "s/flutter.versionCode=.*/flutter.versionCode=${NEW_BUILD}/" android/local.properties
-
 # ─── 提交 + 打 tag ─────────────────────────────────────────────
 echo "==> 提交版本变更..."
 git add pubspec.yaml
-git add -f android/local.properties
 git commit -m "release: ${TAG}"
 git tag "$TAG"
 echo ""
