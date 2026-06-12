@@ -328,7 +328,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: AppTitle.wrap(Text(widget.entry.displayTitle)),
+        title: AppTitle.wrap(Text(
+          widget.entry.displayTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16),
+        )),
         actions: [
           IconButton(
               icon: const Icon(Icons.delete_outline),
