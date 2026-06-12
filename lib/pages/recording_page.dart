@@ -389,14 +389,15 @@ class _RecordingPageState extends State<RecordingPage> {
                   ),
                 ],
 
-                // 实时识别文本（带笔记本横格线）
+                // 实时识别文本
                 if (_realtimeText.isNotEmpty &&
                     _state == RecordingState.recording) ...[
                   const SizedBox(height: 16),
                   Container(
                     constraints: const BoxConstraints(maxHeight: 120),
                     width: double.infinity,
-                    clipBehavior: Clip.antiAlias,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: WarmTokens.warmSurface,
                       borderRadius: BorderRadius.circular(12),
@@ -404,26 +405,17 @@ class _RecordingPageState extends State<RecordingPage> {
                           color: WarmTokens.warmDivider.withValues(alpha: 0.5),
                           width: 0.5),
                     ),
-                    child: CustomPaint(
-                      painter: _RuledLinePainter(
-                        lineHeight: 15 * 1.7, // fontSize × height
-                        padding: 12,
-                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                      ),
-                      child: SingleChildScrollView(
-                        controller: _realtimeScrollController,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Text(
-                          _realtimeText,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: WarmTokens.warmBrown,
-                            height: 1.7,
-                            letterSpacing: 0.2,
-                          ),
-                          textAlign: TextAlign.center,
+                    child: SingleChildScrollView(
+                      controller: _realtimeScrollController,
+                      child: Text(
+                        _realtimeText,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: WarmTokens.warmBrown,
+                          height: 1.7,
+                          letterSpacing: 0.2,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -443,41 +435,4 @@ class _RecordingPageState extends State<RecordingPage> {
       ),
     );
   }
-}
-
-/// 笔记本横格线绘制器
-///
-/// 在容器内按固定行高绘制淡色水平线，模拟笔记本纸效果。
-/// 横线从 padding 区域开始，与文字行对齐。
-class _RuledLinePainter extends CustomPainter {
-  final double lineHeight;
-  final double padding;
-  final Color color;
-
-  const _RuledLinePainter({
-    required this.lineHeight,
-    required this.padding,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.5
-      ..style = PaintingStyle.stroke;
-
-    // 从 padding 顶部开始画线（与第一行文字基线对齐）
-    double y = padding + lineHeight;
-    while (y < size.height) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-      y += lineHeight;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RuledLinePainter old) =>
-      lineHeight != old.lineHeight ||
-      padding != old.padding ||
-      color != old.color;
 }
