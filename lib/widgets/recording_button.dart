@@ -28,8 +28,8 @@ class RecordingButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildCircle(context),
-          const SizedBox(height: 16),
-          _buildLabel(context),
+          const SizedBox(height: 20),
+          _buildLabel(),
         ],
       ),
     );
@@ -37,7 +37,7 @@ class RecordingButton extends StatelessWidget {
 
   Widget _buildCircle(BuildContext context) {
     final color = switch (state) {
-      RecordingState.idle => Theme.of(context).colorScheme.primary,
+      RecordingState.idle => WarmTokens.warmAmber,
       RecordingState.recording => Colors.red,
       RecordingState.processing => WarmTokens.warmMuted,
     };
@@ -47,20 +47,45 @@ class RecordingButton extends StatelessWidget {
       height: 120,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color, width: 3),
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(
+          color: color.withValues(alpha: 0.5),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.12),
+            blurRadius: 24,
+            spreadRadius: 4,
+          ),
+        ],
       ),
       child: Center(
         child: switch (state) {
-          RecordingState.idle => Icon(Icons.mic, size: 48, color: color),
+          RecordingState.idle => _buildIdleContent(color),
           RecordingState.recording => _buildRecordingContent(color),
-          RecordingState.processing => const SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(strokeWidth: 3),
+          RecordingState.processing => SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: WarmTokens.warmMuted,
+              ),
             ),
         },
       ),
+    );
+  }
+
+  Widget _buildIdleContent(Color color) {
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.15),
+      ),
+      child: Icon(Icons.mic_rounded, size: 36, color: color),
     );
   }
 
@@ -70,24 +95,33 @@ class RecordingButton extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.stop, size: 36, color: color),
+        Icon(Icons.stop_rounded, size: 32, color: color),
         const SizedBox(height: 4),
         Text(
           '$minutes:${seconds.toString().padLeft(2, '0')}',
-          style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: color,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildLabel(BuildContext context) {
+  Widget _buildLabel() {
     return Text(
       switch (state) {
-        RecordingState.idle => '点击开始录音',
-        RecordingState.recording => '点击停止录音',
-        RecordingState.processing => '处理中...',
+        RecordingState.idle => '轻触开始录音',
+        RecordingState.recording => '轻触停止录音',
+        RecordingState.processing => '正在处理...',
       },
-      style: Theme.of(context).textTheme.bodyMedium,
+      style: TextStyle(
+        fontSize: 14,
+        color: WarmTokens.warmMuted,
+        letterSpacing: 0.5,
+      ),
     );
   }
 }

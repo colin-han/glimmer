@@ -351,45 +351,78 @@ class _RecordingPageState extends State<RecordingPage> {
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // 波形
                 AudioWaveform(
                   amplitudeStream: _state == RecordingState.recording
                       ? _amplitudeController.stream
                       : null,
                   color: _state == RecordingState.recording
                       ? Colors.red
-                      : Theme.of(context).colorScheme.primary,
+                      : WarmTokens.warmAmber,
                 ),
+
+                // 天气信息 pill
                 if (_currentWeatherLocation != null &&
                     _state == RecordingState.recording) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
-                    style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: WarmTokens.warmSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+                          width: 0.5),
+                    ),
+                    child: Text(
+                      '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: WarmTokens.warmMuted,
+                          letterSpacing: 0.2),
+                    ),
                   ),
                 ],
+
+                // 实时识别文本
                 if (_realtimeText.isNotEmpty &&
                     _state == RecordingState.recording) ...[
                   const SizedBox(height: 16),
                   Container(
                     constraints: const BoxConstraints(maxHeight: 120),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: WarmTokens.warmSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+                          width: 0.5),
+                    ),
                     child: SingleChildScrollView(
                       controller: _realtimeScrollController,
                       child: Text(
                         _realtimeText,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           color: WarmTokens.warmBrown,
+                          height: 1.7,
+                          letterSpacing: 0.2,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 32),
+
+                const SizedBox(height: 36),
+                // 录音按钮
                 RecordingButton(
                   state: _state,
                   onTap: _onTap,
