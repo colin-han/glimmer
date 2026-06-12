@@ -328,12 +328,35 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: AppTitle.wrap(Text(
-          widget.entry.displayTitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16),
-        )),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                widget.entry.displayTitle,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            if (AppTitle.isDev) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'dev',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
               icon: const Icon(Icons.delete_outline),

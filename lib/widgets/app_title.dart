@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 class AppTitle extends StatelessWidget {
   final String title;
 
-  static const bool _isDev =
+  static const bool isDev =
       bool.fromEnvironment('dev', defaultValue: false);
 
   const AppTitle({super.key, required this.title});
 
   /// 在任意 Widget 后追加 dev 标记
   static Widget wrap(Widget child) {
-    if (!_isDev) return child;
+    if (!isDev) return child;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
