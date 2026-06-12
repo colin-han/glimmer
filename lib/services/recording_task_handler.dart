@@ -123,8 +123,8 @@ class RecordingTaskHandler extends TaskHandler {
               '语音日记 - $minutes:${seconds.toString().padLeft(2, '0')}',
         );
 
-        // 最长 5 分钟自动停止
-        if (_recordingSeconds >= 300 && !_stopRequested) {
+        // 最长 30 分钟自动停止
+        if (_recordingSeconds >= 1800 && !_stopRequested) {
           _requestStop();
         }
       });
