@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
-/// 暖色设计常量
-class _DesignTokens {
-  static const Color warmBrown = Color(0xFF5D4E3C);
-  static const Color warmAmber = Color(0xFFC4956A);
-  static const Color warmMuted = Color(0xFF9B8E7E);
-}
+import '../../design_tokens.dart';
 
 class DetailContentSection extends StatelessWidget {
   final String content;
@@ -27,7 +22,7 @@ class DetailContentSection extends StatelessWidget {
               width: 3,
               height: 18,
               decoration: BoxDecoration(
-                color: _DesignTokens.warmAmber,
+                color: WarmTokens.warmAmber,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -37,7 +32,7 @@ class DetailContentSection extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: _DesignTokens.warmBrown,
+                color: WarmTokens.warmBrown,
                 letterSpacing: 0.5,
               ),
             ),
@@ -60,7 +55,7 @@ class DetailContentSection extends StatelessWidget {
                   child: Icon(
                     Icons.copy_outlined,
                     size: 16,
-                    color: _DesignTokens.warmMuted,
+                    color: WarmTokens.warmMuted,
                   ),
                 ),
               ),
@@ -75,28 +70,28 @@ class DetailContentSection extends StatelessWidget {
             p: TextStyle(
               fontSize: 15,
               height: 2.0,
-              color: _DesignTokens.warmBrown,
+              color: WarmTokens.warmBrown,
               letterSpacing: 0.3,
             ),
             h2: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: _DesignTokens.warmBrown,
+              color: WarmTokens.warmBrown,
               height: 2.0,
             ),
             h3: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: _DesignTokens.warmBrown,
+              color: WarmTokens.warmBrown,
               height: 1.8,
             ),
             listBullet: TextStyle(
               fontSize: 15,
-              color: _DesignTokens.warmAmber,
+              color: WarmTokens.warmAmber,
             ),
             em: TextStyle(
               fontStyle: FontStyle.italic,
-              color: _DesignTokens.warmMuted,
+              color: WarmTokens.warmMuted,
             ),
           ),
         ),

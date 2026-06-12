@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../design_tokens.dart';
 import '../../models/diary_entry.dart';
-
-/// 暖色设计常量
-class _DesignTokens {
-  static const Color warmMuted = Color(0xFF9B8E7E);
-}
 
 class DetailInfoBar extends StatelessWidget {
   final DiaryEntry entry;
@@ -75,7 +71,7 @@ class DetailInfoBar extends StatelessWidget {
                   '·',
                   style: TextStyle(
                     fontSize: 14,
-                    color: _DesignTokens.warmMuted.withValues(alpha: 0.6),
+                    color: WarmTokens.warmMuted.withValues(alpha: 0.6),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -94,7 +90,7 @@ class DetailInfoBar extends StatelessWidget {
           Icon(
             item.icon,
             size: 14,
-            color: _DesignTokens.warmMuted,
+            color: WarmTokens.warmMuted,
           ),
           const SizedBox(width: 4),
         ],
@@ -102,7 +98,7 @@ class DetailInfoBar extends StatelessWidget {
           item.text,
           style: const TextStyle(
             fontSize: 12,
-            color: _DesignTokens.warmMuted,
+            color: WarmTokens.warmMuted,
             letterSpacing: 0.2,
           ),
         ),

@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../design_tokens.dart';
 import '../../models/utterance.dart';
 import '../../services/audio_player_service.dart';
 import '../audio_player_bar.dart';
-
-/// 暖色设计常量
-class _DesignTokens {
-  static const Color warmBrown = Color(0xFF5D4E3C);
-  static const Color warmAmber = Color(0xFFC4956A);
-  static const Color warmMuted = Color(0xFF9B8E7E);
-  static const Color warmCardBg = Color(0xFFF7F3EE);
-  static const Color warmDivider = Color(0xFFE8E2DA);
-}
 
 class DetailPlayerSection extends StatefulWidget {
   final AudioPlayerService playerService;
@@ -115,7 +107,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 15,
-                    color: _DesignTokens.warmAmber,
+                    color: WarmTokens.warmAmber,
                     fontWeight: FontWeight.w500,
                     height: 1.5,
                     letterSpacing: 0.3,
@@ -131,12 +123,12 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: _expanded
-                    ? _DesignTokens.warmCardBg
+                    ? WarmTokens.warmSurface
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _expanded
-                      ? _DesignTokens.warmDivider
+                      ? WarmTokens.warmDivider
                       : Colors.transparent,
                   width: 1,
                 ),
@@ -148,7 +140,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                     _expanded ? '收起识别文本' : '展开识别文本',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _DesignTokens.warmMuted,
+                      color: WarmTokens.warmMuted,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -159,7 +151,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                     child: Icon(
                       Icons.expand_more,
                       size: 16,
-                      color: _DesignTokens.warmMuted,
+                      color: WarmTokens.warmMuted,
                     ),
                   ),
                 ],
@@ -176,7 +168,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
-                      color: _DesignTokens.warmCardBg,
+                      color: WarmTokens.warmSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: SingleChildScrollView(
@@ -203,7 +195,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                           child: Icon(
                             Icons.copy_outlined,
                             size: 16,
-                            color: _DesignTokens.warmMuted,
+                            color: WarmTokens.warmMuted,
                           ),
                         ),
                       ),
@@ -248,15 +240,15 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
     final double fontSize;
 
     if (isCurrent) {
-      textColor = _DesignTokens.warmAmber;
+      textColor = WarmTokens.warmAmber;
       fontWeight = FontWeight.w600;
       fontSize = 15;
     } else if (isPlayed) {
-      textColor = _DesignTokens.warmMuted.withValues(alpha: 0.45);
+      textColor = WarmTokens.warmMuted.withValues(alpha: 0.45);
       fontWeight = FontWeight.normal;
       fontSize = 14;
     } else {
-      textColor = _DesignTokens.warmBrown;
+      textColor = WarmTokens.warmBrown;
       fontWeight = FontWeight.normal;
       fontSize = 14;
     }
