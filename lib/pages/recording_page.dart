@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:record/record.dart' show Amplitude, AudioRecorder;
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../design_tokens.dart';
 import '../models/diary_entry.dart';
@@ -55,6 +56,7 @@ class _RecordingPageState extends State<RecordingPage> {
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _amplitudeController.close();
     _realtimeScrollController.dispose();
+    WakelockPlus.disable();
     super.dispose();
   }
 
@@ -220,6 +222,7 @@ class _RecordingPageState extends State<RecordingPage> {
       }
 
       setState(() => _state = RecordingState.recording);
+      WakelockPlus.enable();
     } catch (e) {
       _showError('录音启动失败：$e');
       setState(() => _state = RecordingState.idle);
@@ -228,6 +231,7 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _stopRecording() {
     FlutterForegroundTask.sendDataToTask({'action': 'stop'});
+    WakelockPlus.disable();
     // 立刻回到 idle，老张在后台处理
     setState(() {
       _state = RecordingState.idle;

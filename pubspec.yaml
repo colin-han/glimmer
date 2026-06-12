@@ -53,6 +53,7 @@ dependencies:
   geolocator: ^13.0.0
   flutter_foreground_task: ^9.2.2
   package_info_plus: ^10.1.0
+  wakelock_plus: ^1.6.1
 
 dev_dependencies:
   flutter_test:
