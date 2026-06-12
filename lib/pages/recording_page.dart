@@ -273,6 +273,9 @@ class _RecordingPageState extends State<RecordingPage> {
     try {
       _isProcessingFgsRunning = true;
 
+      // 确保通信端口已初始化（启动恢复场景下可能未初始化）
+      FlutterForegroundTask.initCommunicationPort();
+
       // 先停止可能仍在运行的 Recording FGS，等待其完全停止
       FlutterForegroundTask.stopService();
       await Future.delayed(const Duration(milliseconds: 500));
