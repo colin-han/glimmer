@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/app_title.dart';
+import 'api_log_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -113,6 +114,17 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             title: const Text('版本'),
             subtitle: Text(_version),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('API 日志'),
+            subtitle: const Text('查看最近的处理日志与消费记录'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ApiLogPage()),
+              );
+            },
           ),
         ],
       ),
