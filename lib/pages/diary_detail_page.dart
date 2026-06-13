@@ -195,27 +195,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
       List<Utterance> utterances;
 
-      try {
-        if (!transcriptExists) {
-          final asrResult = await _asrService.transcribe(audioPath);
-          await _storageService.writeTranscriptJson(_entry.folderPath,
-              TranscriptData(version: 1, utterances: asrResult.utterances));
-          utterances = asrResult.utterances;
-        } else {
-          final transcriptData =
-              await _storageService.readTranscriptJson(_entry.folderPath);
-          utterances = transcriptData.utterances;
-        }
-      } catch (e) {
-        // ASR 识别结果为空（静音/无内容）：视为空 utterances，按完成处理
-        final msg = e.toString();
-        if (msg.contains('识别结果为空') ||
-            msg.contains('静音音频') ||
-            msg.contains('未返回 utterances')) {
-          utterances = [];
-        } else {
-          rethrow;
-        }
+      if (!transcriptExists) {
+        final asrResult = await _asrService.transcribe(audioPath);
+        await _storageService.writeTranscriptJson(_entry.folderPath,
+            TranscriptData(version: 1, utterances: asrResult.utterances));
+        utterances = asrResult.utterances;
+      } else {
+        final transcriptData =
+            await _storageService.readTranscriptJson(_entry.folderPath);
+        utterances = transcriptData.utterances;
       }
 
       // 识别结果为空：写占位结果并标记完成，不进入 LLM

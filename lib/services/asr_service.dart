@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
 
+import '../exceptions.dart';
 import '../models/utterance.dart';
 
 class AsrResult {
@@ -14,6 +15,9 @@ class AsrResult {
 
   const AsrResult({required this.text, required this.utterances});
 }
+
+/// 空识别结果：ASR 返回无语音内容（静音/过短）时使用，调用方按"未识别到内容"处理。
+const emptyAsrResult = AsrResult(text: '', utterances: []);
 
 class AsrService {
   final Dio _dio = Dio();
@@ -50,35 +54,14 @@ class AsrService {
       }),
     );
 
-    final statusCode = response.headers.value('X-Api-Status-Code');
-    if (statusCode != '20000000') {
-      final message = response.headers.value('X-Api-Message') ?? '未知错误';
-      throw Exception('ASR 识别失败 ($statusCode): $message');
-    }
-
+    _ensureSuccess(response);
     final result = response.data['result'] as Map<String, dynamic>?;
-    if (result == null) {
-      throw Exception('ASR 识别结果为空');
+    final utterances = _parseUtterances(result);
+    if (utterances.isEmpty) {
+      debugPrint('[ASR] 识别结果为空');
+      return emptyAsrResult;
     }
-
-    final text = result['text'] as String? ?? '';
-    if (text.isEmpty) {
-      throw Exception('ASR 识别结果为空');
-    }
-
-    final utterancesList = result['utterances'] as List<dynamic>?;
-    if (utterancesList == null || utterancesList.isEmpty) {
-      throw Exception('ASR 未返回 utterances 数据，需要切换到录音文件识别 API');
-    }
-
-    final utterances = utterancesList
-        .map((u) => Utterance(
-              text: u['text'] as String,
-              startTime: u['start_time'] as int,
-              endTime: u['end_time'] as int,
-            ))
-        .toList();
-
+    final text = result?['text'] as String? ?? '';
     return AsrResult(text: text, utterances: utterances);
   }
 
@@ -111,35 +94,14 @@ class AsrService {
       }),
     );
 
-    final statusCode = response.headers.value('X-Api-Status-Code');
-    if (statusCode != '20000000') {
-      final message = response.headers.value('X-Api-Message') ?? '未知错误';
-      throw Exception('ASR 识别失败 ($statusCode): $message');
-    }
-
+    _ensureSuccess(response);
     final result = response.data['result'] as Map<String, dynamic>?;
-    if (result == null) {
-      throw Exception('ASR 识别结果为空');
+    final utterances = _parseUtterances(result);
+    if (utterances.isEmpty) {
+      debugPrint('[ASR] 识别结果为空');
+      return emptyAsrResult;
     }
-
-    final text = result['text'] as String? ?? '';
-    if (text.isEmpty) {
-      throw Exception('ASR 识别结果为空');
-    }
-
-    final utterancesList = result['utterances'] as List<dynamic>?;
-    if (utterancesList == null || utterancesList.isEmpty) {
-      throw Exception('ASR 未返回 utterances 数据');
-    }
-
-    final utterances = utterancesList
-        .map((u) => Utterance(
-              text: u['text'] as String,
-              startTime: u['start_time'] as int,
-              endTime: u['end_time'] as int,
-            ))
-        .toList();
-
+    final text = result?['text'] as String? ?? '';
     return AsrResult(text: text, utterances: utterances);
   }
 
@@ -183,7 +145,9 @@ class AsrService {
     }
   }
 
-  /// 查询异步 ASR 任务状态。返回 null 表示仍在处理中，返回 AsrResult 表示完成。
+  /// 查询异步 ASR 任务状态。
+  /// 返回 null 表示仍在处理中；返回 [emptyAsrResult] 表示已完成但无语音内容；
+  /// 返回非空 AsrResult 表示识别成功。
   Future<AsrResult?> queryAsync(String requestId) async {
     final apiKey = dotenv.get('VOLCENGINE_SPEECH_API_KEY');
 
@@ -204,37 +168,22 @@ class AsrService {
       return null;
     }
     if (statusCode == '20000003') {
-      // 静音音频
-      throw Exception('ASR 识别结果为空（静音音频）');
+      // 静音音频：识别无内容
+      debugPrint('[ASR] 静音音频，识别结果为空');
+      return emptyAsrResult;
     }
     if (statusCode != '20000000') {
       final message = response.headers.value('X-Api-Message') ?? '未知错误';
-      throw Exception('ASR 识别失败 ($statusCode): $message');
+      throw AsrException(message, statusCode: statusCode);
     }
 
     final result = response.data['result'] as Map<String, dynamic>?;
-    if (result == null) {
-      throw Exception('ASR 识别结果为空');
+    final utterances = _parseUtterances(result);
+    if (utterances.isEmpty) {
+      debugPrint('[ASR] 识别结果为空');
+      return emptyAsrResult;
     }
-
-    final text = result['text'] as String? ?? '';
-    if (text.isEmpty) {
-      throw Exception('ASR 识别结果为空');
-    }
-
-    final utterancesList = result['utterances'] as List<dynamic>?;
-    if (utterancesList == null || utterancesList.isEmpty) {
-      throw Exception('ASR 未返回 utterances 数据');
-    }
-
-    final utterances = utterancesList
-        .map((u) => Utterance(
-              text: u['text'] as String,
-              startTime: u['start_time'] as int,
-              endTime: u['end_time'] as int,
-            ))
-        .toList();
-
+    final text = result?['text'] as String? ?? '';
     return AsrResult(text: text, utterances: utterances);
   }
 
@@ -249,6 +198,28 @@ class AsrService {
       if (result != null) return result;
       await Future.delayed(interval);
     }
-    throw Exception('ASR 识别超时');
+    throw const AsrTimeoutException();
+  }
+
+  /// 校验 ASR 响应状态码，非成功则抛异常。
+  void _ensureSuccess(Response response) {
+    final statusCode = response.headers.value('X-Api-Status-Code');
+    if (statusCode != '20000000') {
+      final message = response.headers.value('X-Api-Message') ?? '未知错误';
+      throw AsrException(message, statusCode: statusCode);
+    }
+  }
+
+  /// 从 ASR 响应 result 中解析 utterances 列表。无数据时返回空列表。
+  List<Utterance> _parseUtterances(Map<String, dynamic>? result) {
+    final utterancesList = result?['utterances'] as List<dynamic>?;
+    if (utterancesList == null || utterancesList.isEmpty) return [];
+    return utterancesList
+        .map((u) => Utterance(
+              text: u['text'] as String,
+              startTime: u['start_time'] as int,
+              endTime: u['end_time'] as int,
+            ))
+        .toList();
   }
 }

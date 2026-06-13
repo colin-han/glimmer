@@ -12,6 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 代码标识符（类名、变量名、函数名、文件名）使用英文
 - commit message 使用中文
 
+## 异常处理规范
+
+- **禁止直接 `throw Exception('...')`**：需要抛出异常时，必须根据异常的**用途**实现对应的派生类（统一定义在 `lib/exceptions.dart`，基类 `AppException`）
+- **禁止基于异常字符串内容判断**：捕获方不得用 `e.toString().contains(...)` 区分异常类型，必须用 `on XxxException` 按类型捕获
+- 异常是"无语音内容"等正常业务结果时，应通过返回值（如空列表、`null`）表达，而非抛异常
+- 真正的错误（接口失败、超时、前置条件缺失）才抛异常，并使用对应的异常类（`AsrException`/`TtsException`/`RecordingException`/`ProcessingException` 等）
+
 ## 构建与开发命令
 
 ```bash

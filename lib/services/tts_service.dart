@@ -8,6 +8,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../exceptions.dart';
+
 enum VoiceType { femaleSweet, maleDeep }
 
 class TtsService {
@@ -57,7 +59,7 @@ class TtsService {
     final code = response.data['code'] as int?;
     if (code != 3000) {
       final message = response.data['message'] ?? 'TTS 合成失败';
-      throw Exception('TTS 错误 ($code): $message');
+      throw TtsException(message, code: code);
     }
 
     final audioBase64 = response.data['data'] as String;

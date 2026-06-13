@@ -6,6 +6,7 @@ import 'package:record/record.dart' show Amplitude, AudioRecorder;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../design_tokens.dart';
+import '../exceptions.dart';
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
 import '../services/recording_processor.dart' show processingCallback;
@@ -218,7 +219,7 @@ class _RecordingPageState extends State<RecordingPage> {
       );
 
       if (result is ServiceRequestFailure) {
-        throw Exception(result.error);
+        throw RecordingException(result.error.toString());
       }
 
       setState(() => _state = RecordingState.recording);
