@@ -152,6 +152,12 @@ class ProcessingTaskHandler extends TaskHandler {
       notificationText: '语音日记 - 语音识别...',
     );
 
+    await _apiLogService.logStep(
+      diaryId: entry.id,
+      step: 'asr',
+      status: 'started',
+    );
+
     final sw = Stopwatch()..start();
     try {
       final tosKey = await _storageService.getTosKey(entry.id);
@@ -217,6 +223,12 @@ class ProcessingTaskHandler extends TaskHandler {
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - AI 总结...',
+    );
+
+    await _apiLogService.logStep(
+      diaryId: entry.id,
+      step: 'llm',
+      status: 'started',
     );
 
     final sw = Stopwatch()..start();
