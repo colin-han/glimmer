@@ -13,6 +13,7 @@ import 'diary_storage_service.dart';
 import 'location_service.dart';
 import 'realtime_asr_service.dart';
 import 'weather_service.dart';
+import 'api_log_service.dart';
 
 /// 前台服务入口函数，必须为顶层函数并标注 @pragma('vm:entry-point')
 @pragma('vm:entry-point')
@@ -33,6 +34,7 @@ class RecordingTaskHandler extends TaskHandler {
   final _locationService = LocationService();
   final _weatherService = WeatherService();
   final _uuid = const Uuid();
+  final _apiLogService = ApiLogService();
 
   // --- 状态 ---
   String? _folderId;
@@ -151,8 +153,27 @@ class RecordingTaskHandler extends TaskHandler {
 
   void _connectRealtimeAsr() {
     _realtimeAsr = RealtimeAsrService();
-    _realtimeAsr!.connect().catchError((e) {
+    final sw = Stopwatch()..start();
+    _realtimeAsr!.connect().then((_) {
+      sw.stop();
+      _apiLogService.logApiCall(
+        diaryId: _folderId ?? '',
+        apiType: 'asr_realtime',
+        step: 'recording',
+        status: 'success',
+        durationMs: sw.elapsedMilliseconds,
+      );
+    }).catchError((e) {
+      sw.stop();
       debugPrint('[TaskHandler] 实时 ASR 连接失败（不阻塞录音）: $e');
+      _apiLogService.logApiCall(
+        diaryId: _folderId ?? '',
+        apiType: 'asr_realtime',
+        step: 'recording',
+        status: 'error',
+        durationMs: sw.elapsedMilliseconds,
+        errorMessage: e.toString(),
+      );
     });
 
     _partialResultSub = _realtimeAsr!.onPartialResult.listen((text) {
