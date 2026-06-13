@@ -41,6 +41,34 @@ class DiaryEntry {
     this.asrTaskId,
   });
 
+  DiaryEntry copyWith({
+    String? title,
+    EntryStatus? status,
+    ProcessingStage? processingStage,
+    String? tosKey,
+    String? asrTaskId,
+  }) {
+    return DiaryEntry(
+      id: id,
+      title: title ?? this.title,
+      folderPath: folderPath,
+      durationSeconds: durationSeconds,
+      createdAt: createdAt,
+      tosKey: tosKey ?? this.tosKey,
+      audioFormat: audioFormat,
+      uploadedAt: uploadedAt,
+      weatherIcon: weatherIcon,
+      weatherText: weatherText,
+      temperature: temperature,
+      locationName: locationName,
+      locationLat: locationLat,
+      locationLon: locationLon,
+      status: status ?? this.status,
+      processingStage: processingStage ?? this.processingStage,
+      asrTaskId: asrTaskId ?? this.asrTaskId,
+    );
+  }
+
   String get displayTitle =>
       title.isNotEmpty ? title : '未命名日记';
 

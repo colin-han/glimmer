@@ -79,12 +79,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (entryId != null && entryId != _entry.id) return;
 
     if (type == 'stageUpdate' && mounted) {
-      // 收到阶段更新，说明 FGS 正在活跃处理
-      if (!_isActivelyProcessing) {
-        setState(() => _isActivelyProcessing = true);
-      }
-      // 阶段变更：从 DB 刷新 entry 元数据（processingStage、title、status）
-      _refreshEntry();
+      // 直接从消息中提取阶段信息，避免 DB 跨 isolate 读取延迟
+      final stageStr = data['stage'] as String?;
+      final title = data['title'] as String?;
+      setState(() {
+        _isActivelyProcessing = true;
+        _entry = _entry.copyWith(
+          processingStage: stageStr != null
+              ? ProcessingStage.fromString(stageStr)
+              : null,
+          title: title,
+        );
+      });
     } else if (type == 'completed' && mounted) {
       // 处理完成，加载最终内容
       setState(() => _isActivelyProcessing = false);
@@ -93,16 +99,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       // FGS 停止，标记为非活跃
       setState(() => _isActivelyProcessing = false);
       _loadContent();
-      _loadContent();
     }
-  }
-
-  /// 仅刷新 entry 元数据，不重新加载文件内容
-  Future<void> _refreshEntry() async {
-    try {
-      final updated = await _storageService.getEntryById(_entry.id);
-      if (mounted) setState(() => _entry = updated);
-    } catch (_) {}
   }
 
   Future<void> _loadContent() async {
