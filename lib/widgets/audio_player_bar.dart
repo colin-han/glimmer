@@ -67,24 +67,32 @@ class AudioPlayerBar extends StatelessWidget {
         // 波形展示
         SizedBox(
           height: 70,
-          child: AudioFileWaveforms(
-            size: Size(
-              MediaQuery.of(context).size.width - 56,
-              70,
-            ),
-            playerController: playerService.playerController,
-            waveformType: WaveformType.fitWidth,
-            enableSeekGesture: true,
-            playerWaveStyle: const PlayerWaveStyle(
-              fixedWaveColor: WarmTokens.warmDivider,
-              liveWaveColor: WarmTokens.warmAmber,
-              waveThickness: 2.5,
-              spacing: 4.0,
-              waveCap: StrokeCap.round,
-              showSeekLine: true,
-              seekLineColor: WarmTokens.warmAmber,
-              seekLineThickness: 1.5,
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 波形总宽 = spacing × samples。fitWidth 模式不会缩放波形，只从左侧
+              // 平铺、超出 size.width 的右侧被裁。若固定 spacing 而忽略外层 padding
+              //（如详情页 body 的 horizontal padding），波形会溢出屏幕，导致进度色
+              // 提前"填满"可见区、与实际播放时间脱节。因此按真实可用宽度反算 spacing，
+              // 让采样数恰好铺满，进度与时间严格成正比。
+              const samples = 100; // 需与 AudioPlayerService.load 的 noOfSamples 一致
+              final spacing = constraints.maxWidth / samples;
+              return AudioFileWaveforms(
+                size: Size(constraints.maxWidth, 70),
+                playerController: playerService.playerController,
+                waveformType: WaveformType.fitWidth,
+                enableSeekGesture: true,
+                playerWaveStyle: PlayerWaveStyle(
+                  fixedWaveColor: WarmTokens.warmDivider,
+                  liveWaveColor: WarmTokens.warmAmber,
+                  waveThickness: 2.5,
+                  spacing: spacing,
+                  waveCap: StrokeCap.round,
+                  showSeekLine: true,
+                  seekLineColor: WarmTokens.warmAmber,
+                  seekLineThickness: 1.5,
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 4),
