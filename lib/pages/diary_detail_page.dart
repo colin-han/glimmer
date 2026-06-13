@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -50,7 +49,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   bool _hasTranscript = false;
   List<Tag> _tags = [];
   bool _retrying = false;
-  Timer? _pollTimer;
 
   /// 可变的 entry 副本，用于在处理过程中刷新元数据
   late DiaryEntry _entry;
@@ -65,7 +63,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _playerService.dispose();
     super.dispose();
@@ -74,9 +71,24 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   void _onTaskData(Object data) {
     if (data is! Map<String, dynamic>) return;
     final type = data['type'] as String;
-    if ((type == 'completed' || type == 'processingDone') && mounted) {
+    final entryId = data['entryId'] as String?;
+    // 只处理与当前日记相关的消息
+    if (entryId != null && entryId != _entry.id) return;
+
+    if (type == 'stageUpdate' && mounted) {
+      // 阶段变更：从 DB 刷新 entry 元数据（processingStage、title、status）
+      _refreshEntry();
+    } else if ((type == 'completed' || type == 'processingDone') && mounted) {
       _loadContent();
     }
+  }
+
+  /// 仅刷新 entry 元数据，不重新加载文件内容
+  Future<void> _refreshEntry() async {
+    try {
+      final updated = await _storageService.getEntryById(_entry.id);
+      if (mounted) setState(() => _entry = updated);
+    } catch (_) {}
   }
 
   Future<void> _loadContent() async {
@@ -133,32 +145,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       });
     }
     _loadTags();
-    _startPollingIfNeeded();
   }
 
   Future<void> _loadTags() async {
     final tags = await _storageService.getFullTagsForDiary(_entry.id);
     if (mounted) {
       setState(() => _tags = tags);
-    }
-  }
-
-  /// 处理中时轮询数据库，实时刷新 processingStage、title、status
-  void _startPollingIfNeeded() {
-    _pollTimer?.cancel();
-    if (_entry.status == EntryStatus.processing) {
-      _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-        try {
-          final updated = await _storageService.getEntryById(_entry.id);
-          if (mounted) {
-            setState(() => _entry = updated);
-            if (updated.status != EntryStatus.processing) {
-              _pollTimer?.cancel();
-              await _loadContent(); // 处理完成，加载最终内容
-            }
-          }
-        } catch (_) {}
-      });
     }
   }
 

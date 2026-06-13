@@ -142,6 +142,7 @@ class ProcessingTaskHandler extends TaskHandler {
 
     final tosKey = await _tosService.uploadAudio(audioFilePath, entry.id);
     await _storageService.updateTosKeyAndStage(entry.id, tosKey, ProcessingStage.asr);
+    _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'asr'});
     debugPrint('[ProcessingHandler] 上传完成: $tosKey');
   }
 
@@ -194,6 +195,7 @@ class ProcessingTaskHandler extends TaskHandler {
           entry.id, ProcessingStage.llm);
 
       sw.stop();
+      _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'llm'});
       await _apiLogService.logApiCall(
         diaryId: entry.id,
         apiType: 'asr_async',
@@ -252,6 +254,7 @@ class ProcessingTaskHandler extends TaskHandler {
           entry.id, ProcessingStage.tagging);
 
       sw.stop();
+      _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'tagging', 'title': llmResult.title});
       final usage = llmResult.usage;
       await _apiLogService.logApiCall(
         diaryId: entry.id,
