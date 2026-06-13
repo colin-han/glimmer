@@ -38,6 +38,7 @@ dependencies:
   just_audio: ^0.10.5
   audio_video_progress_bar: ^2.0.3
   rxdart: ^0.28.0
+  audio_waveforms: ^2.0.2
   dio: ^5.7.0
   web_socket_channel: ^3.0.1
   drift: ^2.22.1
