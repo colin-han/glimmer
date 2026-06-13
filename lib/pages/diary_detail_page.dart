@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -49,16 +50,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   bool _hasTranscript = false;
   List<Tag> _tags = [];
   bool _retrying = false;
+  Timer? _pollTimer;
+
+  /// 可变的 entry 副本，用于在处理过程中刷新元数据
+  late DiaryEntry _entry;
 
   @override
   void initState() {
     super.initState();
+    _entry = widget.entry;
     _loadContent();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _playerService.dispose();
     super.dispose();
@@ -73,19 +80,25 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Future<void> _loadContent() async {
+    // 从数据库重新加载 entry 元数据（获取最新的 processingStage、title、status）
+    try {
+      final updated = await _storageService.getEntryById(_entry.id);
+      if (mounted) _entry = updated;
+    } catch (_) {}
+
     final audioPath = _storageService.getAudioPath(
-        widget.entry.folderPath, widget.entry.audioFormat);
+        _entry.folderPath, _entry.audioFormat);
     final audioExists = File(audioPath).existsSync();
     final transcriptExists =
-        await File(p.join(widget.entry.folderPath, 'transcript.json'))
+        await File(p.join(_entry.folderPath, 'transcript.json'))
             .exists();
-    final hasLlm = await _storageService.hasLlmResult(widget.entry.folderPath);
+    final hasLlm = await _storageService.hasLlmResult(_entry.folderPath);
 
     TranscriptData? transcriptData;
     if (transcriptExists) {
       try {
         transcriptData =
-            await _storageService.readTranscriptJson(widget.entry.folderPath);
+            await _storageService.readTranscriptJson(_entry.folderPath);
       } catch (_) {}
     }
 
@@ -94,7 +107,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     if (hasLlm) {
       final llmData =
-          await _storageService.readLlmResult(widget.entry.folderPath);
+          await _storageService.readLlmResult(_entry.folderPath);
       content = llmData.content;
       summaryUtterances = llmData.utterances;
     }
@@ -120,12 +133,32 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       });
     }
     _loadTags();
+    _startPollingIfNeeded();
   }
 
   Future<void> _loadTags() async {
-    final tags = await _storageService.getFullTagsForDiary(widget.entry.id);
+    final tags = await _storageService.getFullTagsForDiary(_entry.id);
     if (mounted) {
       setState(() => _tags = tags);
+    }
+  }
+
+  /// 处理中时轮询数据库，实时刷新 processingStage、title、status
+  void _startPollingIfNeeded() {
+    _pollTimer?.cancel();
+    if (_entry.status == EntryStatus.processing) {
+      _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final updated = await _storageService.getEntryById(_entry.id);
+          if (mounted) {
+            setState(() => _entry = updated);
+            if (updated.status != EntryStatus.processing) {
+              _pollTimer?.cancel();
+              await _loadContent(); // 处理完成，加载最终内容
+            }
+          }
+        } catch (_) {}
+      });
     }
   }
 
@@ -134,27 +167,27 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     try {
       final audioPath = _storageService.getAudioPath(
-          widget.entry.folderPath, widget.entry.audioFormat);
+          _entry.folderPath, _entry.audioFormat);
       final transcriptPath =
-          p.join(widget.entry.folderPath, 'transcript.json');
+          p.join(_entry.folderPath, 'transcript.json');
       final transcriptExists = File(transcriptPath).existsSync();
 
       List<Utterance> utterances;
 
       if (!transcriptExists) {
         final asrResult = await _asrService.transcribe(audioPath);
-        await _storageService.writeTranscriptJson(widget.entry.folderPath,
+        await _storageService.writeTranscriptJson(_entry.folderPath,
             TranscriptData(version: 1, utterances: asrResult.utterances));
         utterances = asrResult.utterances;
       } else {
         final transcriptData =
-            await _storageService.readTranscriptJson(widget.entry.folderPath);
+            await _storageService.readTranscriptJson(_entry.folderPath);
         utterances = transcriptData.utterances;
       }
 
       final llmResult = await _llmService.summarize(utterances);
       await _storageService.writeLlmResult(
-          widget.entry.folderPath,
+          _entry.folderPath,
           LlmResultData(
             version: 1,
             title: llmResult.title,
@@ -164,7 +197,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             utterances: llmResult.utterances,
           ));
 
-      await _storageService.updateTitle(widget.entry.id, llmResult.title);
+      await _storageService.updateTitle(_entry.id, llmResult.title);
 
       // 自动打 tag
       try {
@@ -180,7 +213,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               await _llmService.matchTags(llmResult.content, tagInfos);
           if (matchedTagIds.isNotEmpty) {
             await _storageService.autoTagDiary(
-                widget.entry.id, matchedTagIds);
+                _entry.id, matchedTagIds);
           }
         }
       } catch (e) {
@@ -222,7 +255,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     if (confirmed == true && mounted) {
       await _storageService.deleteEntry(
-          widget.entry.id, widget.entry.folderPath);
+          _entry.id, _entry.folderPath);
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DiaryListPage()),
@@ -232,12 +265,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Widget _buildStatusBanner() {
-    final isProcessing = widget.entry.status == EntryStatus.processing;
-    final isFailed = widget.entry.status == EntryStatus.failed;
+    final isProcessing = _entry.status == EntryStatus.processing;
+    final isFailed = _entry.status == EntryStatus.failed;
     if (!isProcessing && !isFailed) return const SizedBox.shrink();
 
     if (isProcessing) {
-      final stageText = switch (widget.entry.processingStage) {
+      final stageText = switch (_entry.processingStage) {
         ProcessingStage.uploading => '上传中...',
         ProcessingStage.asr => '语音识别中...',
         ProcessingStage.llm => 'AI 总结中...',
@@ -275,7 +308,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
 
     // failed
-    final failedStage = switch (widget.entry.processingStage) {
+    final failedStage = switch (_entry.processingStage) {
       ProcessingStage.uploading => '上传失败',
       ProcessingStage.asr => '语音识别失败',
       ProcessingStage.llm => 'AI 总结失败',
@@ -321,7 +354,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   @override
   Widget build(BuildContext context) {
     final audioPath = _storageService.getAudioPath(
-        widget.entry.folderPath, widget.entry.audioFormat);
+        _entry.folderPath, _entry.audioFormat);
 
     return Scaffold(
       appBar: AppBar(
@@ -329,7 +362,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           children: [
             Flexible(
               child: Text(
-                widget.entry.displayTitle,
+                _entry.displayTitle,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
@@ -368,7 +401,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 信息栏
-                  DetailInfoBar(entry: widget.entry),
+                  DetailInfoBar(entry: _entry),
                   // 标签行
                   if (!_hasLlm)
                     Padding(
@@ -391,7 +424,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                         color: WarmTokens.warmBrown)),
                                 onDeleted: () async {
                                   await _storageService.removeDiaryTag(
-                                      widget.entry.id, tag.id);
+                                      _entry.id, tag.id);
                                   final updatedTag =
                                       await _storageService.getTagById(tag.id);
                                   if (mounted) {
@@ -431,7 +464,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                 for (final id
                                     in newIds.difference(currentIds)) {
                                   await _storageService.addDiaryTag(
-                                      widget.entry.id, id);
+                                      _entry.id, id);
                                   final tag =
                                       await _storageService.getTagById(id);
                                   if (mounted) {
@@ -442,7 +475,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                 for (final id
                                     in currentIds.difference(newIds)) {
                                   await _storageService.removeDiaryTag(
-                                      widget.entry.id, id);
+                                      _entry.id, id);
                                   final tag =
                                       await _storageService.getTagById(id);
                                   if (mounted) {
