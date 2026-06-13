@@ -13,7 +13,11 @@ import 'ogg_muxer.dart';
 class AudioEncoderService {
   static const int _sampleRate = 16000;
   static const int _channels = 1;
-  static const int _frameSize = 960; // 20ms at 16kHz
+  static const int _frameSize = 960; // encoder 输入帧：16kHz 下 60ms（960 samples）
+  // OGG/Opus 的 granule position 必须以 48kHz PCM 样本为单位（RFC 7845），
+  // 与 OpusHead 声明的 input sample rate (16kHz) 无关。Opus 内部恒以 48kHz 运作，
+  // 一帧 60ms 在 48kHz 下 = 2880 samples（= _frameSize × 3）。
+  static const int _granuleStep = 2880;
   static const int _bytesPerFrame = _frameSize * _channels * 2; // 1920 bytes
 
   OpusEncoder? _encoder;
@@ -139,13 +143,13 @@ class AudioEncoderService {
 
     final pages = _muxer!.writePage(
       data: opusPacket,
-      granulePosition: _granulePosition + _frameSize,
+      granulePosition: _granulePosition + _granuleStep,
     );
     for (final page in pages) {
       _file!.writeFromSync(page);
     }
 
-    _granulePosition += _frameSize;
+    _granulePosition += _granuleStep;
   }
 
   /// 构建 Opus ID Header（19 字节）。
