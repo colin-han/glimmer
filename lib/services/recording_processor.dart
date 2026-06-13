@@ -11,6 +11,7 @@ import 'asr_service.dart';
 import 'diary_storage_service.dart';
 import 'llm_service.dart';
 import 'tos_upload_service.dart';
+import 'api_log_service.dart';
 
 /// Processing FGS 入口函数
 @pragma('vm:entry-point')
@@ -25,6 +26,7 @@ class ProcessingTaskHandler extends TaskHandler {
   final _asrService = AsrService();
   final _llmService = LlmService();
   final _storageService = DiaryStorageService();
+  final _apiLogService = ApiLogService();
 
   void _sendToMain(Map<String, dynamic> data) {
     FlutterForegroundTask.sendDataToMain(data);
@@ -53,10 +55,27 @@ class ProcessingTaskHandler extends TaskHandler {
     debugPrint('[ProcessingHandler] 待处理任务: ${entries.length} 个');
 
     for (final entry in entries) {
+      await _apiLogService.logStep(
+        diaryId: entry.id,
+        step: 'processing',
+        status: 'started',
+        message: '从 ${entry.processingStage.value} 阶段恢复',
+      );
       try {
         await _processEntry(entry);
+        await _apiLogService.logStep(
+          diaryId: entry.id,
+          step: 'processing',
+          status: 'success',
+        );
       } catch (e) {
         debugPrint('[ProcessingHandler] 处理异常 (${entry.id}): $e');
+        await _apiLogService.logStep(
+          diaryId: entry.id,
+          step: 'processing',
+          status: 'error',
+          message: e.toString(),
+        );
         await _markFailed(entry.id, '处理失败');
       }
     }
@@ -133,40 +152,64 @@ class ProcessingTaskHandler extends TaskHandler {
       notificationText: '语音日记 - 语音识别...',
     );
 
-    final tosKey = await _storageService.getTosKey(entry.id);
-    if (tosKey == null) {
-      throw Exception('tosKey 为空，无法进行 ASR');
-    }
-
-    final presignedUrl = await _tosService.getPresignedUrl(tosKey);
-
-    AsrResult asrResult;
-    if (entry.asrTaskId != null) {
-      // 有 asrTaskId → 尝试查询已有任务结果（中断恢复）
-      debugPrint('[ProcessingHandler] 恢复 ASR 查询: ${entry.asrTaskId}');
-      try {
-        asrResult = await _asrService.pollAsyncResult(entry.asrTaskId!);
-      } catch (e) {
-        // taskId 可能已过期，回退到重新提交
-        debugPrint('[ProcessingHandler] ASR 查询失败，重新提交: $e');
-        final newTaskId = await _asrService.submitAsync(presignedUrl);
-        await _storageService.updateAsrTaskIdAndStage(entry.id, newTaskId, ProcessingStage.asr);
-        asrResult = await _asrService.pollAsyncResult(newTaskId);
+    final sw = Stopwatch()..start();
+    try {
+      final tosKey = await _storageService.getTosKey(entry.id);
+      if (tosKey == null) {
+        throw Exception('tosKey 为空，无法进行 ASR');
       }
-    } else {
-      // 无 asrTaskId → 提交新的异步识别任务
-      final asrTaskId = await _asrService.submitAsync(presignedUrl);
-      // 记录 asrTaskId（中断恢复用）
-      await _storageService.updateAsrTaskIdAndStage(entry.id, asrTaskId, ProcessingStage.asr);
-      asrResult = await _asrService.pollAsyncResult(asrTaskId);
-    }
 
-    await _storageService.writeTranscriptJson(
-      entry.folderPath,
-      TranscriptData(version: 1, utterances: asrResult.utterances),
-    );
-    await _storageService.updateProcessingStage(entry.id, ProcessingStage.llm);
-    debugPrint('[ProcessingHandler] ASR 完成');
+      final presignedUrl = await _tosService.getPresignedUrl(tosKey);
+
+      AsrResult asrResult;
+      if (entry.asrTaskId != null) {
+        debugPrint('[ProcessingHandler] 恢复 ASR 查询: ${entry.asrTaskId}');
+        try {
+          asrResult = await _asrService.pollAsyncResult(entry.asrTaskId!);
+        } catch (e) {
+          debugPrint('[ProcessingHandler] ASR 查询失败，重新提交: $e');
+          final newTaskId = await _asrService.submitAsync(presignedUrl);
+          await _storageService.updateAsrTaskIdAndStage(
+              entry.id, newTaskId, ProcessingStage.asr);
+          asrResult = await _asrService.pollAsyncResult(newTaskId);
+        }
+      } else {
+        final asrTaskId = await _asrService.submitAsync(presignedUrl);
+        await _storageService.updateAsrTaskIdAndStage(
+            entry.id, asrTaskId, ProcessingStage.asr);
+        asrResult = await _asrService.pollAsyncResult(asrTaskId);
+      }
+
+      await _storageService.writeTranscriptJson(
+        entry.folderPath,
+        TranscriptData(version: 1, utterances: asrResult.utterances),
+      );
+      await _storageService.updateProcessingStage(
+          entry.id, ProcessingStage.llm);
+
+      sw.stop();
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'asr_async',
+        step: 'asr',
+        status: 'success',
+        durationMs: sw.elapsedMilliseconds,
+        audioDurationSeconds: entry.durationSeconds,
+      );
+      debugPrint('[ProcessingHandler] ASR 完成');
+    } catch (e) {
+      sw.stop();
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'asr_async',
+        step: 'asr',
+        status: 'error',
+        durationMs: sw.elapsedMilliseconds,
+        errorMessage: e.toString(),
+        audioDurationSeconds: entry.durationSeconds,
+      );
+      rethrow;
+    }
   }
 
   /// 阶段: LLM 润色汇总
@@ -176,22 +219,53 @@ class ProcessingTaskHandler extends TaskHandler {
       notificationText: '语音日记 - AI 总结...',
     );
 
-    final transcript = await _storageService.readTranscriptJson(entry.folderPath);
-    final llmResult = await _llmService.summarize(transcript.utterances);
+    final sw = Stopwatch()..start();
+    try {
+      final transcript =
+          await _storageService.readTranscriptJson(entry.folderPath);
+      final llmResult = await _llmService.summarize(transcript.utterances);
 
-    await _storageService.writeLlmResult(
-      entry.folderPath,
-      LlmResultData(
-        version: 1,
-        title: llmResult.title,
-        content: llmResult.content,
-        summary: llmResult.summary,
-        outline: llmResult.outline,
-        utterances: llmResult.utterances,
-      ),
-    );
-    await _storageService.updateProcessingStage(entry.id, ProcessingStage.tagging);
-    debugPrint('[ProcessingHandler] LLM 完成');
+      await _storageService.writeLlmResult(
+        entry.folderPath,
+        LlmResultData(
+          version: 1,
+          title: llmResult.title,
+          content: llmResult.content,
+          summary: llmResult.summary,
+          outline: llmResult.outline,
+          utterances: llmResult.utterances,
+        ),
+      );
+      await _storageService.updateProcessingStage(
+          entry.id, ProcessingStage.tagging);
+
+      sw.stop();
+      final usage = llmResult.usage;
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'llm_summarize',
+        step: 'llm',
+        status: 'success',
+        durationMs: sw.elapsedMilliseconds,
+        promptTokens: usage?.promptTokens,
+        completionTokens: usage?.completionTokens,
+        totalTokens: usage?.totalTokens,
+        cachedTokens: usage?.cachedTokens,
+        reasoningTokens: usage?.reasoningTokens,
+      );
+      debugPrint('[ProcessingHandler] LLM 完成');
+    } catch (e) {
+      sw.stop();
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'llm_summarize',
+        step: 'llm',
+        status: 'error',
+        durationMs: sw.elapsedMilliseconds,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
   }
 
   /// 阶段: 标签归类（失败不阻塞）
@@ -201,6 +275,7 @@ class ProcessingTaskHandler extends TaskHandler {
       notificationText: '语音日记 - 自动归类...',
     );
 
+    final sw = Stopwatch()..start();
     try {
       final llmResult = await _storageService.readLlmResult(entry.folderPath);
       final allTags = await _storageService.getAllTags();
@@ -208,7 +283,8 @@ class ProcessingTaskHandler extends TaskHandler {
           allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
       if (tagsWithPrompt.isNotEmpty) {
         final tagInfos = tagsWithPrompt
-            .map((t) => TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
+            .map((t) =>
+                TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
             .toList();
         final matchedTagIds =
             await _llmService.matchTags(llmResult.content, tagInfos);
@@ -216,10 +292,29 @@ class ProcessingTaskHandler extends TaskHandler {
           await _storageService.autoTagDiary(entry.id, matchedTagIds);
         }
       }
+
+      sw.stop();
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'llm_match_tags',
+        step: 'tagging',
+        status: 'success',
+        durationMs: sw.elapsedMilliseconds,
+      );
+      debugPrint('[ProcessingHandler] 标签归类完成');
     } catch (e) {
+      sw.stop();
+      await _apiLogService.logApiCall(
+        diaryId: entry.id,
+        apiType: 'llm_match_tags',
+        step: 'tagging',
+        status: 'error',
+        durationMs: sw.elapsedMilliseconds,
+        errorMessage: e.toString(),
+      );
+      // 标签归类失败不阻塞，不 rethrow
       debugPrint('[ProcessingHandler] 自动归类失败（不阻塞）: $e');
     }
-    debugPrint('[ProcessingHandler] 标签归类完成');
   }
 
   /// 阶段: 完成
