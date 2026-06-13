@@ -49,16 +49,86 @@ class _ApiLogPageState extends State<ApiLogPage> {
               : RefreshIndicator(
                   onRefresh: _loadLogs,
                   color: WarmTokens.warmAmber,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    itemCount: _logs.length,
-                    itemBuilder: (context, index) {
-                      return _buildLogCard(_logs[index]);
-                    },
-                  ),
+                  child: _buildGroupedList(),
                 ),
     );
+  }
+
+  /// 按天分组渲染，每组标题显示该组总预估消费额
+  Widget _buildGroupedList() {
+    // 按日期分组（_logs 已按时间倒序，分组与组内均保持倒序）
+    final groups = <String, List<ApiLog>>{};
+    for (final log in _logs) {
+      final time = DateTime.fromMillisecondsSinceEpoch(log.createdAt);
+      final key =
+          '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}';
+      groups.putIfAbsent(key, () => []).add(log);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      children: groups.entries
+          .expand((group) {
+            final totalCost = group.value
+                .fold<double>(0, (sum, l) => sum + (l.estimatedCost ?? 0));
+            return [
+              _buildGroupHeader(group.key, totalCost),
+              ...group.value.map((log) => _buildLogCard(log)),
+            ];
+          })
+          .toList(),
+    );
+  }
+
+  Widget _buildGroupHeader(String dateKey, double totalCost) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 8, left: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 14,
+            decoration: BoxDecoration(
+              color: WarmTokens.warmAmber,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(_formatDateLabel(dateKey),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: WarmTokens.warmMuted,
+                letterSpacing: 0.3,
+              )),
+          const Spacer(),
+          if (totalCost > 0)
+            Text('合计 ¥${totalCost.toStringAsFixed(4)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: WarmTokens.warmAmber,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w500,
+                )),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateLabel(String dateKey) {
+    final parts = dateKey.split('-');
+    final date = DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(date).inDays;
+    final monthDay = '${date.month}月${date.day}日';
+    if (diff == 0) return '今天（$monthDay）';
+    if (diff == 1) return '昨天（$monthDay）';
+    return monthDay;
   }
 
   Widget _buildLogCard(ApiLog log) {

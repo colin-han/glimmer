@@ -91,14 +91,15 @@ class ProcessingTaskHandler extends TaskHandler {
     switch (entry.processingStage) {
       case ProcessingStage.uploading:
         await _doUpload(entry);
-        await _doAsr(entry);
+        // ASR 结果为空则直接完成，跳过 LLM/tagging
+        if (await _doAsr(entry)) break;
         await _doLlm(entry);
         await _doTagging(entry);
         await _doComplete(entry);
 
       case ProcessingStage.asr:
         // TOS 已上传（tosKey 存在），直接 ASR
-        await _doAsr(entry);
+        if (await _doAsr(entry)) break;
         await _doLlm(entry);
         await _doTagging(entry);
         await _doComplete(entry);
@@ -146,8 +147,9 @@ class ProcessingTaskHandler extends TaskHandler {
     debugPrint('[ProcessingHandler] 上传完成: $tosKey');
   }
 
-  /// 阶段: ASR 识别（异步 submit + query）
-  Future<void> _doAsr(DiaryEntry entry) async {
+  /// 阶段: ASR 识别（异步 submit + query）。
+  /// 返回 true 表示识别结果为空（已标记完成，调用方应跳过后续 LLM 阶段）。
+  Future<bool> _doAsr(DiaryEntry entry) async {
     FlutterForegroundTask.updateService(
       notificationTitle: '正在处理',
       notificationText: '语音日记 - 语音识别...',
@@ -191,6 +193,35 @@ class ProcessingTaskHandler extends TaskHandler {
         entry.folderPath,
         TranscriptData(version: 1, utterances: asrResult.utterances),
       );
+
+      // 识别结果为空：写入占位结果并标记完成，不进入 LLM，也不能重试
+      if (asrResult.utterances.isEmpty) {
+        debugPrint('[ProcessingHandler] ASR 结果为空，标记完成');
+        await _storageService.writeLlmResult(
+          entry.folderPath,
+          LlmResultData(
+            version: 1,
+            title: '未识别到语音内容',
+            content: '本次录音未识别到语音内容，可能录音过短或无声。',
+            summary: '',
+            outline: '',
+            utterances: [],
+          ),
+        );
+        sw.stop();
+        await _apiLogService.logApiCall(
+          diaryId: entry.id,
+          apiType: 'asr_async',
+          step: 'asr',
+          status: 'success',
+          durationMs: sw.elapsedMilliseconds,
+          audioDurationSeconds: entry.durationSeconds,
+          responseSummary: '识别结果为空，跳过 LLM 直接完成',
+        );
+        await _doComplete(entry);
+        return true;
+      }
+
       await _storageService.updateProcessingStage(
           entry.id, ProcessingStage.llm);
 
@@ -205,6 +236,7 @@ class ProcessingTaskHandler extends TaskHandler {
         audioDurationSeconds: entry.durationSeconds,
       );
       debugPrint('[ProcessingHandler] ASR 完成');
+      return false;
     } catch (e) {
       sw.stop();
       await _apiLogService.logApiCall(
