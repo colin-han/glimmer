@@ -31,12 +31,30 @@ class TagDiaryRecommendation {
       {required this.diaryId, required this.reason});
 }
 
+/// LLM API 返回的 token 用量。
+class LlmUsage {
+  final int promptTokens;
+  final int completionTokens;
+  final int totalTokens;
+  final int? cachedTokens;
+  final int? reasoningTokens;
+
+  const LlmUsage({
+    required this.promptTokens,
+    required this.completionTokens,
+    required this.totalTokens,
+    this.cachedTokens,
+    this.reasoningTokens,
+  });
+}
+
 class LlmResult {
   final String title;
   final String content;
   final String summary;
   final String outline;
   final List<Utterance> utterances;
+  final LlmUsage? usage;
 
   LlmResult({
     required this.title,
@@ -44,6 +62,7 @@ class LlmResult {
     required this.summary,
     required this.outline,
     required this.utterances,
+    this.usage,
   });
 }
 
@@ -112,7 +131,33 @@ class LlmService {
 
     final content =
         response.data['choices'][0]['message']['content'] as String;
-    return _parseResult(content);
+
+    // 提取 usage 数据
+    final usageJson = response.data['usage'] as Map<String, dynamic>?;
+    LlmUsage? usage;
+    if (usageJson != null) {
+      usage = LlmUsage(
+        promptTokens: usageJson['prompt_tokens'] as int? ?? 0,
+        completionTokens: usageJson['completion_tokens'] as int? ?? 0,
+        totalTokens: usageJson['total_tokens'] as int? ?? 0,
+        cachedTokens:
+            (usageJson['prompt_tokens_details'] as Map<String, dynamic>?)
+                ?['cached_tokens'] as int?,
+        reasoningTokens:
+            (usageJson['completion_tokens_details'] as Map<String, dynamic>?)
+                ?['reasoning_tokens'] as int?,
+      );
+    }
+
+    final result = _parseResult(content);
+    return LlmResult(
+      title: result.title,
+      content: result.content,
+      summary: result.summary,
+      outline: result.outline,
+      utterances: result.utterances,
+      usage: usage,
+    );
   }
 
   Future<String> generateReply(String realtimeText) async {
