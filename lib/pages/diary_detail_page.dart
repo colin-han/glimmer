@@ -195,15 +195,33 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
       List<Utterance> utterances;
 
-      if (!transcriptExists) {
-        final asrResult = await _asrService.transcribe(audioPath);
-        await _storageService.writeTranscriptJson(_entry.folderPath,
-            TranscriptData(version: 1, utterances: asrResult.utterances));
-        utterances = asrResult.utterances;
-      } else {
-        final transcriptData =
-            await _storageService.readTranscriptJson(_entry.folderPath);
-        utterances = transcriptData.utterances;
+      try {
+        if (!transcriptExists) {
+          final asrResult = await _asrService.transcribe(audioPath);
+          await _storageService.writeTranscriptJson(_entry.folderPath,
+              TranscriptData(version: 1, utterances: asrResult.utterances));
+          utterances = asrResult.utterances;
+        } else {
+          final transcriptData =
+              await _storageService.readTranscriptJson(_entry.folderPath);
+          utterances = transcriptData.utterances;
+        }
+      } catch (e) {
+        // ASR 识别结果为空（静音/无内容）：视为空 utterances，按完成处理
+        final msg = e.toString();
+        if (msg.contains('识别结果为空') ||
+            msg.contains('静音音频') ||
+            msg.contains('未返回 utterances')) {
+          utterances = [];
+        } else {
+          rethrow;
+        }
+      }
+
+      // 识别结果为空：写占位结果并标记完成，不进入 LLM
+      if (utterances.isEmpty) {
+        await _finishAsEmpty();
+        return;
       }
 
       final llmResult = await _llmService.summarize(utterances);
@@ -253,6 +271,30 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           SnackBar(content: Text('重试失败: $e')),
         );
       }
+    }
+  }
+
+  /// ASR 识别结果为空时的重试处理：写占位 LLM 结果，标记完成，刷新页面。
+  Future<void> _finishAsEmpty() async {
+    await _storageService.writeLlmResult(
+      _entry.folderPath,
+      LlmResultData(
+        version: 1,
+        title: '未识别到语音内容',
+        content: '本次录音未识别到语音内容，可能录音过短或无声。',
+        summary: '',
+        outline: '',
+        utterances: [],
+      ),
+    );
+    await _storageService.updateEntryTitleAndStatus(
+        _entry.id, '未识别到语音内容', EntryStatus.completed);
+    if (mounted) {
+      setState(() {
+        _retrying = false;
+        _loading = true;
+      });
+      await _loadContent();
     }
   }
 

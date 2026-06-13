@@ -196,30 +196,8 @@ class ProcessingTaskHandler extends TaskHandler {
 
       // 识别结果为空：写入占位结果并标记完成，不进入 LLM，也不能重试
       if (asrResult.utterances.isEmpty) {
-        debugPrint('[ProcessingHandler] ASR 结果为空，标记完成');
-        await _storageService.writeLlmResult(
-          entry.folderPath,
-          LlmResultData(
-            version: 1,
-            title: '未识别到语音内容',
-            content: '本次录音未识别到语音内容，可能录音过短或无声。',
-            summary: '',
-            outline: '',
-            utterances: [],
-          ),
-        );
         sw.stop();
-        await _apiLogService.logApiCall(
-          diaryId: entry.id,
-          apiType: 'asr_async',
-          step: 'asr',
-          status: 'success',
-          durationMs: sw.elapsedMilliseconds,
-          audioDurationSeconds: entry.durationSeconds,
-          responseSummary: '识别结果为空，跳过 LLM 直接完成',
-        );
-        await _doComplete(entry);
-        return true;
+        return _handleEmptyAsr(entry, sw.elapsedMilliseconds, 'utterances 为空');
       }
 
       await _storageService.updateProcessingStage(
@@ -239,17 +217,58 @@ class ProcessingTaskHandler extends TaskHandler {
       return false;
     } catch (e) {
       sw.stop();
+      final msg = e.toString();
+      // ASR 识别结果为空（静音/无内容）：标记完成，不进入 LLM，也不报错
+      if (msg.contains('识别结果为空') ||
+          msg.contains('静音音频') ||
+          msg.contains('未返回 utterances')) {
+        return _handleEmptyAsr(entry, sw.elapsedMilliseconds, msg);
+      }
+      // 真正的错误：记录并抛出
       await _apiLogService.logApiCall(
         diaryId: entry.id,
         apiType: 'asr_async',
         step: 'asr',
         status: 'error',
         durationMs: sw.elapsedMilliseconds,
-        errorMessage: e.toString(),
+        errorMessage: msg,
         audioDurationSeconds: entry.durationSeconds,
       );
       rethrow;
     }
+  }
+
+  /// ASR 识别结果为空时的统一处理：写空 transcript + 占位 LLM 结果，标记完成。
+  /// 返回 true 表示已完成，调用方应跳过后续 LLM 阶段。
+  Future<bool> _handleEmptyAsr(
+      DiaryEntry entry, int durationMs, String reason) async {
+    debugPrint('[ProcessingHandler] ASR 识别结果为空，标记完成: $reason');
+    await _storageService.writeTranscriptJson(
+      entry.folderPath,
+      TranscriptData(version: 1, utterances: []),
+    );
+    await _storageService.writeLlmResult(
+      entry.folderPath,
+      LlmResultData(
+        version: 1,
+        title: '未识别到语音内容',
+        content: '本次录音未识别到语音内容，可能录音过短或无声。',
+        summary: '',
+        outline: '',
+        utterances: [],
+      ),
+    );
+    await _apiLogService.logApiCall(
+      diaryId: entry.id,
+      apiType: 'asr_async',
+      step: 'asr',
+      status: 'success',
+      durationMs: durationMs,
+      audioDurationSeconds: entry.durationSeconds,
+      responseSummary: '识别结果为空（$reason），跳过 LLM 直接完成',
+    );
+    await _doComplete(entry);
+    return true;
   }
 
   /// 阶段: LLM 润色汇总
