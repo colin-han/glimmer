@@ -7,6 +7,7 @@ import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
+import 'api_log_page.dart';
 import 'diary_detail_page.dart';
 import 'recording_page.dart';
 import 'tag_management_page.dart';
@@ -112,7 +113,15 @@ class _DiaryListPageState extends State<DiaryListPage> {
                   border: InputBorder.none,
                 ),
                 style: TextStyle(color: WarmTokens.warmBrown),
-                onChanged: (val) => setState(() => _searchQuery = val),
+                onChanged: (val) {
+                  setState(() => _searchQuery = val);
+                  // 后门：搜索 "log" 进入日志查看页
+                  if (val.toLowerCase() == 'log') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ApiLogPage()),
+                    );
+                  }
+                },
               )
             : const AppTitle(title: '我的日记'),
         actions: [
