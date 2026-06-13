@@ -18,50 +18,49 @@ class TimestampedTextView extends StatefulWidget {
 }
 
 class _TimestampedTextViewState extends State<TimestampedTextView> {
-  Duration _position = Duration.zero;
-
   @override
-  void initState() {
-    super.initState();
-    widget.playerService.positionStream.listen((pos) {
-      if (mounted) {
-        setState(() => _position = pos);
-      }
-    });
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return StreamBuilder<AudioPlayerState>(
+      stream: widget.playerService.stateStream,
+      initialData: widget.playerService.currentState,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? const AudioPlayerState();
+        final currentIndex =
+            _findCurrentIndex(widget.utterances, state.position);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < widget.utterances.length; i++)
+              _buildSentence(
+                widget.utterances[i],
+                i == currentIndex,
+                i < currentIndex,
+                theme,
+              ),
+          ],
+        );
+      },
+    );
   }
 
-  int get _currentIndex {
-    final posMs = _position.inMilliseconds;
-    for (var i = 0; i < widget.utterances.length; i++) {
-      final u = widget.utterances[i];
+  /// 根据播放位置计算当前高亮的 utterance 索引。
+  static int _findCurrentIndex(
+      List<Utterance> utterances, Duration position) {
+    if (utterances.isEmpty) return -1;
+    final posMs = position.inMilliseconds;
+    for (var i = 0; i < utterances.length; i++) {
+      final u = utterances[i];
       if (posMs >= u.startTime && posMs < u.endTime) {
         return i;
       }
     }
-    if (widget.utterances.isNotEmpty &&
-        posMs >= widget.utterances.last.endTime) {
-      return widget.utterances.length - 1;
+    if (posMs >= utterances.last.endTime) {
+      return utterances.length - 1;
     }
     return -1;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentIndex = _currentIndex;
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < widget.utterances.length; i++)
-          _buildSentence(
-            widget.utterances[i],
-            i == currentIndex,
-            i < currentIndex,
-            theme,
-          ),
-      ],
-    );
   }
 
   Widget _buildSentence(
