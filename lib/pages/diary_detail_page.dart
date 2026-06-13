@@ -91,6 +91,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           title: title,
         );
       });
+      // ASR 完成（进入 llm 阶段），加载字幕数据供播放器显示
+      if (stageStr == 'llm') {
+        _loadTranscript();
+      }
     } else if (type == 'completed' && mounted) {
       // 处理完成，加载最终内容
       setState(() => _isActivelyProcessing = false);
@@ -100,6 +104,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     }
+  }
+
+  /// 仅加载 transcript 字幕数据（ASR 完成后立即显示）
+  Future<void> _loadTranscript() async {
+    try {
+      final transcriptData =
+          await _storageService.readTranscriptJson(_entry.folderPath);
+      if (mounted && !_hasLlm) {
+        setState(() {
+          _activeUtterances = transcriptData.utterances;
+          _hasTranscript = true;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadContent() async {
