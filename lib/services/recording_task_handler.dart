@@ -66,19 +66,10 @@ class RecordingTaskHandler extends TaskHandler {
       debugPrint('[TaskHandler] dotenv.load 失败: $e');
     }
 
-    // 从 UI 保存的数据中读取 folderId 和 folderPath
-    _folderId = await FlutterForegroundTask.getData(key: 'folderId') as String?;
-    _folderPath =
-        await FlutterForegroundTask.getData(key: 'folderPath') as String?;
-
-    if (_folderId == null) {
-      // UI 没有传 folderId，自己生成
-      _folderId = _uuid.v4();
-      _folderPath = await _storageService.createDiaryFolder(_folderId!);
-      debugPrint('[TaskHandler] 自动创建文件夹: $_folderId');
-    } else {
-      _folderPath ??= await _storageService.createDiaryFolder(_folderId!);
-    }
+    // 始终生成新 UUID，避免读取到上一次录音残留的持久化数据
+    _folderId = _uuid.v4();
+    _folderPath = await _storageService.createDiaryFolder(_folderId!);
+    debugPrint('[TaskHandler] 创建文件夹: $_folderId');
 
     // 更新通知
     FlutterForegroundTask.updateService(
