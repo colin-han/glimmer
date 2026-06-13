@@ -1,10 +1,11 @@
 #!/bin/bash
+# 计算并更新版本号：写入 pubspec.yaml、提交、打 tag、推送
+# 用法: ./scripts/update_version.sh [--skip-version] [major|minor|patch|<#.#.#>]
+
 set -euo pipefail
 
-cd "$(dirname "$0")"
-
-ADB="$HOME/Library/Android/sdk/platform-tools/adb"
-APK="build/app/outputs/flutter-apk/app-prod-release.apk"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
 # ─── 解析参数 ──────────────────────────────────────────────────
 SKIP_VERSION=false
@@ -93,19 +94,4 @@ else
   echo ""
 fi
 
-# ─── 清理并编译 ───────────────────────────────────────────────
-echo "==> 清理构建缓存..."
-flutter clean
-
-echo "==> 编译 prod release APK..."
-flutter build apk --flavor prod --release
-echo ""
-
-echo "==> 编译完成: $APK"
-ls -lh "$APK"
-echo ""
-
-# ─── 安装到设备 ───────────────────────────────────────────────
-echo "==> 安装到设备（保留数据）..."
-"$ADB" install -r "$APK"
-echo "==> ${TAG} 发布完成 ✓"
+echo "==> ${TAG} 版本已更新"
