@@ -50,6 +50,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   List<Tag> _tags = [];
   bool _retrying = false;
 
+  /// FGS 是否正在活跃处理当前日记（收到 stageUpdate 即为 true）
+  bool _isActivelyProcessing = false;
+
   /// 可变的 entry 副本，用于在处理过程中刷新元数据
   late DiaryEntry _entry;
 
@@ -76,9 +79,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (entryId != null && entryId != _entry.id) return;
 
     if (type == 'stageUpdate' && mounted) {
+      // 收到阶段更新，说明 FGS 正在活跃处理
+      if (!_isActivelyProcessing) {
+        setState(() => _isActivelyProcessing = true);
+      }
       // 阶段变更：从 DB 刷新 entry 元数据（processingStage、title、status）
       _refreshEntry();
-    } else if ((type == 'completed' || type == 'processingDone') && mounted) {
+    } else if (type == 'completed' && mounted) {
+      // 处理完成，加载最终内容
+      setState(() => _isActivelyProcessing = false);
+      _loadContent();
+    } else if (type == 'processingDone' && mounted) {
+      // FGS 停止，标记为非活跃
+      setState(() => _isActivelyProcessing = false);
+      _loadContent();
       _loadContent();
     }
   }
@@ -263,12 +277,38 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     if (isProcessing) {
       final stageText = switch (_entry.processingStage) {
-        ProcessingStage.uploading => '上传中...',
-        ProcessingStage.asr => '语音识别中...',
-        ProcessingStage.llm => 'AI 总结中...',
-        ProcessingStage.tagging => '自动归类中...',
-        ProcessingStage.completed => '即将完成...',
+        ProcessingStage.uploading => '上传',
+        ProcessingStage.asr => '语音识别',
+        ProcessingStage.llm => 'AI 总结',
+        ProcessingStage.tagging => '自动归类',
+        ProcessingStage.completed => '即将完成',
       };
+
+      // 暂停状态：FGS 未运行，不显示转圈动画
+      if (!_isActivelyProcessing) {
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: WarmTokens.warmProcessBg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.pause_circle_outline,
+                  color: WarmTokens.warmMuted, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('处理暂停 · $stageText 待处理',
+                    style: const TextStyle(
+                        color: WarmTokens.warmBrown, fontSize: 13)),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // 活跃处理中：显示转圈动画和进度条
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(14),
@@ -287,7 +327,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       strokeWidth: 2, color: WarmTokens.warmMuted),
                 ),
                 const SizedBox(width: 8),
-                Text('正在处理: $stageText',
+                Text('${stageText}中...',
                     style: const TextStyle(
                         color: WarmTokens.warmBrown, fontSize: 13)),
               ],
@@ -398,7 +438,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   if (!_hasLlm)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text('⏳ 处理中...',
+                      child: Text(
+                          _isActivelyProcessing ? '⏳ 处理中...' : '⏸ 处理暂停',
                           style: const TextStyle(
                               fontSize: 12, color: WarmTokens.warmMuted)),
                     )
