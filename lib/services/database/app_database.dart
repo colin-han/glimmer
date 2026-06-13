@@ -9,12 +9,12 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [DiaryEntries, Tags, DiaryTagRelations])
+@DriftDatabase(tables: [DiaryEntries, Tags, DiaryTagRelations, ApiLogs])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) {
             try { await m.addColumn(diaryEntries, diaryEntries.processingStage); } catch (_) {}
             try { await m.addColumn(diaryEntries, diaryEntries.asrTaskId); } catch (_) {}
+          }
+          if (from < 7) {
+            try { await m.createTable(apiLogs); } catch (_) {}
           }
         },
       );
@@ -151,6 +154,26 @@ class AppDatabase extends _$AppDatabase {
               t.status.equals('processing') | t.status.equals('failed')))
         .get()
         .then((rows) => rows.length);
+  }
+
+  // --- ApiLogs ---
+
+  Future<void> insertApiLog(ApiLogsCompanion log) {
+    return into(apiLogs).insert(log);
+  }
+
+  Future<List<ApiLog>> getLogsForDiary(String diaryId) {
+    return (select(apiLogs)
+          ..where((t) => t.diaryId.equals(diaryId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Future<List<ApiLog>> getRecentLogs({int limit = 50, int offset = 0}) {
+    return (select(apiLogs)
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(limit, offset: offset))
+        .get();
   }
 }
 

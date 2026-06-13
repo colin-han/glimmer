@@ -1674,6 +1674,1022 @@ class DiaryTagRelationsCompanion extends UpdateCompanion<DiaryTagRelation> {
   }
 }
 
+class $ApiLogsTable extends ApiLogs with TableInfo<$ApiLogsTable, ApiLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ApiLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _diaryIdMeta = const VerificationMeta(
+    'diaryId',
+  );
+  @override
+  late final GeneratedColumn<String> diaryId = GeneratedColumn<String>(
+    'diary_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _apiTypeMeta = const VerificationMeta(
+    'apiType',
+  );
+  @override
+  late final GeneratedColumn<String> apiType = GeneratedColumn<String>(
+    'api_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<String> step = GeneratedColumn<String>(
+    'step',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _responseSummaryMeta = const VerificationMeta(
+    'responseSummary',
+  );
+  @override
+  late final GeneratedColumn<String> responseSummary = GeneratedColumn<String>(
+    'response_summary',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _promptTokensMeta = const VerificationMeta(
+    'promptTokens',
+  );
+  @override
+  late final GeneratedColumn<int> promptTokens = GeneratedColumn<int>(
+    'prompt_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completionTokensMeta = const VerificationMeta(
+    'completionTokens',
+  );
+  @override
+  late final GeneratedColumn<int> completionTokens = GeneratedColumn<int>(
+    'completion_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalTokensMeta = const VerificationMeta(
+    'totalTokens',
+  );
+  @override
+  late final GeneratedColumn<int> totalTokens = GeneratedColumn<int>(
+    'total_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cachedTokensMeta = const VerificationMeta(
+    'cachedTokens',
+  );
+  @override
+  late final GeneratedColumn<int> cachedTokens = GeneratedColumn<int>(
+    'cached_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reasoningTokensMeta = const VerificationMeta(
+    'reasoningTokens',
+  );
+  @override
+  late final GeneratedColumn<int> reasoningTokens = GeneratedColumn<int>(
+    'reasoning_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _audioDurationSecondsMeta =
+      const VerificationMeta('audioDurationSeconds');
+  @override
+  late final GeneratedColumn<int> audioDurationSeconds = GeneratedColumn<int>(
+    'audio_duration_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ttsCharacterCountMeta = const VerificationMeta(
+    'ttsCharacterCount',
+  );
+  @override
+  late final GeneratedColumn<int> ttsCharacterCount = GeneratedColumn<int>(
+    'tts_character_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedCostMeta = const VerificationMeta(
+    'estimatedCost',
+  );
+  @override
+  late final GeneratedColumn<double> estimatedCost = GeneratedColumn<double>(
+    'estimated_cost',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    diaryId,
+    apiType,
+    step,
+    status,
+    durationMs,
+    errorMessage,
+    responseSummary,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    cachedTokens,
+    reasoningTokens,
+    audioDurationSeconds,
+    ttsCharacterCount,
+    estimatedCost,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'api_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ApiLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('diary_id')) {
+      context.handle(
+        _diaryIdMeta,
+        diaryId.isAcceptableOrUnknown(data['diary_id']!, _diaryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_diaryIdMeta);
+    }
+    if (data.containsKey('api_type')) {
+      context.handle(
+        _apiTypeMeta,
+        apiType.isAcceptableOrUnknown(data['api_type']!, _apiTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_apiTypeMeta);
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stepMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('response_summary')) {
+      context.handle(
+        _responseSummaryMeta,
+        responseSummary.isAcceptableOrUnknown(
+          data['response_summary']!,
+          _responseSummaryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prompt_tokens')) {
+      context.handle(
+        _promptTokensMeta,
+        promptTokens.isAcceptableOrUnknown(
+          data['prompt_tokens']!,
+          _promptTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completion_tokens')) {
+      context.handle(
+        _completionTokensMeta,
+        completionTokens.isAcceptableOrUnknown(
+          data['completion_tokens']!,
+          _completionTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_tokens')) {
+      context.handle(
+        _totalTokensMeta,
+        totalTokens.isAcceptableOrUnknown(
+          data['total_tokens']!,
+          _totalTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cached_tokens')) {
+      context.handle(
+        _cachedTokensMeta,
+        cachedTokens.isAcceptableOrUnknown(
+          data['cached_tokens']!,
+          _cachedTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reasoning_tokens')) {
+      context.handle(
+        _reasoningTokensMeta,
+        reasoningTokens.isAcceptableOrUnknown(
+          data['reasoning_tokens']!,
+          _reasoningTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('audio_duration_seconds')) {
+      context.handle(
+        _audioDurationSecondsMeta,
+        audioDurationSeconds.isAcceptableOrUnknown(
+          data['audio_duration_seconds']!,
+          _audioDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tts_character_count')) {
+      context.handle(
+        _ttsCharacterCountMeta,
+        ttsCharacterCount.isAcceptableOrUnknown(
+          data['tts_character_count']!,
+          _ttsCharacterCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('estimated_cost')) {
+      context.handle(
+        _estimatedCostMeta,
+        estimatedCost.isAcceptableOrUnknown(
+          data['estimated_cost']!,
+          _estimatedCostMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ApiLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ApiLog(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      diaryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}diary_id'],
+      )!,
+      apiType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}api_type'],
+      )!,
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      responseSummary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}response_summary'],
+      ),
+      promptTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prompt_tokens'],
+      ),
+      completionTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completion_tokens'],
+      ),
+      totalTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_tokens'],
+      ),
+      cachedTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_tokens'],
+      ),
+      reasoningTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reasoning_tokens'],
+      ),
+      audioDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}audio_duration_seconds'],
+      ),
+      ttsCharacterCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tts_character_count'],
+      ),
+      estimatedCost: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}estimated_cost'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ApiLogsTable createAlias(String alias) {
+    return $ApiLogsTable(attachedDatabase, alias);
+  }
+}
+
+class ApiLog extends DataClass implements Insertable<ApiLog> {
+  final String id;
+  final String diaryId;
+  final String apiType;
+  final String step;
+  final String status;
+  final int? durationMs;
+  final String? errorMessage;
+  final String? responseSummary;
+  final int? promptTokens;
+  final int? completionTokens;
+  final int? totalTokens;
+  final int? cachedTokens;
+  final int? reasoningTokens;
+  final int? audioDurationSeconds;
+  final int? ttsCharacterCount;
+  final double? estimatedCost;
+  final int createdAt;
+  const ApiLog({
+    required this.id,
+    required this.diaryId,
+    required this.apiType,
+    required this.step,
+    required this.status,
+    this.durationMs,
+    this.errorMessage,
+    this.responseSummary,
+    this.promptTokens,
+    this.completionTokens,
+    this.totalTokens,
+    this.cachedTokens,
+    this.reasoningTokens,
+    this.audioDurationSeconds,
+    this.ttsCharacterCount,
+    this.estimatedCost,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['diary_id'] = Variable<String>(diaryId);
+    map['api_type'] = Variable<String>(apiType);
+    map['step'] = Variable<String>(step);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    if (!nullToAbsent || responseSummary != null) {
+      map['response_summary'] = Variable<String>(responseSummary);
+    }
+    if (!nullToAbsent || promptTokens != null) {
+      map['prompt_tokens'] = Variable<int>(promptTokens);
+    }
+    if (!nullToAbsent || completionTokens != null) {
+      map['completion_tokens'] = Variable<int>(completionTokens);
+    }
+    if (!nullToAbsent || totalTokens != null) {
+      map['total_tokens'] = Variable<int>(totalTokens);
+    }
+    if (!nullToAbsent || cachedTokens != null) {
+      map['cached_tokens'] = Variable<int>(cachedTokens);
+    }
+    if (!nullToAbsent || reasoningTokens != null) {
+      map['reasoning_tokens'] = Variable<int>(reasoningTokens);
+    }
+    if (!nullToAbsent || audioDurationSeconds != null) {
+      map['audio_duration_seconds'] = Variable<int>(audioDurationSeconds);
+    }
+    if (!nullToAbsent || ttsCharacterCount != null) {
+      map['tts_character_count'] = Variable<int>(ttsCharacterCount);
+    }
+    if (!nullToAbsent || estimatedCost != null) {
+      map['estimated_cost'] = Variable<double>(estimatedCost);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ApiLogsCompanion toCompanion(bool nullToAbsent) {
+    return ApiLogsCompanion(
+      id: Value(id),
+      diaryId: Value(diaryId),
+      apiType: Value(apiType),
+      step: Value(step),
+      status: Value(status),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      responseSummary: responseSummary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(responseSummary),
+      promptTokens: promptTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptTokens),
+      completionTokens: completionTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completionTokens),
+      totalTokens: totalTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalTokens),
+      cachedTokens: cachedTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cachedTokens),
+      reasoningTokens: reasoningTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningTokens),
+      audioDurationSeconds: audioDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(audioDurationSeconds),
+      ttsCharacterCount: ttsCharacterCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ttsCharacterCount),
+      estimatedCost: estimatedCost == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimatedCost),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ApiLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ApiLog(
+      id: serializer.fromJson<String>(json['id']),
+      diaryId: serializer.fromJson<String>(json['diaryId']),
+      apiType: serializer.fromJson<String>(json['apiType']),
+      step: serializer.fromJson<String>(json['step']),
+      status: serializer.fromJson<String>(json['status']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      responseSummary: serializer.fromJson<String?>(json['responseSummary']),
+      promptTokens: serializer.fromJson<int?>(json['promptTokens']),
+      completionTokens: serializer.fromJson<int?>(json['completionTokens']),
+      totalTokens: serializer.fromJson<int?>(json['totalTokens']),
+      cachedTokens: serializer.fromJson<int?>(json['cachedTokens']),
+      reasoningTokens: serializer.fromJson<int?>(json['reasoningTokens']),
+      audioDurationSeconds: serializer.fromJson<int?>(
+        json['audioDurationSeconds'],
+      ),
+      ttsCharacterCount: serializer.fromJson<int?>(json['ttsCharacterCount']),
+      estimatedCost: serializer.fromJson<double?>(json['estimatedCost']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'diaryId': serializer.toJson<String>(diaryId),
+      'apiType': serializer.toJson<String>(apiType),
+      'step': serializer.toJson<String>(step),
+      'status': serializer.toJson<String>(status),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'responseSummary': serializer.toJson<String?>(responseSummary),
+      'promptTokens': serializer.toJson<int?>(promptTokens),
+      'completionTokens': serializer.toJson<int?>(completionTokens),
+      'totalTokens': serializer.toJson<int?>(totalTokens),
+      'cachedTokens': serializer.toJson<int?>(cachedTokens),
+      'reasoningTokens': serializer.toJson<int?>(reasoningTokens),
+      'audioDurationSeconds': serializer.toJson<int?>(audioDurationSeconds),
+      'ttsCharacterCount': serializer.toJson<int?>(ttsCharacterCount),
+      'estimatedCost': serializer.toJson<double?>(estimatedCost),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ApiLog copyWith({
+    String? id,
+    String? diaryId,
+    String? apiType,
+    String? step,
+    String? status,
+    Value<int?> durationMs = const Value.absent(),
+    Value<String?> errorMessage = const Value.absent(),
+    Value<String?> responseSummary = const Value.absent(),
+    Value<int?> promptTokens = const Value.absent(),
+    Value<int?> completionTokens = const Value.absent(),
+    Value<int?> totalTokens = const Value.absent(),
+    Value<int?> cachedTokens = const Value.absent(),
+    Value<int?> reasoningTokens = const Value.absent(),
+    Value<int?> audioDurationSeconds = const Value.absent(),
+    Value<int?> ttsCharacterCount = const Value.absent(),
+    Value<double?> estimatedCost = const Value.absent(),
+    int? createdAt,
+  }) => ApiLog(
+    id: id ?? this.id,
+    diaryId: diaryId ?? this.diaryId,
+    apiType: apiType ?? this.apiType,
+    step: step ?? this.step,
+    status: status ?? this.status,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    responseSummary: responseSummary.present
+        ? responseSummary.value
+        : this.responseSummary,
+    promptTokens: promptTokens.present ? promptTokens.value : this.promptTokens,
+    completionTokens: completionTokens.present
+        ? completionTokens.value
+        : this.completionTokens,
+    totalTokens: totalTokens.present ? totalTokens.value : this.totalTokens,
+    cachedTokens: cachedTokens.present ? cachedTokens.value : this.cachedTokens,
+    reasoningTokens: reasoningTokens.present
+        ? reasoningTokens.value
+        : this.reasoningTokens,
+    audioDurationSeconds: audioDurationSeconds.present
+        ? audioDurationSeconds.value
+        : this.audioDurationSeconds,
+    ttsCharacterCount: ttsCharacterCount.present
+        ? ttsCharacterCount.value
+        : this.ttsCharacterCount,
+    estimatedCost: estimatedCost.present
+        ? estimatedCost.value
+        : this.estimatedCost,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ApiLog copyWithCompanion(ApiLogsCompanion data) {
+    return ApiLog(
+      id: data.id.present ? data.id.value : this.id,
+      diaryId: data.diaryId.present ? data.diaryId.value : this.diaryId,
+      apiType: data.apiType.present ? data.apiType.value : this.apiType,
+      step: data.step.present ? data.step.value : this.step,
+      status: data.status.present ? data.status.value : this.status,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      responseSummary: data.responseSummary.present
+          ? data.responseSummary.value
+          : this.responseSummary,
+      promptTokens: data.promptTokens.present
+          ? data.promptTokens.value
+          : this.promptTokens,
+      completionTokens: data.completionTokens.present
+          ? data.completionTokens.value
+          : this.completionTokens,
+      totalTokens: data.totalTokens.present
+          ? data.totalTokens.value
+          : this.totalTokens,
+      cachedTokens: data.cachedTokens.present
+          ? data.cachedTokens.value
+          : this.cachedTokens,
+      reasoningTokens: data.reasoningTokens.present
+          ? data.reasoningTokens.value
+          : this.reasoningTokens,
+      audioDurationSeconds: data.audioDurationSeconds.present
+          ? data.audioDurationSeconds.value
+          : this.audioDurationSeconds,
+      ttsCharacterCount: data.ttsCharacterCount.present
+          ? data.ttsCharacterCount.value
+          : this.ttsCharacterCount,
+      estimatedCost: data.estimatedCost.present
+          ? data.estimatedCost.value
+          : this.estimatedCost,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApiLog(')
+          ..write('id: $id, ')
+          ..write('diaryId: $diaryId, ')
+          ..write('apiType: $apiType, ')
+          ..write('step: $step, ')
+          ..write('status: $status, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('responseSummary: $responseSummary, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('cachedTokens: $cachedTokens, ')
+          ..write('reasoningTokens: $reasoningTokens, ')
+          ..write('audioDurationSeconds: $audioDurationSeconds, ')
+          ..write('ttsCharacterCount: $ttsCharacterCount, ')
+          ..write('estimatedCost: $estimatedCost, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    diaryId,
+    apiType,
+    step,
+    status,
+    durationMs,
+    errorMessage,
+    responseSummary,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    cachedTokens,
+    reasoningTokens,
+    audioDurationSeconds,
+    ttsCharacterCount,
+    estimatedCost,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ApiLog &&
+          other.id == this.id &&
+          other.diaryId == this.diaryId &&
+          other.apiType == this.apiType &&
+          other.step == this.step &&
+          other.status == this.status &&
+          other.durationMs == this.durationMs &&
+          other.errorMessage == this.errorMessage &&
+          other.responseSummary == this.responseSummary &&
+          other.promptTokens == this.promptTokens &&
+          other.completionTokens == this.completionTokens &&
+          other.totalTokens == this.totalTokens &&
+          other.cachedTokens == this.cachedTokens &&
+          other.reasoningTokens == this.reasoningTokens &&
+          other.audioDurationSeconds == this.audioDurationSeconds &&
+          other.ttsCharacterCount == this.ttsCharacterCount &&
+          other.estimatedCost == this.estimatedCost &&
+          other.createdAt == this.createdAt);
+}
+
+class ApiLogsCompanion extends UpdateCompanion<ApiLog> {
+  final Value<String> id;
+  final Value<String> diaryId;
+  final Value<String> apiType;
+  final Value<String> step;
+  final Value<String> status;
+  final Value<int?> durationMs;
+  final Value<String?> errorMessage;
+  final Value<String?> responseSummary;
+  final Value<int?> promptTokens;
+  final Value<int?> completionTokens;
+  final Value<int?> totalTokens;
+  final Value<int?> cachedTokens;
+  final Value<int?> reasoningTokens;
+  final Value<int?> audioDurationSeconds;
+  final Value<int?> ttsCharacterCount;
+  final Value<double?> estimatedCost;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const ApiLogsCompanion({
+    this.id = const Value.absent(),
+    this.diaryId = const Value.absent(),
+    this.apiType = const Value.absent(),
+    this.step = const Value.absent(),
+    this.status = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.responseSummary = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.cachedTokens = const Value.absent(),
+    this.reasoningTokens = const Value.absent(),
+    this.audioDurationSeconds = const Value.absent(),
+    this.ttsCharacterCount = const Value.absent(),
+    this.estimatedCost = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ApiLogsCompanion.insert({
+    required String id,
+    required String diaryId,
+    required String apiType,
+    required String step,
+    required String status,
+    this.durationMs = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.responseSummary = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.cachedTokens = const Value.absent(),
+    this.reasoningTokens = const Value.absent(),
+    this.audioDurationSeconds = const Value.absent(),
+    this.ttsCharacterCount = const Value.absent(),
+    this.estimatedCost = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       diaryId = Value(diaryId),
+       apiType = Value(apiType),
+       step = Value(step),
+       status = Value(status),
+       createdAt = Value(createdAt);
+  static Insertable<ApiLog> custom({
+    Expression<String>? id,
+    Expression<String>? diaryId,
+    Expression<String>? apiType,
+    Expression<String>? step,
+    Expression<String>? status,
+    Expression<int>? durationMs,
+    Expression<String>? errorMessage,
+    Expression<String>? responseSummary,
+    Expression<int>? promptTokens,
+    Expression<int>? completionTokens,
+    Expression<int>? totalTokens,
+    Expression<int>? cachedTokens,
+    Expression<int>? reasoningTokens,
+    Expression<int>? audioDurationSeconds,
+    Expression<int>? ttsCharacterCount,
+    Expression<double>? estimatedCost,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (diaryId != null) 'diary_id': diaryId,
+      if (apiType != null) 'api_type': apiType,
+      if (step != null) 'step': step,
+      if (status != null) 'status': status,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (responseSummary != null) 'response_summary': responseSummary,
+      if (promptTokens != null) 'prompt_tokens': promptTokens,
+      if (completionTokens != null) 'completion_tokens': completionTokens,
+      if (totalTokens != null) 'total_tokens': totalTokens,
+      if (cachedTokens != null) 'cached_tokens': cachedTokens,
+      if (reasoningTokens != null) 'reasoning_tokens': reasoningTokens,
+      if (audioDurationSeconds != null)
+        'audio_duration_seconds': audioDurationSeconds,
+      if (ttsCharacterCount != null) 'tts_character_count': ttsCharacterCount,
+      if (estimatedCost != null) 'estimated_cost': estimatedCost,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ApiLogsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? diaryId,
+    Value<String>? apiType,
+    Value<String>? step,
+    Value<String>? status,
+    Value<int?>? durationMs,
+    Value<String?>? errorMessage,
+    Value<String?>? responseSummary,
+    Value<int?>? promptTokens,
+    Value<int?>? completionTokens,
+    Value<int?>? totalTokens,
+    Value<int?>? cachedTokens,
+    Value<int?>? reasoningTokens,
+    Value<int?>? audioDurationSeconds,
+    Value<int?>? ttsCharacterCount,
+    Value<double?>? estimatedCost,
+    Value<int>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ApiLogsCompanion(
+      id: id ?? this.id,
+      diaryId: diaryId ?? this.diaryId,
+      apiType: apiType ?? this.apiType,
+      step: step ?? this.step,
+      status: status ?? this.status,
+      durationMs: durationMs ?? this.durationMs,
+      errorMessage: errorMessage ?? this.errorMessage,
+      responseSummary: responseSummary ?? this.responseSummary,
+      promptTokens: promptTokens ?? this.promptTokens,
+      completionTokens: completionTokens ?? this.completionTokens,
+      totalTokens: totalTokens ?? this.totalTokens,
+      cachedTokens: cachedTokens ?? this.cachedTokens,
+      reasoningTokens: reasoningTokens ?? this.reasoningTokens,
+      audioDurationSeconds: audioDurationSeconds ?? this.audioDurationSeconds,
+      ttsCharacterCount: ttsCharacterCount ?? this.ttsCharacterCount,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (diaryId.present) {
+      map['diary_id'] = Variable<String>(diaryId.value);
+    }
+    if (apiType.present) {
+      map['api_type'] = Variable<String>(apiType.value);
+    }
+    if (step.present) {
+      map['step'] = Variable<String>(step.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (responseSummary.present) {
+      map['response_summary'] = Variable<String>(responseSummary.value);
+    }
+    if (promptTokens.present) {
+      map['prompt_tokens'] = Variable<int>(promptTokens.value);
+    }
+    if (completionTokens.present) {
+      map['completion_tokens'] = Variable<int>(completionTokens.value);
+    }
+    if (totalTokens.present) {
+      map['total_tokens'] = Variable<int>(totalTokens.value);
+    }
+    if (cachedTokens.present) {
+      map['cached_tokens'] = Variable<int>(cachedTokens.value);
+    }
+    if (reasoningTokens.present) {
+      map['reasoning_tokens'] = Variable<int>(reasoningTokens.value);
+    }
+    if (audioDurationSeconds.present) {
+      map['audio_duration_seconds'] = Variable<int>(audioDurationSeconds.value);
+    }
+    if (ttsCharacterCount.present) {
+      map['tts_character_count'] = Variable<int>(ttsCharacterCount.value);
+    }
+    if (estimatedCost.present) {
+      map['estimated_cost'] = Variable<double>(estimatedCost.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApiLogsCompanion(')
+          ..write('id: $id, ')
+          ..write('diaryId: $diaryId, ')
+          ..write('apiType: $apiType, ')
+          ..write('step: $step, ')
+          ..write('status: $status, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('responseSummary: $responseSummary, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('cachedTokens: $cachedTokens, ')
+          ..write('reasoningTokens: $reasoningTokens, ')
+          ..write('audioDurationSeconds: $audioDurationSeconds, ')
+          ..write('ttsCharacterCount: $ttsCharacterCount, ')
+          ..write('estimatedCost: $estimatedCost, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1681,6 +2697,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TagsTable tags = $TagsTable(this);
   late final $DiaryTagRelationsTable diaryTagRelations =
       $DiaryTagRelationsTable(this);
+  late final $ApiLogsTable apiLogs = $ApiLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1689,6 +2706,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryEntries,
     tags,
     diaryTagRelations,
+    apiLogs,
   ];
 }
 
@@ -2961,6 +3979,450 @@ typedef $$DiaryTagRelationsTableProcessedTableManager =
       DiaryTagRelation,
       PrefetchHooks Function({bool diaryId, bool tagId})
     >;
+typedef $$ApiLogsTableCreateCompanionBuilder =
+    ApiLogsCompanion Function({
+      required String id,
+      required String diaryId,
+      required String apiType,
+      required String step,
+      required String status,
+      Value<int?> durationMs,
+      Value<String?> errorMessage,
+      Value<String?> responseSummary,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> totalTokens,
+      Value<int?> cachedTokens,
+      Value<int?> reasoningTokens,
+      Value<int?> audioDurationSeconds,
+      Value<int?> ttsCharacterCount,
+      Value<double?> estimatedCost,
+      required int createdAt,
+      Value<int> rowid,
+    });
+typedef $$ApiLogsTableUpdateCompanionBuilder =
+    ApiLogsCompanion Function({
+      Value<String> id,
+      Value<String> diaryId,
+      Value<String> apiType,
+      Value<String> step,
+      Value<String> status,
+      Value<int?> durationMs,
+      Value<String?> errorMessage,
+      Value<String?> responseSummary,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> totalTokens,
+      Value<int?> cachedTokens,
+      Value<int?> reasoningTokens,
+      Value<int?> audioDurationSeconds,
+      Value<int?> ttsCharacterCount,
+      Value<double?> estimatedCost,
+      Value<int> createdAt,
+      Value<int> rowid,
+    });
+
+class $$ApiLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $ApiLogsTable> {
+  $$ApiLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get diaryId => $composableBuilder(
+    column: $table.diaryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get apiType => $composableBuilder(
+    column: $table.apiType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get responseSummary => $composableBuilder(
+    column: $table.responseSummary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reasoningTokens => $composableBuilder(
+    column: $table.reasoningTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get audioDurationSeconds => $composableBuilder(
+    column: $table.audioDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ttsCharacterCount => $composableBuilder(
+    column: $table.ttsCharacterCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get estimatedCost => $composableBuilder(
+    column: $table.estimatedCost,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ApiLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ApiLogsTable> {
+  $$ApiLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get diaryId => $composableBuilder(
+    column: $table.diaryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get apiType => $composableBuilder(
+    column: $table.apiType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get responseSummary => $composableBuilder(
+    column: $table.responseSummary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reasoningTokens => $composableBuilder(
+    column: $table.reasoningTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get audioDurationSeconds => $composableBuilder(
+    column: $table.audioDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ttsCharacterCount => $composableBuilder(
+    column: $table.ttsCharacterCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get estimatedCost => $composableBuilder(
+    column: $table.estimatedCost,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ApiLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ApiLogsTable> {
+  $$ApiLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get diaryId =>
+      $composableBuilder(column: $table.diaryId, builder: (column) => column);
+
+  GeneratedColumn<String> get apiType =>
+      $composableBuilder(column: $table.apiType, builder: (column) => column);
+
+  GeneratedColumn<String> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get responseSummary => $composableBuilder(
+    column: $table.responseSummary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reasoningTokens => $composableBuilder(
+    column: $table.reasoningTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get audioDurationSeconds => $composableBuilder(
+    column: $table.audioDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get ttsCharacterCount => $composableBuilder(
+    column: $table.ttsCharacterCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get estimatedCost => $composableBuilder(
+    column: $table.estimatedCost,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ApiLogsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ApiLogsTable,
+          ApiLog,
+          $$ApiLogsTableFilterComposer,
+          $$ApiLogsTableOrderingComposer,
+          $$ApiLogsTableAnnotationComposer,
+          $$ApiLogsTableCreateCompanionBuilder,
+          $$ApiLogsTableUpdateCompanionBuilder,
+          (ApiLog, BaseReferences<_$AppDatabase, $ApiLogsTable, ApiLog>),
+          ApiLog,
+          PrefetchHooks Function()
+        > {
+  $$ApiLogsTableTableManager(_$AppDatabase db, $ApiLogsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ApiLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ApiLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ApiLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> diaryId = const Value.absent(),
+                Value<String> apiType = const Value.absent(),
+                Value<String> step = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<String?> responseSummary = const Value.absent(),
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> cachedTokens = const Value.absent(),
+                Value<int?> reasoningTokens = const Value.absent(),
+                Value<int?> audioDurationSeconds = const Value.absent(),
+                Value<int?> ttsCharacterCount = const Value.absent(),
+                Value<double?> estimatedCost = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ApiLogsCompanion(
+                id: id,
+                diaryId: diaryId,
+                apiType: apiType,
+                step: step,
+                status: status,
+                durationMs: durationMs,
+                errorMessage: errorMessage,
+                responseSummary: responseSummary,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                totalTokens: totalTokens,
+                cachedTokens: cachedTokens,
+                reasoningTokens: reasoningTokens,
+                audioDurationSeconds: audioDurationSeconds,
+                ttsCharacterCount: ttsCharacterCount,
+                estimatedCost: estimatedCost,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String diaryId,
+                required String apiType,
+                required String step,
+                required String status,
+                Value<int?> durationMs = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<String?> responseSummary = const Value.absent(),
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> cachedTokens = const Value.absent(),
+                Value<int?> reasoningTokens = const Value.absent(),
+                Value<int?> audioDurationSeconds = const Value.absent(),
+                Value<int?> ttsCharacterCount = const Value.absent(),
+                Value<double?> estimatedCost = const Value.absent(),
+                required int createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ApiLogsCompanion.insert(
+                id: id,
+                diaryId: diaryId,
+                apiType: apiType,
+                step: step,
+                status: status,
+                durationMs: durationMs,
+                errorMessage: errorMessage,
+                responseSummary: responseSummary,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                totalTokens: totalTokens,
+                cachedTokens: cachedTokens,
+                reasoningTokens: reasoningTokens,
+                audioDurationSeconds: audioDurationSeconds,
+                ttsCharacterCount: ttsCharacterCount,
+                estimatedCost: estimatedCost,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ApiLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ApiLogsTable,
+      ApiLog,
+      $$ApiLogsTableFilterComposer,
+      $$ApiLogsTableOrderingComposer,
+      $$ApiLogsTableAnnotationComposer,
+      $$ApiLogsTableCreateCompanionBuilder,
+      $$ApiLogsTableUpdateCompanionBuilder,
+      (ApiLog, BaseReferences<_$AppDatabase, $ApiLogsTable, ApiLog>),
+      ApiLog,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2970,4 +4432,6 @@ class $AppDatabaseManager {
   $$TagsTableTableManager get tags => $$TagsTableTableManager(_db, _db.tags);
   $$DiaryTagRelationsTableTableManager get diaryTagRelations =>
       $$DiaryTagRelationsTableTableManager(_db, _db.diaryTagRelations);
+  $$ApiLogsTableTableManager get apiLogs =>
+      $$ApiLogsTableTableManager(_db, _db.apiLogs);
 }

@@ -48,3 +48,26 @@ class DiaryTagRelations extends Table {
   @override
   Set<Column> get primaryKey => {diaryId, tagId};
 }
+
+class ApiLogs extends Table {
+  TextColumn get id => text()();
+  TextColumn get diaryId => text()();
+  TextColumn get apiType => text()();
+  TextColumn get step => text()();
+  TextColumn get status => text()();
+  IntColumn get durationMs => integer().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  TextColumn get responseSummary => text().nullable()();
+  IntColumn get promptTokens => integer().nullable()();
+  IntColumn get completionTokens => integer().nullable()();
+  IntColumn get totalTokens => integer().nullable()();
+  IntColumn get cachedTokens => integer().nullable()();
+  IntColumn get reasoningTokens => integer().nullable()();
+  IntColumn get audioDurationSeconds => integer().nullable()();
+  IntColumn get ttsCharacterCount => integer().nullable()();
+  RealColumn get estimatedCost => real().nullable()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
