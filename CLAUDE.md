@@ -56,9 +56,23 @@ dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆�
 
 `.env.local` 存放 API 密钥，模板见 `.env.local.example`。已加入 `.gitignore`，严禁提交。
 
-关键变量：
-- `VOLCENGINE_SPEECH_TOKEN` / `VOLCENGINE_SPEECH_APPID` — ASR 服务
-- `VOLCENGINE_ARK_API_KEY` / `VOLCENGINE_ARK_ENDPOINT_ID` — LLM (Doubao)
+### prod 必需变量
+
+`scripts/build.sh` 编译前会校验以下变量（定义在脚本的 `REQUIRED_ENV_VARS` 数组中），缺失或为空则**编译中止**：
+
+- `VOLCENGINE_SPEECH_APPID` / `VOLCENGINE_SPEECH_TOKEN` — ASR + TTS（火山引擎语音）
+- `VOLCENGINE_SPEECH_API_KEY` — 异步 ASR（新版语音控制台 API Key）
+- `VOLCENGINE_ARK_ENDPOINT_ID` / `VOLCENGINE_ARK_API_KEY` — LLM（豆包 Doubao）
+- `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` — 火山引擎 IAM（TOS 等共用）
+- `VOLCENGINE_TOS_ENDPOINT` / `VOLCENGINE_TOS_BUCKET` — TOS 云端存储
+- `QWEATHER_TOKEN` — 和风天气（天气 + 逆地理编码）
+
+> `QWEATHER_HOST` 有默认值、`WORKTREE` 仅 dev flavor 使用，故未列入 prod 必需项。
+
+### 维护规范
+
+- **新增环境变量时，必须同步更新 `scripts/build.sh` 的 `REQUIRED_ENV_VARS` 数组与本节清单**，确保 prod release 校验完整、两处一致
+- 变量名以代码中 `dotenv.get(...)` 实际调用的 key 为准（参考各 service 初始化代码）
 
 ## 架构
 
