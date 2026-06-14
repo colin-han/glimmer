@@ -49,3 +49,8 @@ class RecordingException extends AppException {
 class ProcessingException extends AppException {
   const ProcessingException(super.message);
 }
+
+/// 每日总结相关异常（LLM 聚合失败、当天录音尚未处理完成等）。
+class DailySummaryException extends AppException {
+  const DailySummaryException(super.message);
+}
