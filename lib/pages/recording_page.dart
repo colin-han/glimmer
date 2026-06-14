@@ -43,21 +43,16 @@ class _RecordingPageState extends State<RecordingPage> {
   // 振幅流（从 FGS 接收振幅数据，转为 Stream<Amplitude> 给波形组件）
   final _amplitudeController = StreamController<Amplitude>.broadcast();
 
-  // Processing FGS 状态跟踪
-  Timer? _processingDelayTimer;
-  bool _isProcessingFgsRunning = false;
-
   @override
   void initState() {
     super.initState();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
     _refreshProcessingCount();
-    _scheduleStartupRecovery();
+    ProcessingFgsController.schedule(isStartup: true);
   }
 
   @override
   void dispose() {
-    _processingDelayTimer?.cancel();
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _amplitudeController.close();
     _realtimeScrollController.dispose();
@@ -100,27 +95,18 @@ class _RecordingPageState extends State<RecordingPage> {
           );
         });
       case 'recordingComplete':
-        // 录音完成，延迟启动 Processing FGS
+        // 录音完成，重置 recording mode，延迟启动 Processing FGS
         FgsRuntime.setNone();
-        _scheduleProcessingFgs();
+        ProcessingFgsController.schedule();
       case 'processingDone':
         // Processing FGS 结束（无论是否有条目被处理）
-        FgsRuntime.setNone();
-        _isProcessingFgsRunning = false;
+        ProcessingFgsController.onStopped();
         _refreshProcessingCount();
-        if (_state == RecordingState.processing) {
-          _doStartRecording();
-        }
       case 'completed':
       case 'failed':
         // 处理完成或失败时刷新 Badge 数量
-        FgsRuntime.setNone();
-        _isProcessingFgsRunning = false;
+        ProcessingFgsController.onStopped();
         _refreshProcessingCount();
-        if (_state == RecordingState.processing) {
-          // 用户在等待 Processing FGS 停止后启动录音
-          _doStartRecording();
-        }
       case 'notificationPressed':
         _handleNotificationPressed(data);
     }
@@ -190,17 +176,14 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   Future<void> _startRecording() async {
-    // 取消待执行的延迟定时器（用户在延迟窗口内重新录音）
-    _processingDelayTimer?.cancel();
-    _processingDelayTimer = null;
-
-    if (_isProcessingFgsRunning) {
-      // Processing FGS 正在运行 → 显示加载状态，停止 Processing FGS，等待回调后自动启动录音
+    // 有 processing 活动（在跑 or 待延时启动）→ 停掉并等它停稳
+    if (ProcessingFgsController.hasActivity) {
       setState(() => _state = RecordingState.processing);
-      FlutterForegroundTask.stopService();
-      return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已暂停后台处理，录音结束后自动继续')));
+      await ProcessingFgsController.stop(); // 内部取消 timer + 停 FGS + 等停（含超时兜底）
     }
-
     await _doStartRecording();
   }
 
@@ -257,47 +240,6 @@ class _RecordingPageState extends State<RecordingPage> {
     });
     _refreshProcessingCount();
     // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
-  }
-
-  /// 应用启动时延迟恢复未完成条目
-  void _scheduleStartupRecovery() {
-    _scheduleStartupRecoveryWithDelay();
-  }
-
-  Future<void> _scheduleStartupRecoveryWithDelay() async {
-    final delay = await SettingsPage.getProcessingDelay();
-    final seconds = delay <= 0 ? 5 : delay;
-    _processingDelayTimer = Timer(Duration(seconds: seconds), () {
-      _processingDelayTimer = null;
-      if (mounted && _state == RecordingState.idle) {
-        _startProcessingFgs();
-      }
-    });
-  }
-
-  /// 延迟启动 Processing FGS（按用户设置的延迟秒数）
-  Future<void> _scheduleProcessingFgs() async {
-    final delay = await SettingsPage.getProcessingDelay();
-    if (delay <= 0) {
-      _startProcessingFgs();
-      return;
-    }
-    _processingDelayTimer = Timer(Duration(seconds: delay), () {
-      _processingDelayTimer = null;
-      if (mounted && _state == RecordingState.idle) {
-        _startProcessingFgs();
-      }
-    });
-  }
-
-  Future<void> _startProcessingFgs() async {
-    _isProcessingFgsRunning = true;
-    final started = await ProcessingFgsController.start();
-    if (!started) {
-      debugPrint('[RecordingPage] Processing FGS 未启动');
-      _isProcessingFgsRunning = false;
-    }
-    _refreshProcessingCount();
   }
 
   /// 刷新处理中的日记数量
