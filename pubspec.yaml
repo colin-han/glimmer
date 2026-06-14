@@ -58,6 +58,12 @@ dependencies:
   package_info_plus: ^10.1.0
   wakelock_plus: ^1.6.1
 
+# record_android 是 record 的传递依赖；pubspec.lock 被 gitignore，
+# 故在此显式钉住 ≥2.1.1，修复蓝牙 SCO 环境下录音启动崩溃
+# （IllegalStateException: Reply already submitted，BluetoothReceiver 双重 MethodChannel reply）。
+dependency_overrides:
+  record_android: ^2.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
