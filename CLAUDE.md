@@ -30,6 +30,13 @@ dart run build_runner build                    # 重新生成 drift 数据库代
 dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆盖冲突文件
 ```
 
+## 提交规范
+
+- **每次提交代码前必须对改动文件运行 `dart format`**（`dart format lib/` 格式化全部，或 `dart format <具体文件>` 仅格式化本次改动），保持代码风格统一
+- **每次提交代码前必须运行 `flutter analyze`**，并解决全部问题（info / warning / error 一律清零），目标是输出 `No issues found!` 方可提交
+- 极少数情况下，若某问题修复价值极小或属分析器误报，可用 `// ignore: 规则名` 抑制，并在注释中简要说明原因
+- ⚠️ `// ignore:` 规则名后必须紧跟空格或行尾，切勿紧跟中文等非 ASCII 字符（如全角括号 `（`），否则规则名解析失败、忽略会**静默失效**
+
 ## 环境变量
 
 `.env.local` 存放 API 密钥，模板见 `.env.local.example`。已加入 `.gitignore`，严禁提交。
