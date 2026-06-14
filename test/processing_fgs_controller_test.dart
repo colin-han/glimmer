@@ -1,3 +1,4 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:voice_diary/services/fgs_runtime.dart';
 import 'package:voice_diary/services/processing_fgs_backend.dart';
@@ -110,6 +111,48 @@ void main() {
       await ProcessingFgsController.stop().timeout(const Duration(seconds: 5));
       expect(ProcessingFgsController.isRunning, isFalse);
       expect(FgsRuntime.mode, FgsMode.none);
+    });
+  });
+
+  group('schedule', () {
+    test('delay<=0 且非 startup → 立即 start', () async {
+      backend.delayValue = 0;
+      await ProcessingFgsController.schedule();
+      expect(backend.startCalls, 1);
+      expect(ProcessingFgsController.isRunning, isTrue);
+      expect(ProcessingFgsController.hasActivity, isTrue);
+    });
+
+    test('delay<=0 且 startup → 5s 后 start', () {
+      fakeAsync((async) {
+        backend.delayValue = 0;
+        ProcessingFgsController.schedule(isStartup: true);
+        async.flushMicrotasks(); // 让 await getProcessingDelay 完成、timer 注册
+        expect(backend.startCalls, 0); // 还没到时间
+        async.elapse(const Duration(seconds: 5));
+        expect(backend.startCalls, 1);
+      });
+    });
+
+    test('delay>0 → delay 秒后 start', () {
+      fakeAsync((async) {
+        backend.delayValue = 10;
+        ProcessingFgsController.schedule();
+        async.flushMicrotasks(); // 让 await getProcessingDelay 完成、timer 注册
+        expect(backend.startCalls, 0);
+        async.elapse(const Duration(seconds: 10));
+        expect(backend.startCalls, 1);
+      });
+    });
+
+    test('hasActivity 在 scheduled 期间为 true', () {
+      fakeAsync((async) {
+        backend.delayValue = 10;
+        ProcessingFgsController.schedule();
+        async.flushMicrotasks(); // 让 await getProcessingDelay 完成、timer 注册
+        expect(ProcessingFgsController.hasActivity, isTrue); // 有待执行 timer
+        async.elapse(const Duration(seconds: 10));
+      });
     });
   });
 }

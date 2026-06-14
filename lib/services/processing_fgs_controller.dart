@@ -59,6 +59,22 @@ class ProcessingFgsController {
     _stopCompleter = null;
   }
 
+  /// 延时启动（录音后 / app 启动恢复）。读 backend.getProcessingDelay。
+  /// isStartup=true 时 delay<=0 默认 5s；否则立即（delay<=0 直接 start）。
+  static Future<void> schedule({bool isStartup = false}) async {
+    _scheduledTimer?.cancel();
+    final delay = await backend.getProcessingDelay();
+    final seconds = (delay <= 0) ? (isStartup ? 5 : 0) : delay;
+    if (seconds == 0) {
+      await start();
+      return;
+    }
+    _scheduledTimer = Timer(Duration(seconds: seconds), () {
+      _scheduledTimer = null;
+      start(); // start 内部检查 mode==recording，延时到期时若用户在录音则不启动
+    });
+  }
+
   /// FGS 自然结束回调（processingDone/completed/failed）或 stop 超时后调。
   /// 由 RecordingPage / DiaryDetailPage 的 _onTaskData 在收到结束消息时调用。
   static void onStopped() {
