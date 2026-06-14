@@ -4,6 +4,8 @@
 .flutter-plugins-dependencies
 build/
 *.lock
+# pubspec.lock 例外：应用项目需提交以固化依赖版本
+!pubspec.lock
 
 # 环境
 .env.local
