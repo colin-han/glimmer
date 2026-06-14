@@ -21,14 +21,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 构建与开发命令
 
+项目配置了 **dev / prod** 两个 flavor，直接 `flutter run` / `flutter build apk` 会因缺少 `--flavor` 失败。开发与发布请使用 `scripts/` 下的封装脚本（已处理 flavor）。
+
+### 通用命令
+
 ```bash
-flutter run                                    # 运行应用
-flutter build apk --release                    # 构建 release APK
-flutter test                                   # 运行测试
 flutter analyze                                # 代码分析/lint
+flutter test                                   # 运行测试
 dart run build_runner build                    # 重新生成 drift 数据库代码（修改 tables.dart 后必须执行）
 dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆盖冲突文件
 ```
+
+### 开发与发布脚本（scripts/）
+
+| 脚本 | 作用 |
+|---|---|
+| `./scripts/run_dev.sh` | 运行 **dev** flavor（`--flavor dev --dart-define=dev=true`）；从 `.env.local` 读取 `WORKTREE` 注入为 `--dart-define=worktree`，使不同 worktree 生成独立包名（如 `dev.w1` / `dev.w2`）可共存安装。**日常开发用此脚本** |
+| `./scripts/run_prod.sh` | 运行 **prod** flavor（`--flavor prod`） |
+| `./scripts/build.sh` | `flutter clean` 后构建 **prod release** APK，输出到 `build/app/outputs/flutter-apk/app-prod-release.apk` |
+| `./scripts/install.sh` | 将 prod release APK 安装到已连接设备（`adb install -r` 保留数据），需先执行 `build.sh` |
+| `./scripts/update_version.sh` | 更新版本号：bump 版本 → 改 `pubspec.yaml` → git 提交 → 打 tag → **push 到 origin**。用法 `[major\|minor\|patch\|<#.#.#>]`，默认 patch；仅限 main 分支且工作区干净；`--skip-version` 跳过版本号只打 tag |
+| `./scripts/release.sh` | 完整发布流程：`update_version` → `build` → `install`。用法同 update_version |
+
+> ⚠️ `update_version.sh` / `release.sh` 会**自动 `git push`**（提交 + tag 到 origin），属于发布动作，非日常提交。日常代码提交仍按下方「提交规范」手动 commit。
 
 ## 提交规范
 
