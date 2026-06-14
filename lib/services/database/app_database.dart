@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -24,6 +25,11 @@ class AppDatabase extends _$AppDatabase {
   /// 注：Dart static 是「每 isolate 一份」，主 isolate 与 FGS isolate 各自持有一个实例——
   /// 这正是所需（drift 连接不能跨 isolate），符合预期。
   factory AppDatabase() => _instance ??= AppDatabase._internal();
+
+  /// 测试用：注入内存执行器，绕过单例和文件连接。
+  /// 生产代码请用 `AppDatabase()` 工厂。
+  @visibleForTesting
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 7;

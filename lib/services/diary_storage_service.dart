@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -15,6 +16,10 @@ class DiaryStorageService {
   final AppDatabase _db;
 
   DiaryStorageService() : _db = AppDatabase();
+
+  /// 测试用：注入已构造的 AppDatabase（通常是内存 DB）。
+  @visibleForTesting
+  DiaryStorageService.forTesting(this._db);
 
   Future<String> get _baseDir async {
     final docDir = await getApplicationDocumentsDirectory();
@@ -371,6 +376,27 @@ class DiaryStorageService {
       } catch (_) {}
     }
     return tags;
+  }
+
+  /// 重置日记条目到「可被全量重新分析」的状态：
+  /// - status → processing（让 ProcessingTaskHandler.getPendingEntries 拾取）
+  /// - processingStage → asr（tosKey 已存在则跳过重新上传；无 tosKey 落到 uploading）
+  /// - asrTaskId → null（强制 _doAsr 重新 submit，而非 poll 旧 task 拿旧结果）
+  ///
+  /// 不动 title / folderPath / transcript.json / llm_result.json 等数据。
+  /// 失败时抛异常（调用方负责 catch + 提示）。
+  Future<void> resetEntryForReanalysis(String id) async {
+    final entry = await _db.getEntryById(id);
+    final stage = entry.tosKey != null
+        ? ProcessingStage.asr
+        : ProcessingStage.uploading;
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(
+        status: const Value('processing'),
+        processingStage: Value(stage.value),
+        asrTaskId: const Value(null),
+      ),
+    );
   }
 
   /// 批量查询所有日记的标签（内存组装），消除逐条 getFullTagsForDiary 的 N+1。
