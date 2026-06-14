@@ -9,7 +9,8 @@ import '../design_tokens.dart';
 import '../exceptions.dart';
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
-import '../services/recording_processor.dart' show processingCallback;
+import '../services/fgs_runtime.dart';
+import '../services/processing_fgs_controller.dart';
 import '../services/recording_task_handler.dart';
 import '../services/weather_service.dart';
 import '../widgets/app_title.dart';
@@ -97,9 +98,11 @@ class _RecordingPageState extends State<RecordingPage> {
         });
       case 'recordingComplete':
         // 录音完成，延迟启动 Processing FGS
+        FgsRuntime.setNone();
         _scheduleProcessingFgs();
       case 'processingDone':
         // Processing FGS 结束（无论是否有条目被处理）
+        FgsRuntime.setNone();
         _isProcessingFgsRunning = false;
         _refreshProcessingCount();
         if (_state == RecordingState.processing) {
@@ -108,6 +111,7 @@ class _RecordingPageState extends State<RecordingPage> {
       case 'completed':
       case 'failed':
         // 处理完成或失败时刷新 Badge 数量
+        FgsRuntime.setNone();
         _isProcessingFgsRunning = false;
         _refreshProcessingCount();
         if (_state == RecordingState.processing) {
@@ -223,6 +227,7 @@ class _RecordingPageState extends State<RecordingPage> {
       }
 
       setState(() => _state = RecordingState.recording);
+      FgsRuntime.setRecording();
       WakelockPlus.enable();
     } catch (e) {
       _showError('录音启动失败：$e');
@@ -276,31 +281,13 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   Future<void> _startProcessingFgs() async {
-    try {
-      _isProcessingFgsRunning = true;
-
-      // 确保通信端口已初始化（启动恢复场景下可能未初始化）
-      FlutterForegroundTask.initCommunicationPort();
-
-      // 先停止可能仍在运行的 Recording FGS，等待其完全停止
-      FlutterForegroundTask.stopService();
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      final result = await FlutterForegroundTask.startService(
-        serviceTypes: [ForegroundServiceTypes.dataSync],
-        notificationTitle: '正在处理',
-        notificationText: '语音日记 - 处理中...',
-        callback: processingCallback,
-      );
-      if (result is ServiceRequestFailure) {
-        debugPrint('[RecordingPage] 启动 Processing FGS 失败: ${result.error}');
-        _isProcessingFgsRunning = false;
-      }
-      _refreshProcessingCount();
-    } catch (e) {
-      debugPrint('[RecordingPage] 启动 Processing FGS 异常: $e');
+    _isProcessingFgsRunning = true;
+    final started = await ProcessingFgsController.start();
+    if (!started) {
+      debugPrint('[RecordingPage] Processing FGS 未启动');
       _isProcessingFgsRunning = false;
     }
+    _refreshProcessingCount();
   }
 
   /// 刷新处理中的日记数量
