@@ -86,4 +86,30 @@ void main() {
       expect(FgsRuntime.mode, FgsMode.none);
     });
   });
+
+  group('stop', () {
+    test('无活动时立即返回，不调 stopFgs', () async {
+      await ProcessingFgsController.stop();
+      expect(backend.stopCalls, 0);
+    });
+
+    test('isRunning 时调 stopFgs，等 onStopped 后返回', () async {
+      await ProcessingFgsController.start();
+      // start 后立刻 stop：onStopped 还没调，stop 应在等
+      final stopFuture = ProcessingFgsController.stop();
+      expect(backend.stopCalls, 1);
+      // 模拟 FGS 真停（processingDone 到达 → onStopped）
+      ProcessingFgsController.onStopped();
+      await stopFuture; // 应解除等待
+      expect(ProcessingFgsController.isRunning, isFalse);
+    });
+
+    test('onStopped 3s 未到达 → 超时强制清理', () async {
+      await ProcessingFgsController.start();
+      // 不调 onStopped，靠超时
+      await ProcessingFgsController.stop().timeout(const Duration(seconds: 5));
+      expect(ProcessingFgsController.isRunning, isFalse);
+      expect(FgsRuntime.mode, FgsMode.none);
+    });
+  });
 }
