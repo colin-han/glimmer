@@ -370,7 +370,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       strokeWidth: 2, color: WarmTokens.warmMuted),
                 ),
                 const SizedBox(width: 8),
-                Text('${stageText}中...',
+                Text('$stageText中...',
                     style: const TextStyle(
                         color: WarmTokens.warmBrown, fontSize: 13)),
               ],
@@ -503,11 +503,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                       _entry.id, tag.id);
                                   final updatedTag =
                                       await _storageService.getTagById(tag.id);
-                                  if (mounted) {
-                                    await showTagEditorSheet(context,
-                                        tag: updatedTag, isRemoval: true);
-                                    _loadTags();
-                                  }
+                                  if (!mounted) return;
+                                  await showTagEditorSheet(
+                                    // ignore: use_build_context_synchronously
+                                    context,
+                                    tag: updatedTag,
+                                    isRemoval: true,
+                                  );
+                                  _loadTags();
                                 },
                                 deleteIconColor: WarmTokens.warmMuted,
                                 visualDensity: VisualDensity.compact,
@@ -543,10 +546,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                       _entry.id, id);
                                   final tag =
                                       await _storageService.getTagById(id);
-                                  if (mounted) {
-                                    await showTagEditorSheet(context,
-                                        tag: tag, isRemoval: false);
-                                  }
+                                  if (!mounted) continue;
+                                  await showTagEditorSheet(
+                                    // ignore: use_build_context_synchronously
+                                    context,
+                                    tag: tag,
+                                    isRemoval: false,
+                                  );
                                 }
                                 for (final id
                                     in currentIds.difference(newIds)) {
@@ -554,10 +560,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                       _entry.id, id);
                                   final tag =
                                       await _storageService.getTagById(id);
-                                  if (mounted) {
-                                    await showTagEditorSheet(context,
-                                        tag: tag, isRemoval: true);
-                                  }
+                                  if (!mounted) continue;
+                                  await showTagEditorSheet(
+                                    // ignore: use_build_context_synchronously
+                                    context,
+                                    tag: tag,
+                                    isRemoval: true,
+                                  );
                                 }
                                 _loadTags();
                               }

@@ -45,11 +45,11 @@ Future<void> _runTosMigrationIfNeeded() async {
     final migration = MigrationService(storage, tos);
     final count = await migration.migrateUnuploadedEntries();
     if (count > 0) {
-      print('[迁移] 完成: 迁移了 $count 条日记');
+      debugPrint('[迁移] 完成: 迁移了 $count 条日记');
     }
     tos.close();
   } catch (e) {
-    print('[迁移] 跳过: $e');
+    debugPrint('[迁移] 跳过: $e');
   }
 }
 

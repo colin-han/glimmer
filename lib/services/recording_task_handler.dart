@@ -76,8 +76,8 @@ class RecordingTaskHandler extends TaskHandler {
       _folderId = _uuid.v4();
       _folderPath = await _storageService.createDiaryFolder(_folderId!);
       debugPrint('[TaskHandler] 自动创建文件夹: $_folderId');
-    } else if (_folderPath == null) {
-      _folderPath = await _storageService.createDiaryFolder(_folderId!);
+    } else {
+      _folderPath ??= await _storageService.createDiaryFolder(_folderId!);
     }
 
     // 更新通知

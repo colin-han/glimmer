@@ -67,7 +67,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
       result = result.where((e) {
         if (e.title.toLowerCase().contains(q)) return true;
         if ((_entryTags[e.id] ?? [])
-            .any((t) => t.name.toLowerCase().contains(q))) return true;
+            .any((t) => t.name.toLowerCase().contains(q))) {
+          return true;
+        }
         return false;
       }).toList();
     }

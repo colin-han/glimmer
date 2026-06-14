@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,12 +35,12 @@ class StorageMigrationService {
     }
 
     final timestamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-    final backupName = 'backup_v$fromVersion\_$timestamp.zip';
+    final backupName = 'backup_v${fromVersion}_$timestamp.zip';
     final backupPath = p.join(backupDir.path, backupName);
 
     final encoder = ZipFileEncoder();
     encoder.zipDirectory(Directory(docDir.path), filename: backupPath);
-    print('[迁移备份] 已备份至 $backupPath');
+    debugPrint('[迁移备份] 已备份至 $backupPath');
   }
 
   Future<void> _runMigration(int version) async {

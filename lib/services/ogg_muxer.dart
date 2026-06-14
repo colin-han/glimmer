@@ -10,7 +10,7 @@ class OggMuxer {
   static const int _maxSegmentSize = 255;
   // 最大 254 个 255 字节 segment + 1 个终止 segment = 254*255 = 64770 字节
   static const int _maxDataPerPage = 254 * _maxSegmentSize; // 64770
-  static const List<int> _capturePattern = const [0x4F, 0x67, 0x67, 0x53]; // "OggS"
+  static const List<int> _capturePattern = [0x4F, 0x67, 0x67, 0x53]; // "OggS"
 
   OggMuxer({required this.serialNumber});
 

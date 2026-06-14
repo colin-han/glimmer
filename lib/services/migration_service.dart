@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,7 +39,7 @@ class MigrationService {
         final ok = await _migrateEntry(entry);
         if (ok) migrated++;
       } catch (e) {
-        print('[迁移] 失败: ${entry.id}, $e');
+        debugPrint('[迁移] 失败: ${entry.id}, $e');
         // 单条失败不阻塞后续，但不标记完成，下次启动重试
       }
     }
@@ -80,7 +80,7 @@ class MigrationService {
     } else {
       // 音频文件不存在，标记为已处理避免每次启动重复检查
       await _storage.updateTosInfo(entry.id, tosKey: '', audioFormat: 'ogg');
-      print('[迁移] 跳过: ${entry.id}, 音频文件不存在');
+      debugPrint('[迁移] 跳过: ${entry.id}, 音频文件不存在');
       return false;
     }
   }

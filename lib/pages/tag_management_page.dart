@@ -150,6 +150,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
     final recommendations =
         await _llmService.recommendDiariesForTag(tag.name, diarySummaries);
     if (recommendations.isEmpty) return [];
+    if (!mounted) return null;
 
     return showDialog<List<String>>(
       context: context,
