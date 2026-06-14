@@ -350,11 +350,13 @@ class DiaryStorageService {
     return tags;
   }
 
-  /// 批量查询所有日记的标签（2 次查询 + 内存组装），消除逐条 getFullTagsForDiary 的 N+1。
+  /// 批量查询所有日记的标签（内存组装），消除逐条 getFullTagsForDiary 的 N+1。
   /// 返回 `Map<diaryId, List<Tag>>`。
-  Future<Map<String, List<Tag>>> getAllEntryTags() async {
-    final allTags = await getAllTags();
-    final tagById = {for (final t in allTags) t.id: t};
+  ///
+  /// 调用方若已查过全量标签，可通过 [allTags] 传入复用，避免重复查询 tags 表。
+  Future<Map<String, List<Tag>>> getAllEntryTags({List<Tag>? allTags}) async {
+    final tags = allTags ?? await getAllTags();
+    final tagById = {for (final t in tags) t.id: t};
     final relationRows = await (_db.select(_db.diaryTagRelations)).get();
     final map = <String, List<Tag>>{};
     for (final r in relationRows) {

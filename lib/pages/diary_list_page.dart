@@ -46,7 +46,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final version = ++_loadVersion;
     final entries = await _storageService.getAllEntries();
     final tags = await _storageService.getAllTags();
-    final entryTags = await _storageService.getAllEntryTags();
+    // 复用上面已查的 tags，避免 getAllEntryTags 内部重复查询 tags 表
+    final entryTags = await _storageService.getAllEntryTags(allTags: tags);
     if (version != _loadVersion) return;
     if (mounted) {
       setState(() {
