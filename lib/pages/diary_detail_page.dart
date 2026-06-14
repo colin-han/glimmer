@@ -12,7 +12,9 @@ import '../models/utterance.dart';
 import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
+import '../services/fgs_runtime.dart';
 import '../services/llm_service.dart';
+import '../services/processing_fgs_controller.dart';
 import '../widgets/app_title.dart';
 import '../widgets/detail/detail_content_section.dart';
 import '../widgets/detail/detail_info_bar.dart';
@@ -97,10 +99,17 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       }
     } else if (type == 'completed' && mounted) {
       // 处理完成，加载最终内容
+      FgsRuntime.setNone();
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     } else if (type == 'processingDone' && mounted) {
       // FGS 停止，标记为非活跃
+      FgsRuntime.setNone();
+      setState(() => _isActivelyProcessing = false);
+      _loadContent();
+    } else if (type == 'failed' && mounted) {
+      // 处理失败：重置 mode + 显示失败横幅
+      FgsRuntime.setNone();
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     }
@@ -296,6 +305,55 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         _loading = true;
       });
       await _loadContent();
+    }
+  }
+
+  Future<void> _reanalyze() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重新分析'),
+        content: const Text('将重新识别语音并重新生成总结，当前的识别结果和总结会被覆盖。标签会保留，并追加新匹配的标签。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('重新分析'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _storageService.resetEntryForReanalysis(_entry.id);
+      if (!mounted) return;
+      // 本地乐观更新：立即切到处理中横幅（_buildStatusBanner 按 processingStage 显示阶段文本）
+      setState(() {
+        _entry = _entry.copyWith(
+          status: EntryStatus.processing,
+          processingStage: ProcessingStage.asr,
+        );
+        _isActivelyProcessing = true;
+      });
+
+      final started = await ProcessingFgsController.start();
+      if (!started && mounted) {
+        // 未启动（录音中）：entry 已入队但 FGS 没跑，显示「处理暂停」而非假进度
+        setState(() => _isActivelyProcessing = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已加入处理队列，录音结束后将自动处理')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('重新分析失败: $e')));
+      }
     }
   }
 
@@ -501,6 +559,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ],
         ),
         actions: [
+          if (_entry.status == EntryStatus.completed)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: '重新分析',
+              onPressed: _reanalyze,
+            ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _deleteDiary,
