@@ -5,6 +5,34 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../models/utterance.dart';
 
+/// 每日总结 system prompt（全文模式）。
+const _kDaySummaryPrompt =
+    '你是一个日记助手。用户会给你一天里多段语音识别的口语文本'
+    '（按时间顺序，每段以 `### 第 N 段 · HH:mm` 分隔）。'
+    '请把这一整天的全部内容写成一篇真正连贯的日记：\n'
+    '\n'
+    '1. **日记正文（summary）**：以第一人称「我」的视角，把一整天的经历、想法、感受'
+    '串联成一篇流畅的 Markdown 日记，不要分条列举，500-1000字。\n'
+    '2. **概览播报（outline）**：生成一段口语化播报文本，提炼这一天最重要的主题或事件，'
+    '适合 TTS 朗读，不要使用列表格式。\n'
+    '3. **标题（title）**：从内容中提炼简短标题，不超过20字。\n'
+    '\n'
+    '严格按以下 JSON 格式返回，不要包含任何其他内容：\n'
+    '{"title": "标题", "summary": "日记正文(Markdown)", "outline": "概览播报文本"}';
+
+/// 每日总结 system prompt（降级模式：基于各篇 summary 聚合）。
+const _kDaySummaryDegradedPrompt =
+    '你是一个日记助手。由于当天内容过长，下面给你的是这一天各段语音的日记摘要'
+    '（按时间顺序，每段以 `### 第 N 段 · HH:mm（标题）` 分隔）。'
+    '请把它们融合成一篇连贯的全天日记：\n'
+    '\n'
+    '1. **日记正文（summary）**：以第一人称「我」的视角，融合各段摘要成一篇流畅的 Markdown 日记，500-1000字。\n'
+    '2. **概览播报（outline）**：口语化全天概览，适合 TTS 朗读，不要使用列表格式。\n'
+    '3. **标题（title）**：简短标题，不超过20字。\n'
+    '\n'
+    '严格按以下 JSON 格式返回，不要包含任何其他内容：\n'
+    '{"title": "标题", "summary": "日记正文(Markdown)", "outline": "概览播报文本"}';
+
 class TagInfo {
   final String id;
   final String name;
@@ -65,6 +93,23 @@ class LlmResult {
     required this.summary,
     required this.outline,
     required this.utterances,
+    this.usage,
+  });
+}
+
+/// 每日总结的 LLM 返回（无 utterances，全天重组无单篇时间戳）。
+class DailySummaryResult {
+  final String title;
+  final String summary;
+  final String outline;
+  final bool degraded;
+  final LlmUsage? usage;
+
+  const DailySummaryResult({
+    required this.title,
+    required this.summary,
+    required this.outline,
+    required this.degraded,
     this.usage,
   });
 }
@@ -158,6 +203,67 @@ class LlmService {
       summary: result.summary,
       outline: result.outline,
       utterances: result.utterances,
+      usage: usage,
+    );
+  }
+
+  /// 每日总结的纯 LLM 调用：根据 [degraded] 选用不同 system prompt。
+  /// [text] 为已拼接好的全天文本（全文或降级 summary 聚合）。
+  Future<DailySummaryResult> summarizeDayText(
+    String text, {
+    required bool degraded,
+  }) async {
+    final endpointId = dotenv.get('VOLCENGINE_ARK_ENDPOINT_ID');
+    final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
+
+    final response = await _dio.post(
+      'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+      data: {
+        'model': endpointId,
+        'messages': [
+          {
+            'role': 'system',
+            'content': degraded
+                ? _kDaySummaryDegradedPrompt
+                : _kDaySummaryPrompt,
+          },
+          {'role': 'user', 'content': text},
+        ],
+      },
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+      ),
+    );
+
+    final content = response.data['choices'][0]['message']['content'] as String;
+    final usageJson = response.data['usage'] as Map<String, dynamic>?;
+    LlmUsage? usage;
+    if (usageJson != null) {
+      usage = LlmUsage(
+        promptTokens: usageJson['prompt_tokens'] as int? ?? 0,
+        completionTokens: usageJson['completion_tokens'] as int? ?? 0,
+        totalTokens: usageJson['total_tokens'] as int? ?? 0,
+        cachedTokens:
+            (usageJson['prompt_tokens_details']
+                    as Map<String, dynamic>?)?['cached_tokens']
+                as int?,
+        reasoningTokens:
+            (usageJson['completion_tokens_details']
+                    as Map<String, dynamic>?)?['reasoning_tokens']
+                as int?,
+      );
+    }
+
+    // 复用单篇容错解析（utterances 对 daily 无意义，忽略）
+    final parsed = _parseResult(content);
+    return DailySummaryResult(
+      title: parsed.title,
+      summary: parsed.summary,
+      outline: parsed.outline,
+      degraded: degraded,
       usage: usage,
     );
   }
