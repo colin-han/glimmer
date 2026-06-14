@@ -73,7 +73,10 @@ class AudioPlayerBar extends StatelessWidget {
                       playerWaveStyle: PlayerWaveStyle(
                         fixedWaveColor: WarmTokens.warmDivider,
                         liveWaveColor: WarmTokens.warmAmber,
-                        waveThickness: 2.5,
+                        // 紧凑布局下波形挤在按钮之间，可用宽度约 200dp，
+                        // spacing≈2.0；waveThickness 必须 < spacing，否则触发
+                        // audio_waveforms 的断言（waveThickness < spacing）导致崩溃
+                        waveThickness: 1.5,
                         spacing: spacing,
                         waveCap: StrokeCap.round,
                         showSeekLine: true,
