@@ -12,7 +12,6 @@ import '../models/utterance.dart';
 import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
-import '../services/fgs_runtime.dart';
 import '../services/llm_service.dart';
 import '../services/processing_fgs_controller.dart';
 import '../widgets/app_title.dart';
@@ -99,17 +98,17 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       }
     } else if (type == 'completed' && mounted) {
       // 处理完成，加载最终内容
-      FgsRuntime.setNone();
+      ProcessingFgsController.onStopped();
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     } else if (type == 'processingDone' && mounted) {
       // FGS 停止，标记为非活跃
-      FgsRuntime.setNone();
+      ProcessingFgsController.onStopped();
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     } else if (type == 'failed' && mounted) {
       // 处理失败：重置 mode + 显示失败横幅
-      FgsRuntime.setNone();
+      ProcessingFgsController.onStopped();
       setState(() => _isActivelyProcessing = false);
       _loadContent();
     }
