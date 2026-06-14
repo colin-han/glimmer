@@ -72,3 +72,29 @@ class ApiLogs extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+/// 每日总结元数据表。每行对应一天的「日」总结实体。
+/// 行类名用 DataClassName 显式指定为 DailySummaryRow，避免与 model 层的
+/// DailySummary（lib/models/daily_summary.dart）同名冲突。
+@DataClassName('DailySummaryRow')
+class DailySummaries extends Table {
+  /// 日期 'yyyy-MM-dd'，主键。
+  TextColumn get date => text()();
+
+  TextColumn get title => text()();
+
+  /// processing / completed / failed（与 DiaryEntries.status 语义一致）。
+  TextColumn get status => text().withDefault(const Constant('processing'))();
+
+  /// 参与总结的录音 id 列表，JSON 数组字符串，如 '["uuid1","uuid2"]'。
+  TextColumn get sourceEntryIds => text().withDefault(const Constant('[]'))();
+
+  IntColumn get entryCount => integer().withDefault(const Constant(0))();
+
+  IntColumn get createdAt => integer()();
+
+  IntColumn get updatedAt => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {date};
+}

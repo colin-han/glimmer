@@ -10,10 +10,15 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [DiaryEntries, Tags, DiaryTagRelations, ApiLogs])
+@DriftDatabase(
+  tables: [DiaryEntries, Tags, DiaryTagRelations, ApiLogs, DailySummaries],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase._internal() : super(_openConnection());
   static AppDatabase? _instance;
+
+  /// 仅用于测试：注入内存或其他 executor，绕过单例与文件连接。
+  AppDatabase.forTesting(super.executor);
 
   /// 单例工厂。
   ///
@@ -32,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +101,11 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7) {
         if (!await _tableExists('api_logs')) await m.createTable(apiLogs);
+      }
+      if (from < 8) {
+        if (!await _tableExists('daily_summaries')) {
+          await m.createTable(dailySummaries);
+        }
       }
     },
   );
@@ -242,6 +252,55 @@ class AppDatabase extends _$AppDatabase {
     return (select(apiLogs)
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
           ..limit(limit, offset: offset))
+        .get();
+  }
+
+  // --- DailySummaries ---
+
+  Future<DailySummaryRow?> getDailySummaryByDate(String date) {
+    return (select(
+      dailySummaries,
+    )..where((t) => t.date.equals(date))).getSingleOrNull();
+  }
+
+  Future<List<DailySummaryRow>> getPendingDailySummaries() {
+    return (select(dailySummaries)
+          ..where((t) => t.status.equals('processing'))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Future<List<DailySummaryRow>> getAllDailySummaries() {
+    return (select(
+      dailySummaries,
+    )..orderBy([(t) => OrderingTerm.desc(t.date)])).get();
+  }
+
+  Future<void> upsertDailySummary(DailySummariesCompanion row) {
+    return into(dailySummaries).insert(row, mode: InsertMode.insertOrReplace);
+  }
+
+  Future<void> deleteDailySummaryRow(String date) {
+    return (delete(dailySummaries)..where((t) => t.date.equals(date))).go();
+  }
+
+  /// 查询某天（'yyyy-MM-dd'）的所有日记条目，按 createdAt 升序。
+  /// 用半开区间 [start, end) 避免边界包含次日 0 点。
+  Future<List<DiaryEntry>> getEntriesByDate(String date) {
+    final day = DateTime.parse(date);
+    final start = DateTime(day.year, day.month, day.day).millisecondsSinceEpoch;
+    final end = DateTime(
+      day.year,
+      day.month,
+      day.day,
+    ).add(const Duration(days: 1)).millisecondsSinceEpoch;
+    return (select(diaryEntries)
+          ..where(
+            (t) =>
+                t.createdAt.isBiggerOrEqualValue(start) &
+                t.createdAt.isSmallerThanValue(end),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .get();
   }
 }

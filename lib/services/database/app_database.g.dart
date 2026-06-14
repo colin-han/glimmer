@@ -2690,6 +2690,476 @@ class ApiLogsCompanion extends UpdateCompanion<ApiLog> {
   }
 }
 
+class $DailySummariesTable extends DailySummaries
+    with TableInfo<$DailySummariesTable, DailySummaryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailySummariesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('processing'),
+  );
+  static const VerificationMeta _sourceEntryIdsMeta = const VerificationMeta(
+    'sourceEntryIds',
+  );
+  @override
+  late final GeneratedColumn<String> sourceEntryIds = GeneratedColumn<String>(
+    'source_entry_ids',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _entryCountMeta = const VerificationMeta(
+    'entryCount',
+  );
+  @override
+  late final GeneratedColumn<int> entryCount = GeneratedColumn<int>(
+    'entry_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    date,
+    title,
+    status,
+    sourceEntryIds,
+    entryCount,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_summaries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailySummaryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('source_entry_ids')) {
+      context.handle(
+        _sourceEntryIdsMeta,
+        sourceEntryIds.isAcceptableOrUnknown(
+          data['source_entry_ids']!,
+          _sourceEntryIdsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('entry_count')) {
+      context.handle(
+        _entryCountMeta,
+        entryCount.isAcceptableOrUnknown(data['entry_count']!, _entryCountMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {date};
+  @override
+  DailySummaryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailySummaryRow(
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      sourceEntryIds: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_entry_ids'],
+      )!,
+      entryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}entry_count'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $DailySummariesTable createAlias(String alias) {
+    return $DailySummariesTable(attachedDatabase, alias);
+  }
+}
+
+class DailySummaryRow extends DataClass implements Insertable<DailySummaryRow> {
+  /// 日期 'yyyy-MM-dd'，主键。
+  final String date;
+  final String title;
+
+  /// processing / completed / failed（与 DiaryEntries.status 语义一致）。
+  final String status;
+
+  /// 参与总结的录音 id 列表，JSON 数组字符串，如 '["uuid1","uuid2"]'。
+  final String sourceEntryIds;
+  final int entryCount;
+  final int createdAt;
+  final int? updatedAt;
+  const DailySummaryRow({
+    required this.date,
+    required this.title,
+    required this.status,
+    required this.sourceEntryIds,
+    required this.entryCount,
+    required this.createdAt,
+    this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date'] = Variable<String>(date);
+    map['title'] = Variable<String>(title);
+    map['status'] = Variable<String>(status);
+    map['source_entry_ids'] = Variable<String>(sourceEntryIds);
+    map['entry_count'] = Variable<int>(entryCount);
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<int>(updatedAt);
+    }
+    return map;
+  }
+
+  DailySummariesCompanion toCompanion(bool nullToAbsent) {
+    return DailySummariesCompanion(
+      date: Value(date),
+      title: Value(title),
+      status: Value(status),
+      sourceEntryIds: Value(sourceEntryIds),
+      entryCount: Value(entryCount),
+      createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory DailySummaryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailySummaryRow(
+      date: serializer.fromJson<String>(json['date']),
+      title: serializer.fromJson<String>(json['title']),
+      status: serializer.fromJson<String>(json['status']),
+      sourceEntryIds: serializer.fromJson<String>(json['sourceEntryIds']),
+      entryCount: serializer.fromJson<int>(json['entryCount']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'date': serializer.toJson<String>(date),
+      'title': serializer.toJson<String>(title),
+      'status': serializer.toJson<String>(status),
+      'sourceEntryIds': serializer.toJson<String>(sourceEntryIds),
+      'entryCount': serializer.toJson<int>(entryCount),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int?>(updatedAt),
+    };
+  }
+
+  DailySummaryRow copyWith({
+    String? date,
+    String? title,
+    String? status,
+    String? sourceEntryIds,
+    int? entryCount,
+    int? createdAt,
+    Value<int?> updatedAt = const Value.absent(),
+  }) => DailySummaryRow(
+    date: date ?? this.date,
+    title: title ?? this.title,
+    status: status ?? this.status,
+    sourceEntryIds: sourceEntryIds ?? this.sourceEntryIds,
+    entryCount: entryCount ?? this.entryCount,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+  );
+  DailySummaryRow copyWithCompanion(DailySummariesCompanion data) {
+    return DailySummaryRow(
+      date: data.date.present ? data.date.value : this.date,
+      title: data.title.present ? data.title.value : this.title,
+      status: data.status.present ? data.status.value : this.status,
+      sourceEntryIds: data.sourceEntryIds.present
+          ? data.sourceEntryIds.value
+          : this.sourceEntryIds,
+      entryCount: data.entryCount.present
+          ? data.entryCount.value
+          : this.entryCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailySummaryRow(')
+          ..write('date: $date, ')
+          ..write('title: $title, ')
+          ..write('status: $status, ')
+          ..write('sourceEntryIds: $sourceEntryIds, ')
+          ..write('entryCount: $entryCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    date,
+    title,
+    status,
+    sourceEntryIds,
+    entryCount,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailySummaryRow &&
+          other.date == this.date &&
+          other.title == this.title &&
+          other.status == this.status &&
+          other.sourceEntryIds == this.sourceEntryIds &&
+          other.entryCount == this.entryCount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DailySummariesCompanion extends UpdateCompanion<DailySummaryRow> {
+  final Value<String> date;
+  final Value<String> title;
+  final Value<String> status;
+  final Value<String> sourceEntryIds;
+  final Value<int> entryCount;
+  final Value<int> createdAt;
+  final Value<int?> updatedAt;
+  final Value<int> rowid;
+  const DailySummariesCompanion({
+    this.date = const Value.absent(),
+    this.title = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sourceEntryIds = const Value.absent(),
+    this.entryCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailySummariesCompanion.insert({
+    required String date,
+    required String title,
+    this.status = const Value.absent(),
+    this.sourceEntryIds = const Value.absent(),
+    this.entryCount = const Value.absent(),
+    required int createdAt,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : date = Value(date),
+       title = Value(title),
+       createdAt = Value(createdAt);
+  static Insertable<DailySummaryRow> custom({
+    Expression<String>? date,
+    Expression<String>? title,
+    Expression<String>? status,
+    Expression<String>? sourceEntryIds,
+    Expression<int>? entryCount,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (date != null) 'date': date,
+      if (title != null) 'title': title,
+      if (status != null) 'status': status,
+      if (sourceEntryIds != null) 'source_entry_ids': sourceEntryIds,
+      if (entryCount != null) 'entry_count': entryCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailySummariesCompanion copyWith({
+    Value<String>? date,
+    Value<String>? title,
+    Value<String>? status,
+    Value<String>? sourceEntryIds,
+    Value<int>? entryCount,
+    Value<int>? createdAt,
+    Value<int?>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DailySummariesCompanion(
+      date: date ?? this.date,
+      title: title ?? this.title,
+      status: status ?? this.status,
+      sourceEntryIds: sourceEntryIds ?? this.sourceEntryIds,
+      entryCount: entryCount ?? this.entryCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (sourceEntryIds.present) {
+      map['source_entry_ids'] = Variable<String>(sourceEntryIds.value);
+    }
+    if (entryCount.present) {
+      map['entry_count'] = Variable<int>(entryCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailySummariesCompanion(')
+          ..write('date: $date, ')
+          ..write('title: $title, ')
+          ..write('status: $status, ')
+          ..write('sourceEntryIds: $sourceEntryIds, ')
+          ..write('entryCount: $entryCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2698,6 +3168,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiaryTagRelationsTable diaryTagRelations =
       $DiaryTagRelationsTable(this);
   late final $ApiLogsTable apiLogs = $ApiLogsTable(this);
+  late final $DailySummariesTable dailySummaries = $DailySummariesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2707,6 +3178,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     tags,
     diaryTagRelations,
     apiLogs,
+    dailySummaries,
   ];
 }
 
@@ -4423,6 +4895,254 @@ typedef $$ApiLogsTableProcessedTableManager =
       ApiLog,
       PrefetchHooks Function()
     >;
+typedef $$DailySummariesTableCreateCompanionBuilder =
+    DailySummariesCompanion Function({
+      required String date,
+      required String title,
+      Value<String> status,
+      Value<String> sourceEntryIds,
+      Value<int> entryCount,
+      required int createdAt,
+      Value<int?> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DailySummariesTableUpdateCompanionBuilder =
+    DailySummariesCompanion Function({
+      Value<String> date,
+      Value<String> title,
+      Value<String> status,
+      Value<String> sourceEntryIds,
+      Value<int> entryCount,
+      Value<int> createdAt,
+      Value<int?> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$DailySummariesTableFilterComposer
+    extends Composer<_$AppDatabase, $DailySummariesTable> {
+  $$DailySummariesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceEntryIds => $composableBuilder(
+    column: $table.sourceEntryIds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get entryCount => $composableBuilder(
+    column: $table.entryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailySummariesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailySummariesTable> {
+  $$DailySummariesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceEntryIds => $composableBuilder(
+    column: $table.sourceEntryIds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get entryCount => $composableBuilder(
+    column: $table.entryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailySummariesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailySummariesTable> {
+  $$DailySummariesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceEntryIds => $composableBuilder(
+    column: $table.sourceEntryIds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get entryCount => $composableBuilder(
+    column: $table.entryCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DailySummariesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailySummariesTable,
+          DailySummaryRow,
+          $$DailySummariesTableFilterComposer,
+          $$DailySummariesTableOrderingComposer,
+          $$DailySummariesTableAnnotationComposer,
+          $$DailySummariesTableCreateCompanionBuilder,
+          $$DailySummariesTableUpdateCompanionBuilder,
+          (
+            DailySummaryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $DailySummariesTable,
+              DailySummaryRow
+            >,
+          ),
+          DailySummaryRow,
+          PrefetchHooks Function()
+        > {
+  $$DailySummariesTableTableManager(
+    _$AppDatabase db,
+    $DailySummariesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailySummariesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailySummariesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailySummariesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> date = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> sourceEntryIds = const Value.absent(),
+                Value<int> entryCount = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailySummariesCompanion(
+                date: date,
+                title: title,
+                status: status,
+                sourceEntryIds: sourceEntryIds,
+                entryCount: entryCount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String date,
+                required String title,
+                Value<String> status = const Value.absent(),
+                Value<String> sourceEntryIds = const Value.absent(),
+                Value<int> entryCount = const Value.absent(),
+                required int createdAt,
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailySummariesCompanion.insert(
+                date: date,
+                title: title,
+                status: status,
+                sourceEntryIds: sourceEntryIds,
+                entryCount: entryCount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailySummariesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailySummariesTable,
+      DailySummaryRow,
+      $$DailySummariesTableFilterComposer,
+      $$DailySummariesTableOrderingComposer,
+      $$DailySummariesTableAnnotationComposer,
+      $$DailySummariesTableCreateCompanionBuilder,
+      $$DailySummariesTableUpdateCompanionBuilder,
+      (
+        DailySummaryRow,
+        BaseReferences<_$AppDatabase, $DailySummariesTable, DailySummaryRow>,
+      ),
+      DailySummaryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4434,4 +5154,6 @@ class $AppDatabaseManager {
       $$DiaryTagRelationsTableTableManager(_db, _db.diaryTagRelations);
   $$ApiLogsTableTableManager get apiLogs =>
       $$ApiLogsTableTableManager(_db, _db.apiLogs);
+  $$DailySummariesTableTableManager get dailySummaries =>
+      $$DailySummariesTableTableManager(_db, _db.dailySummaries);
 }

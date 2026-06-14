@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/diary_entry.dart';
+import '../models/daily_summary.dart';
 import '../models/processing_stage.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
@@ -499,6 +500,131 @@ class DiaryStorageService {
           ),
         )
         .toList();
+  }
+
+  // --- DailySummary：按日期查 entries ---
+
+  /// 查询某天（'yyyy-MM-dd'）的录音条目，按 createdAt 升序。
+  Future<List<DiaryEntry>> getEntriesByDate(String date) async {
+    final rows = await _db.getEntriesByDate(date);
+    return rows
+        .map(
+          (r) => DiaryEntry(
+            id: r.id,
+            title: r.title,
+            folderPath: r.folderPath,
+            durationSeconds: r.durationSeconds,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+            tosKey: r.tosKey,
+            audioFormat: r.audioFormat,
+            uploadedAt: r.uploadedAt != null
+                ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+                : null,
+            weatherIcon: r.weatherIcon,
+            weatherText: r.weatherText,
+            temperature: r.temperature,
+            locationName: r.locationName,
+            locationLat: r.locationLat,
+            locationLon: r.locationLon,
+            status: _parseStatus(r.status),
+            processingStage: ProcessingStage.fromString(r.processingStage),
+            asrTaskId: r.asrTaskId,
+          ),
+        )
+        .toList();
+  }
+
+  // --- DailySummary 正文文件（<appDocDir>/daily/daily_summary_<date>.json）---
+
+  Future<String> get _dailyDir async {
+    final docDir = await getApplicationDocumentsDirectory();
+    final dir = Directory(p.join(docDir.path, 'daily'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir.path;
+  }
+
+  Future<File> _dailySummaryFile(String date) async {
+    final dir = await _dailyDir;
+    return File(p.join(dir, 'daily_summary_$date.json'));
+  }
+
+  Future<void> writeDailySummaryJson(String date, DailySummaryData data) async {
+    final file = await _dailySummaryFile(date);
+    await _writeAtomic(file, jsonEncode(data.toJson()));
+  }
+
+  Future<DailySummaryData> readDailySummaryJson(String date) async {
+    final file = await _dailySummaryFile(date);
+    final content = await file.readAsString();
+    return DailySummaryData.fromJson(
+      jsonDecode(content) as Map<String, dynamic>,
+    );
+  }
+
+  Future<bool> hasDailySummary(String date) async {
+    final file = await _dailySummaryFile(date);
+    return file.exists();
+  }
+
+  Future<void> deleteDailySummaryFile(String date) async {
+    final file = await _dailySummaryFile(date);
+    if (await file.exists()) await file.delete();
+  }
+
+  // --- DailySummary 元数据（DB）---
+
+  Future<DailySummary?> getDailySummary(String date) async {
+    final row = await _db.getDailySummaryByDate(date);
+    return row == null ? null : _summaryRowToModel(row);
+  }
+
+  Future<List<DailySummary>> getPendingDailySummaries() async {
+    final rows = await _db.getPendingDailySummaries();
+    return rows.map(_summaryRowToModel).toList();
+  }
+
+  /// upsert：写入或覆盖某天的总结元数据。
+  Future<void> saveDailySummary(DailySummary summary) async {
+    await _db.upsertDailySummary(
+      DailySummariesCompanion(
+        date: Value(summary.date),
+        title: Value(summary.title),
+        status: Value(summary.status.name),
+        sourceEntryIds: Value(jsonEncode(summary.sourceEntryIds)),
+        entryCount: Value(summary.entryCount),
+        createdAt: Value(summary.createdAt.millisecondsSinceEpoch),
+        updatedAt: Value(summary.updatedAt?.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  /// 删除某天的总结：删 DB 行 + 删正文文件（不动当天录音）。
+  Future<void> deleteDailySummary(String date) async {
+    await _db.deleteDailySummaryRow(date);
+    await deleteDailySummaryFile(date);
+  }
+
+  DailySummary _summaryRowToModel(DailySummaryRow r) {
+    return DailySummary(
+      date: r.date,
+      title: r.title,
+      status: _parseStatus(r.status),
+      sourceEntryIds: _parseSourceEntryIds(r.sourceEntryIds),
+      entryCount: r.entryCount,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+      updatedAt: r.updatedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(r.updatedAt!),
+    );
+  }
+
+  List<String> _parseSourceEntryIds(String? json) {
+    if (json == null || json.isEmpty) return const [];
+    try {
+      final list = jsonDecode(json);
+      if (list is List) return list.map((e) => e.toString()).toList();
+    } catch (_) {}
+    return const [];
   }
 
   /// 更新处理阶段
