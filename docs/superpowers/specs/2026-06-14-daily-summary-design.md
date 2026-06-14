@@ -82,7 +82,7 @@ class DailySummaries extends Table {
 
 ### 4.3 drift migration
 
-`schemaVersion` 2 → 3。`onCreate` / `onUpgrade` 中执行 `await m.createTable(dailySummaries)`（drift migration API）。新表无数据迁移，完全向后兼容。改 `tables.dart` 后必须执行：
+`schemaVersion` 7 → 8（当前 DB 已至 v7）。`onUpgrade` 中新增 `if (from < 8)` 块，沿用幂等模式建表：`if (!await _tableExists('daily_summaries')) await m.createTable(dailySummaries);`。`onCreate` 的 `createAll()` 会自动包含新表。完全向后兼容。改 `tables.dart` 后必须执行：
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
@@ -223,7 +223,7 @@ abstract class ProcessingTask {
 - `LlmService.summarizeDay`：mock LLM 响应，验证全文拼接顺序 / 分隔标记、超长降级触发与 `degraded` 标记、JSON 解析。
 - DailySummary 存储：写 / 读 json、`version`、`sourceEntryIds` 往返。
 - `ProcessingTask` 调度：mock 两类 Task，验证都能被调度执行、顺序（录音先于总结）、错误隔离（一个失败不中断其他）。
-- drift migration：schemaVersion 2→3 建表，旧 DB 升级数据不丢。
+- drift migration：schemaVersion 7→8 建表，旧 DB 升级数据不丢。
 - 启动钩子：昨天有 / 无录音、已生成 / 未生成、多天未打开只补昨天的分支。
 - 天气聚合：众数 / 范围 / 空数据的边界。
 - 实现阶段先核实 `test/` 现有基础设施再定测试粒度。
