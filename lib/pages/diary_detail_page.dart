@@ -44,7 +44,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   bool _loading = true;
   bool _audioExists = false;
   bool _hasLlm = false;
-  String _content = '';
+  String _summary = '';
   List<Utterance> _activeUtterances = [];
   bool _hasTranscript = false;
   List<Tag> _tags = [];
@@ -143,13 +143,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       } catch (_) {}
     }
 
-    String content = '';
+    String summary = '';
     List<Utterance> summaryUtterances = [];
 
     if (hasLlm) {
       final llmData =
           await _storageService.readLlmResult(_entry.folderPath);
-      content = llmData.content;
+      summary = llmData.summary;
       summaryUtterances = llmData.utterances;
     }
 
@@ -167,7 +167,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       setState(() {
         _audioExists = audioExists;
         _hasLlm = hasLlm;
-        _content = content;
+        _summary = summary;
         _activeUtterances = activeUtterances;
         _hasTranscript = hasTranscript;
         _loading = false;
@@ -218,7 +218,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           LlmResultData(
             version: 1,
             title: llmResult.title,
-            content: llmResult.content,
             summary: llmResult.summary,
             outline: llmResult.outline,
             utterances: llmResult.utterances,
@@ -237,7 +236,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   id: t.id, name: t.name, matchPrompt: t.matchPrompt))
               .toList();
           final matchedTagIds =
-              await _llmService.matchTags(llmResult.content, tagInfos);
+              await _llmService.matchTags(llmResult.summary, tagInfos);
           if (matchedTagIds.isNotEmpty) {
             await _storageService.autoTagDiary(
                 _entry.id, matchedTagIds);
@@ -269,8 +268,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       LlmResultData(
         version: 1,
         title: '未识别到语音内容',
-        content: '本次录音未识别到语音内容，可能录音过短或无声。',
-        summary: '',
+        summary: '本次录音未识别到语音内容，可能录音过短或无声。',
         outline: '',
         utterances: [],
       ),
@@ -589,15 +587,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   // 处理状态横幅
                   _buildStatusBanner(),
                   // 分隔线
-                  if (_hasLlm && _content.isNotEmpty)
+                  if (_hasLlm && _summary.isNotEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
                       child: Divider(
                           height: 1, color: WarmTokens.warmDivider),
                     ),
-                  // 润色正文
-                  if (_hasLlm && _content.isNotEmpty)
-                    DetailContentSection(content: _content),
+                  // 日记
+                  if (_hasLlm && _summary.isNotEmpty)
+                    DetailContentSection(summary: _summary),
                   // 底部安全区
                   const SizedBox(height: 32),
                 ],

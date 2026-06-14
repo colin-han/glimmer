@@ -5,9 +5,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../design_tokens.dart';
 
 class DetailContentSection extends StatelessWidget {
-  final String content;
+  final String summary;
 
-  const DetailContentSection({super.key, required this.content});
+  const DetailContentSection({super.key, required this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +28,7 @@ class DetailContentSection extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '润色正文',
+              '日记',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -42,7 +42,7 @@ class DetailContentSection extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: content));
+                  Clipboard.setData(ClipboardData(text: summary));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('已复制'),
@@ -65,7 +65,7 @@ class DetailContentSection extends StatelessWidget {
         const SizedBox(height: 12),
         // 正文内容：温暖的排版
         MarkdownBody(
-          data: content,
+          data: summary,
           styleSheet: MarkdownStyleSheet(
             p: TextStyle(
               fontSize: 15,

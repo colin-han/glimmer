@@ -55,7 +55,7 @@ lib/
   services/
     asr_service.dart         # 火山引擎 ASR（带时间戳识别）
     realtime_asr_service.dart # 实时 ASR（WebSocket）
-    llm_service.dart         # 火山引擎 Doubao（四段输出：润色/提炼/播报/标题）
+    llm_service.dart         # 火山引擎 Doubao（三段输出：提炼/播报/标题）
     tts_service.dart         # TTS 播报
     audio_recorder_service.dart   # record 插件封装
     audio_player_service.dart     # just_audio 封装
@@ -75,11 +75,11 @@ lib/
 
 ### 主流程 (RecordingPage)
 
-录音 (wav) → 实时 ASR（WebSocket）→ Flash ASR 兜底识别（带时间戳）→ LLM 四段输出（润色正文/日记体提炼/播报大纲/标题）→ 写入 llm_result.json + SQLite 元数据 → TTS 播报大纲 → 跳转详情页
+录音 (wav) → 实时 ASR（WebSocket）→ Flash ASR 兜底识别（带时间戳）→ LLM 三段输出（日记体提炼/播报大纲/标题）→ 写入 llm_result.json + SQLite 元数据 → TTS 播报大纲 → 跳转详情页
 
 ## 数据兼容性要求
 
-**自 v1.0.0 起，所有修改必须向后兼容，严禁丢失用户数据。**
+**兼容性基线为 v1.0.0：自 v1.0.0 起所有修改必须向后兼容，严禁丢失用户数据。v1.0.0 之前版本（基于 summary.md + summary_utterances.json 的旧格式）不再支持，无需兼容读取。**
 
 - 用户已保存的日记数据不可因任何代码变更而丢失或损坏
 - SQLite schema 变更必须通过 drift migration 处理，新字段必须有默认值
@@ -91,7 +91,7 @@ lib/
 
 - 文件系统中的数据格式变更时，必须保持**向后兼容**：读取时优先检测新格式文件，新格式不存在则回退读旧格式
 - 每个数据文件都带 `version` 字段（整数），用于未来格式升级时判断版本
-- 废弃的写入方法保留在代码中（不删除），仅标记为废弃，确保旧数据仍可读取
+- 废弃的写入方法保留在代码中（不删除），仅标记为废弃；v1.0.0 之前的旧格式（summary.md / summary_utterances.json）不再保证可读取
 - SQLite schema 变更需通过 drift migration 处理
 
 ### 当前文件格式
@@ -99,8 +99,8 @@ lib/
 每个日记 UUID 文件夹内：
 - `audio.wav` — 录音文件
 - `transcript.json` — ASR 原始识别结果（含时间戳）
-- `llm_result.json` — LLM 处理结果（title/content/summary/outline + 时间戳 utterances）
-- 旧格式 `summary.md` 和 `summary_utterances.json` 仍需兼容读取
+- `llm_result.json` — LLM 处理结果（title/summary/outline + 时间戳 utterances）
+- 旧格式 `summary.md` 和 `summary_utterances.json`（v1.0.0 之前）**不再支持读取**；readLlmResult 不回退读旧格式是有意设计，非缺陷
 
 ## 关键依赖
 

@@ -245,8 +245,7 @@ class ProcessingTaskHandler extends TaskHandler {
       LlmResultData(
         version: 1,
         title: '未识别到语音内容',
-        content: '本次录音未识别到语音内容，可能录音过短或无声。',
-        summary: '',
+        summary: '本次录音未识别到语音内容，可能录音过短或无声。',
         outline: '',
         utterances: [],
       ),
@@ -288,7 +287,6 @@ class ProcessingTaskHandler extends TaskHandler {
         LlmResultData(
           version: 1,
           title: llmResult.title,
-          content: llmResult.content,
           summary: llmResult.summary,
           outline: llmResult.outline,
           utterances: llmResult.utterances,
@@ -346,7 +344,7 @@ class ProcessingTaskHandler extends TaskHandler {
                 TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
             .toList();
         final matchedTagIds =
-            await _llmService.matchTags(llmResult.content, tagInfos);
+            await _llmService.matchTags(llmResult.summary, tagInfos);
         if (matchedTagIds.isNotEmpty) {
           await _storageService.autoTagDiary(entry.id, matchedTagIds);
         }

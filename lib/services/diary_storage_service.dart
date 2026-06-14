@@ -21,6 +21,15 @@ class DiaryStorageService {
     return p.join(docDir.path, 'diaries');
   }
 
+  /// 原子写入：先写临时文件（同目录、flush 后）再 rename 覆盖目标。
+  /// 直接 writeAsString 会先截断目标文件，若写入中途进程被杀会留下截断/损坏的 JSON，
+  /// 导致正文永久丢失。临时文件+rename 在同一文件系统上是原子的，崩溃时旧文件仍完整。
+  Future<void> _writeAtomic(File file, String content) async {
+    final tmp = File('${file.path}.tmp');
+    await tmp.writeAsString(content, flush: true);
+    await tmp.rename(file.path);
+  }
+
   Future<String> createDiaryFolder(String id) async {
     final base = await _baseDir;
     final folder = Directory(p.join(base, id));
@@ -94,12 +103,20 @@ class DiaryStorageService {
     ));
   }
 
+  // === 数据格式兼容性基线 ===
+  // 自 v1.0.0 起，本应用只保证对 v1.0.0 及之后产生的数据格式向后兼容
+  // （transcript.json / llm_result.json / audio.wav|ogg）。
+  // v1.0.0 之前基于 summary.md + summary_utterances.json 的旧格式【不再支持读取】，
+  // 因此 readLlmResult / hasLlmResult 不回退读旧格式——这是有意为之，非遗漏。
+  // 下方的 writeSummary / writeSummaryUtterances 仅为历史保留，已无写入路径调用。
+  // 详见 CLAUDE.md「数据兼容性要求」。
+
   // --- transcript.json ---
 
   Future<void> writeTranscriptJson(
       String folderPath, TranscriptData data) async {
     final file = File(p.join(folderPath, 'transcript.json'));
-    await file.writeAsString(jsonEncode(data.toJson()));
+    await _writeAtomic(file, jsonEncode(data.toJson()));
   }
 
   Future<TranscriptData> readTranscriptJson(String folderPath) async {
@@ -113,7 +130,7 @@ class DiaryStorageService {
 
   Future<void> writeSummary(String folderPath, String content) async {
     final file = File(p.join(folderPath, 'summary.md'));
-    await file.writeAsString(content);
+    await _writeAtomic(file, content);
   }
 
   Future<String> readSummary(String folderPath) async {
@@ -126,7 +143,7 @@ class DiaryStorageService {
   Future<void> writeSummaryUtterances(
       String folderPath, SummaryUtteranceData data) async {
     final file = File(p.join(folderPath, 'summary_utterances.json'));
-    await file.writeAsString(jsonEncode(data.toJson()));
+    await _writeAtomic(file, jsonEncode(data.toJson()));
   }
 
   Future<SummaryUtteranceData> readSummaryUtterances(
@@ -141,7 +158,7 @@ class DiaryStorageService {
 
   Future<void> writeLlmResult(String folderPath, LlmResultData data) async {
     final file = File(p.join(folderPath, 'llm_result.json'));
-    await file.writeAsString(jsonEncode(data.toJson()));
+    await _writeAtomic(file, jsonEncode(data.toJson()));
   }
 
   Future<LlmResultData> readLlmResult(String folderPath) async {
@@ -374,7 +391,7 @@ class DiaryStorageService {
       try {
         if (await hasLlmResult(entry.folderPath)) {
           final llmData = await readLlmResult(entry.folderPath);
-          if (llmData.content.toLowerCase().contains(lowerQuery)) {
+          if (llmData.summary.toLowerCase().contains(lowerQuery)) {
             results.add(entry);
           }
         }

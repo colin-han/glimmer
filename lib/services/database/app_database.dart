@@ -11,7 +11,19 @@ part 'app_database.g.dart';
 
 @DriftDatabase(tables: [DiaryEntries, Tags, DiaryTagRelations, ApiLogs])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase._internal() : super(_openConnection());
+  static AppDatabase? _instance;
+
+  /// 单例工厂。
+  ///
+  /// AppDatabase 内部用 NativeDatabase.createInBackground，每个实例都会起一个独立
+  /// 后台 isolate 连接 voice_diary.db。代码里 DiaryStorageService / ApiLogService 以及
+  /// 各页面都各自 `new`，会导致同一 isolate 内并存多个连接（资源浪费 + 并发写 SQLITE_BUSY）。
+  /// 全 app 共享同一实例后，每个 isolate 只剩一个连接。
+  ///
+  /// 注：Dart static 是「每 isolate 一份」，主 isolate 与 FGS isolate 各自持有一个实例——
+  /// 这正是所需（drift 连接不能跨 isolate），符合预期。
+  factory AppDatabase() => _instance ??= AppDatabase._internal();
 
   @override
   int get schemaVersion => 7;
@@ -22,36 +34,80 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          // 每个 step 容错：列已存在时忽略，避免设备上 DB 状态不一致导致崩溃
+          // 幂等迁移：每个 step 先检测目标是否已存在，已存在则跳过。
+          // 不再用 `try/catch(_){}` 吞掉异常——真正的失败（磁盘满/IO 错误等）必须抛出，
+          // 否则 schemaVersion 会推进到残缺状态，下次启动不再重试，DB 永久缺列。
+          // 真正失败时 drift 不会更新 user_version，下次启动从同一 from 版本重试（幂等故安全）。
           if (from < 2) {
-            try { await m.createTable(tags); } catch (_) {}
-            try { await m.createTable(diaryTagRelations); } catch (_) {}
+            if (!await _tableExists('tags')) await m.createTable(tags);
+            if (!await _tableExists('diary_tag_relations')) {
+              await m.createTable(diaryTagRelations);
+            }
           }
           if (from < 3) {
-            try { await m.addColumn(diaryEntries, diaryEntries.tosKey); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.audioFormat); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.uploadedAt); } catch (_) {}
+            if (!await _columnExists('diary_entries', 'tos_key')) {
+              await m.addColumn(diaryEntries, diaryEntries.tosKey);
+            }
+            if (!await _columnExists('diary_entries', 'audio_format')) {
+              await m.addColumn(diaryEntries, diaryEntries.audioFormat);
+            }
+            if (!await _columnExists('diary_entries', 'uploaded_at')) {
+              await m.addColumn(diaryEntries, diaryEntries.uploadedAt);
+            }
           }
           if (from < 4) {
-            try { await m.addColumn(diaryEntries, diaryEntries.weatherIcon); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.weatherText); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.temperature); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.locationName); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.locationLat); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.locationLon); } catch (_) {}
+            if (!await _columnExists('diary_entries', 'weather_icon')) {
+              await m.addColumn(diaryEntries, diaryEntries.weatherIcon);
+            }
+            if (!await _columnExists('diary_entries', 'weather_text')) {
+              await m.addColumn(diaryEntries, diaryEntries.weatherText);
+            }
+            if (!await _columnExists('diary_entries', 'temperature')) {
+              await m.addColumn(diaryEntries, diaryEntries.temperature);
+            }
+            if (!await _columnExists('diary_entries', 'location_name')) {
+              await m.addColumn(diaryEntries, diaryEntries.locationName);
+            }
+            if (!await _columnExists('diary_entries', 'location_lat')) {
+              await m.addColumn(diaryEntries, diaryEntries.locationLat);
+            }
+            if (!await _columnExists('diary_entries', 'location_lon')) {
+              await m.addColumn(diaryEntries, diaryEntries.locationLon);
+            }
           }
           if (from < 5) {
-            try { await m.addColumn(diaryEntries, diaryEntries.status); } catch (_) {}
+            if (!await _columnExists('diary_entries', 'status')) {
+              await m.addColumn(diaryEntries, diaryEntries.status);
+            }
           }
           if (from < 6) {
-            try { await m.addColumn(diaryEntries, diaryEntries.processingStage); } catch (_) {}
-            try { await m.addColumn(diaryEntries, diaryEntries.asrTaskId); } catch (_) {}
+            if (!await _columnExists('diary_entries', 'processing_stage')) {
+              await m.addColumn(diaryEntries, diaryEntries.processingStage);
+            }
+            if (!await _columnExists('diary_entries', 'asr_task_id')) {
+              await m.addColumn(diaryEntries, diaryEntries.asrTaskId);
+            }
           }
           if (from < 7) {
-            try { await m.createTable(apiLogs); } catch (_) {}
+            if (!await _tableExists('api_logs')) await m.createTable(apiLogs);
           }
         },
       );
+
+  /// 表是否存在（用于幂等迁移）。
+  Future<bool> _tableExists(String tableName) async {
+    final rows = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+      variables: [Variable.withString(tableName)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  /// 指定列是否存在（用于幂等迁移）。
+  Future<bool> _columnExists(String tableName, String columnName) async {
+    final rows = await customSelect('PRAGMA table_info($tableName)').get();
+    return rows.any((row) => row.read<String>('name') == columnName);
+  }
 
   // --- DiaryEntries ---
 

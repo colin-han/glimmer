@@ -50,7 +50,6 @@ class LlmUsage {
 
 class LlmResult {
   final String title;
-  final String content;
   final String summary;
   final String outline;
   final List<Utterance> utterances;
@@ -58,7 +57,6 @@ class LlmResult {
 
   LlmResult({
     required this.title,
-    required this.content,
     required this.summary,
     required this.outline,
     required this.utterances,
@@ -74,8 +72,11 @@ class LlmService {
     final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
 
     final utterancesJson = utterances
-        .map((u) =>
-            '{"text": "${u.text}", "startTime": ${u.startTime}, "endTime": ${u.endTime}}')
+        .map((u) => jsonEncode({
+              'text': u.text,
+              'startTime': u.startTime,
+              'endTime': u.endTime,
+            }))
         .join('\n');
 
     final response = await _dio.post(
@@ -85,37 +86,31 @@ class LlmService {
         'messages': [
           {
             'role': 'system',
-            'content': '你是一个日记助手。用户会给你一段语音识别的口语文本（带时间戳），请完成以下四项任务：\n'
+            'content': '你是一个日记助手。用户会给你一段语音识别的口语文本（带时间戳），请完成以下三项任务：\n'
                 '\n'
-                '1. **润色正文（content）**：按以下规则整理为 Markdown 格式日记正文：\n'
-                '   - 最大程度保留原文的句子结构和用词，不添加、不删除实质内容\n'
-                '   - 仅删除无意义的口语填充词（嗯、啊、那个、就是说、然后呢等）\n'
-                '   - 消除重复、结巴、停顿导致的不通顺\n'
-                '   - 按语义自然分段（话题转换、时间线变化处分段）\n'
-                '   - 适当将口语化词汇替换为书面表达（如觉得→认为、挺→很），保持自然\n'
-                '\n'
-                '2. **日记体提炼（summary）**：以第一人称「我」的视角，写一篇精炼版日记（Markdown 格式）：\n'
+                '1. **日记体提炼（summary）**：以第一人称「我」的视角，写一篇精炼版日记（Markdown 格式）：\n'
                 '   - 保留原文中的情感、感受、思考\n'
                 '   - 合并相似内容，省略无关紧要的细节\n'
                 '   - 自然流畅，300-500字，不要分条列举\n'
                 '\n'
-                '3. **口语化播报（outline）**：生成一段完整的口语化播报文本：\n'
+                '2. **口语化播报（outline）**：生成一段完整的口语化播报文本：\n'
                 '   - 提炼最重要的前5个主题或事件\n'
                 '   - 如果主题超过5个，末尾补充「还有其他几条，就不一一念了」类的收尾\n'
                 '   - 口语化、适合 TTS 朗读，不要使用条目列表格式\n'
                 '   - 示例：「日记整理完成，今天讨论了很多事情：首先是工作上的项目进展；然后是关于周末旅行的计划；还提到了最近在读的一本书。此外还有一些其他内容，就不一一念了。」\n'
                 '\n'
-                '4. **标题（title）**：从内容中提炼简短标题，不超过20个字\n'
+                '3. **标题（title）**：从内容中提炼简短标题，不超过20个字\n'
                 '\n'
-                '时间戳规则：\n'
-                '- 每个片段都有 startTime 和 endTime（毫秒），润色正文时必须保留\n'
+                '时间戳规则（仅用于 utterances）：\n'
+                '- 每个片段在 utterances 中保留 startTime 和 endTime（毫秒）\n'
                 '- 合并多个片段时，取第一个的 startTime 和最后一个的 endTime\n'
                 '- 不要拆分任何片段的时间戳\n'
+                '- summary、outline 中不得出现任何时间戳数字或时间标记（例如 (1070ms - 6030ms)）\n'
                 '\n'
                 '严格按以下 JSON 格式返回，不要包含任何其他内容：\n'
-                '{"title": "标题", "content": "润色正文(Markdown)", "summary": "日记体提炼(Markdown)", '
+                '{"title": "标题", "summary": "日记体提炼(Markdown)", '
                 '"outline": "口语化播报文本", '
-                '"utterances": [{"text": "润色后文本", "startTime": 0, "endTime": 1000}]}',
+                '"utterances": [{"text": "整理后的片段文本", "startTime": 0, "endTime": 1000}]}',
           },
           {
             'role': 'user',
@@ -152,7 +147,6 @@ class LlmService {
     final result = _parseResult(content);
     return LlmResult(
       title: result.title,
-      content: result.content,
       summary: result.summary,
       outline: result.outline,
       utterances: result.utterances,
@@ -198,8 +192,11 @@ class LlmService {
     final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
 
     final tagsJson = tagInfos
-        .map((t) =>
-            '{"id": "${t.id}", "name": "${t.name}", "matchPrompt": "${t.matchPrompt}"}')
+        .map((t) => jsonEncode({
+              'id': t.id,
+              'name': t.name,
+              'matchPrompt': t.matchPrompt,
+            }))
         .join('\n');
 
     final response = await _dio.post(
@@ -251,8 +248,11 @@ class LlmService {
     final apiKey = dotenv.get('VOLCENGINE_ARK_API_KEY');
 
     final diariesJson = diaries
-        .map((d) =>
-            '{"id": "${d.id}", "title": "${d.title}", "summary": "${d.summary}"}')
+        .map((d) => jsonEncode({
+              'id': d.id,
+              'title': d.title,
+              'summary': d.summary,
+            }))
         .join('\n');
 
     final response = await _dio.post(
@@ -351,7 +351,6 @@ class LlmService {
 
       return LlmResult(
         title: json['title'] as String? ?? '未命名日记',
-        content: json['content'] as String? ?? content,
         summary: json['summary'] as String? ?? '',
         outline: json['outline'] as String? ?? '',
         utterances: utterances,
@@ -359,7 +358,6 @@ class LlmService {
     } catch (_) {
       return LlmResult(
         title: _extractTitle(content),
-        content: content,
         summary: '',
         outline: '',
         utterances: [],
