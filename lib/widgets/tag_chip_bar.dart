@@ -36,12 +36,14 @@ class TagChipBar extends StatelessWidget {
                 selected: selectedTagId == null,
                 onTap: () => onTagSelected(null),
               ),
-              ...tags.map((tag) => _buildChip(
-                    label: tag.name,
-                    selected: selectedTagId == tag.id,
-                    onTap: () => onTagSelected(
-                        selectedTagId == tag.id ? null : tag.id),
-                  )),
+              ...tags.map(
+                (tag) => _buildChip(
+                  label: tag.name,
+                  selected: selectedTagId == tag.id,
+                  onTap: () =>
+                      onTagSelected(selectedTagId == tag.id ? null : tag.id),
+                ),
+              ),
             ],
           ),
         ),
@@ -105,7 +107,11 @@ class TagChipBar extends StatelessWidget {
           color: selected ? WarmTokens.warmCardBg : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 16, color: selected ? null : WarmTokens.warmMuted),
+        child: Icon(
+          icon,
+          size: 16,
+          color: selected ? null : WarmTokens.warmMuted,
+        ),
       ),
     );
   }

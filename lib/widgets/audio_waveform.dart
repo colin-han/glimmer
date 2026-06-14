@@ -86,7 +86,10 @@ class _WaveformPainter extends CustomPainter {
 
     for (int i = 0; i < amplitudes.length; i++) {
       final normalized = amplitudes[i];
-      final barHeight = (normalized * (size.height - minHeight)).clamp(minHeight, size.height);
+      final barHeight = (normalized * (size.height - minHeight)).clamp(
+        minHeight,
+        size.height,
+      );
       final x = i * step + gap / 2;
       final y = (size.height - barHeight) / 2;
 
@@ -95,7 +98,10 @@ class _WaveformPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
 
       canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, barWidth, barHeight), radius),
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, barWidth, barHeight),
+          radius,
+        ),
         paint,
       );
     }

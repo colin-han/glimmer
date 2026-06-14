@@ -46,25 +46,27 @@ class ApiLogService {
           : responseSummary;
     }
 
-    await _db.insertApiLog(ApiLogsCompanion.insert(
-      id: _uuid.v4(),
-      diaryId: diaryId,
-      apiType: apiType,
-      step: step,
-      status: status,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      durationMs: Value(durationMs),
-      errorMessage: Value(errorMessage),
-      responseSummary: Value(truncatedSummary),
-      promptTokens: Value(promptTokens),
-      completionTokens: Value(completionTokens),
-      totalTokens: Value(totalTokens),
-      cachedTokens: Value(cachedTokens),
-      reasoningTokens: Value(reasoningTokens),
-      audioDurationSeconds: Value(audioDurationSeconds),
-      ttsCharacterCount: Value(ttsCharacterCount),
-      estimatedCost: Value(estimatedCost),
-    ));
+    await _db.insertApiLog(
+      ApiLogsCompanion.insert(
+        id: _uuid.v4(),
+        diaryId: diaryId,
+        apiType: apiType,
+        step: step,
+        status: status,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        durationMs: Value(durationMs),
+        errorMessage: Value(errorMessage),
+        responseSummary: Value(truncatedSummary),
+        promptTokens: Value(promptTokens),
+        completionTokens: Value(completionTokens),
+        totalTokens: Value(totalTokens),
+        cachedTokens: Value(cachedTokens),
+        reasoningTokens: Value(reasoningTokens),
+        audioDurationSeconds: Value(audioDurationSeconds),
+        ttsCharacterCount: Value(ttsCharacterCount),
+        estimatedCost: Value(estimatedCost),
+      ),
+    );
   }
 
   /// 记录一个关键步骤（非 API 调用）。
@@ -76,15 +78,17 @@ class ApiLogService {
     required String status,
     String? message,
   }) async {
-    await _db.insertApiLog(ApiLogsCompanion.insert(
-      id: _uuid.v4(),
-      diaryId: diaryId,
-      apiType: 'step',
-      step: step,
-      status: status,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      errorMessage: Value(message),
-    ));
+    await _db.insertApiLog(
+      ApiLogsCompanion.insert(
+        id: _uuid.v4(),
+        diaryId: diaryId,
+        apiType: 'step',
+        step: step,
+        status: status,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        errorMessage: Value(message),
+      ),
+    );
   }
 
   /// 查询某篇日记的所有日志（按时间正序）。

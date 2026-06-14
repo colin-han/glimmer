@@ -23,10 +23,14 @@ class StepProgressIndicator extends StatelessWidget {
           final stepIndex = i ~/ 2;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text('→',
-                style: TextStyle(
-                  color: stepIndex < currentStep ? WarmTokens.warmAmber : WarmTokens.warmDivider,
-                )),
+            child: Text(
+              '→',
+              style: TextStyle(
+                color: stepIndex < currentStep
+                    ? WarmTokens.warmAmber
+                    : WarmTokens.warmDivider,
+              ),
+            ),
           );
         }
         return _buildStep(context, i ~/ 2);
@@ -40,8 +44,10 @@ class StepProgressIndicator extends StatelessWidget {
     final color = isCompleted
         ? WarmTokens.warmAmber
         : isCurrent
-            ? (hasError ? WarmTokens.failedAccent : Theme.of(context).colorScheme.primary)
-            : WarmTokens.warmDivider;
+        ? (hasError
+              ? WarmTokens.failedAccent
+              : Theme.of(context).colorScheme.primary)
+        : WarmTokens.warmDivider;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -51,8 +57,10 @@ class StepProgressIndicator extends StatelessWidget {
           backgroundColor: color.withValues(alpha: 0.2),
           child: isCompleted
               ? const Icon(Icons.check, size: 18, color: WarmTokens.warmAmber)
-              : Text('${index + 1}',
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+              : Text(
+                  '${index + 1}',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                ),
         ),
         const SizedBox(height: 4),
         Text(_steps[index], style: TextStyle(fontSize: 12, color: color)),

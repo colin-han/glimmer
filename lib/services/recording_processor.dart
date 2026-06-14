@@ -87,7 +87,9 @@ class ProcessingTaskHandler extends TaskHandler {
   }
 
   Future<void> _processEntry(DiaryEntry entry) async {
-    debugPrint('[ProcessingHandler] 开始处理: ${entry.id}, stage=${entry.processingStage.value}');
+    debugPrint(
+      '[ProcessingHandler] 开始处理: ${entry.id}, stage=${entry.processingStage.value}',
+    );
 
     switch (entry.processingStage) {
       case ProcessingStage.uploading:
@@ -143,7 +145,11 @@ class ProcessingTaskHandler extends TaskHandler {
     }
 
     final tosKey = await _tosService.uploadAudio(audioFilePath, entry.id);
-    await _storageService.updateTosKeyAndStage(entry.id, tosKey, ProcessingStage.asr);
+    await _storageService.updateTosKeyAndStage(
+      entry.id,
+      tosKey,
+      ProcessingStage.asr,
+    );
     _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'asr'});
     debugPrint('[ProcessingHandler] 上传完成: $tosKey');
   }
@@ -180,13 +186,19 @@ class ProcessingTaskHandler extends TaskHandler {
           debugPrint('[ProcessingHandler] ASR 查询失败，重新提交: $e');
           final newTaskId = await _asrService.submitAsync(presignedUrl);
           await _storageService.updateAsrTaskIdAndStage(
-              entry.id, newTaskId, ProcessingStage.asr);
+            entry.id,
+            newTaskId,
+            ProcessingStage.asr,
+          );
           asrResult = await _asrService.pollAsyncResult(newTaskId);
         }
       } else {
         final asrTaskId = await _asrService.submitAsync(presignedUrl);
         await _storageService.updateAsrTaskIdAndStage(
-            entry.id, asrTaskId, ProcessingStage.asr);
+          entry.id,
+          asrTaskId,
+          ProcessingStage.asr,
+        );
         asrResult = await _asrService.pollAsyncResult(asrTaskId);
       }
 
@@ -202,7 +214,9 @@ class ProcessingTaskHandler extends TaskHandler {
       }
 
       await _storageService.updateProcessingStage(
-          entry.id, ProcessingStage.llm);
+        entry.id,
+        ProcessingStage.llm,
+      );
 
       sw.stop();
       _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'llm'});
@@ -278,8 +292,9 @@ class ProcessingTaskHandler extends TaskHandler {
 
     final sw = Stopwatch()..start();
     try {
-      final transcript =
-          await _storageService.readTranscriptJson(entry.folderPath);
+      final transcript = await _storageService.readTranscriptJson(
+        entry.folderPath,
+      );
       final llmResult = await _llmService.summarize(transcript.utterances);
 
       await _storageService.writeLlmResult(
@@ -293,10 +308,17 @@ class ProcessingTaskHandler extends TaskHandler {
         ),
       );
       await _storageService.updateProcessingStage(
-          entry.id, ProcessingStage.tagging);
+        entry.id,
+        ProcessingStage.tagging,
+      );
 
       sw.stop();
-      _sendToMain({'type': 'stageUpdate', 'entryId': entry.id, 'stage': 'tagging', 'title': llmResult.title});
+      _sendToMain({
+        'type': 'stageUpdate',
+        'entryId': entry.id,
+        'stage': 'tagging',
+        'title': llmResult.title,
+      });
       final usage = llmResult.usage;
       await _apiLogService.logApiCall(
         diaryId: entry.id,
@@ -336,15 +358,20 @@ class ProcessingTaskHandler extends TaskHandler {
     try {
       final llmResult = await _storageService.readLlmResult(entry.folderPath);
       final allTags = await _storageService.getAllTags();
-      final tagsWithPrompt =
-          allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
+      final tagsWithPrompt = allTags
+          .where((t) => t.matchPrompt.isNotEmpty)
+          .toList();
       if (tagsWithPrompt.isNotEmpty) {
         final tagInfos = tagsWithPrompt
-            .map((t) =>
-                TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt))
+            .map(
+              (t) =>
+                  TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt),
+            )
             .toList();
-        final matchedTagIds =
-            await _llmService.matchTags(llmResult.summary, tagInfos);
+        final matchedTagIds = await _llmService.matchTags(
+          llmResult.summary,
+          tagInfos,
+        );
         if (matchedTagIds.isNotEmpty) {
           await _storageService.autoTagDiary(entry.id, matchedTagIds);
         }
@@ -383,24 +410,26 @@ class ProcessingTaskHandler extends TaskHandler {
       title = llmResult.title;
     } catch (_) {}
 
-    await _storageService.updateEntry(DiaryEntry(
-      id: entry.id,
-      title: title,
-      folderPath: entry.folderPath,
-      durationSeconds: entry.durationSeconds,
-      createdAt: entry.createdAt,
-      tosKey: entry.tosKey,
-      audioFormat: entry.audioFormat,
-      uploadedAt: DateTime.now(),
-      weatherIcon: entry.weatherIcon,
-      weatherText: entry.weatherText,
-      temperature: entry.temperature,
-      locationName: entry.locationName,
-      locationLat: entry.locationLat,
-      locationLon: entry.locationLon,
-      status: EntryStatus.completed,
-      processingStage: ProcessingStage.completed,
-    ));
+    await _storageService.updateEntry(
+      DiaryEntry(
+        id: entry.id,
+        title: title,
+        folderPath: entry.folderPath,
+        durationSeconds: entry.durationSeconds,
+        createdAt: entry.createdAt,
+        tosKey: entry.tosKey,
+        audioFormat: entry.audioFormat,
+        uploadedAt: DateTime.now(),
+        weatherIcon: entry.weatherIcon,
+        weatherText: entry.weatherText,
+        temperature: entry.temperature,
+        locationName: entry.locationName,
+        locationLat: entry.locationLat,
+        locationLon: entry.locationLon,
+        status: EntryStatus.completed,
+        processingStage: ProcessingStage.completed,
+      ),
+    );
 
     FlutterForegroundTask.updateService(
       notificationTitle: '处理完成',
@@ -413,7 +442,11 @@ class ProcessingTaskHandler extends TaskHandler {
 
   Future<void> _markFailed(String id, String title) async {
     try {
-      await _storageService.updateEntryTitleAndStatus(id, title, EntryStatus.failed);
+      await _storageService.updateEntryTitleAndStatus(
+        id,
+        title,
+        EntryStatus.failed,
+      );
     } catch (e) {
       debugPrint('[ProcessingHandler] 标记 failed 失败: $e');
     }

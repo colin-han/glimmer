@@ -42,8 +42,8 @@ class AudioPlayerBar extends StatelessWidget {
             state.isCompleted
                 ? Icons.replay
                 : state.isPlaying
-                    ? Icons.pause
-                    : Icons.play_arrow,
+                ? Icons.pause
+                : Icons.play_arrow,
           ),
           onPressed: () async {
             if (state.isCompleted) {

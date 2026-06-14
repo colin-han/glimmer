@@ -38,69 +38,73 @@ class DiaryStorageService {
   }
 
   Future<void> createEntry(DiaryEntry entry) async {
-    await _db.insertEntry(DiaryEntriesCompanion.insert(
-      id: entry.id,
-      title: entry.title,
-      folderPath: entry.folderPath,
-      durationSeconds: entry.durationSeconds,
-      createdAt: entry.createdAt.millisecondsSinceEpoch,
-      tosKey: Value(entry.tosKey),
-      audioFormat: Value(entry.audioFormat),
-      uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
-      weatherIcon: Value(entry.weatherIcon),
-      weatherText: Value(entry.weatherText),
-      temperature: Value(entry.temperature),
-      locationName: Value(entry.locationName),
-      locationLat: Value(entry.locationLat),
-      locationLon: Value(entry.locationLon),
-      status: Value(entry.status.name),
-      processingStage: Value(entry.processingStage.value),
-      asrTaskId: Value(entry.asrTaskId),
-    ));
+    await _db.insertEntry(
+      DiaryEntriesCompanion.insert(
+        id: entry.id,
+        title: entry.title,
+        folderPath: entry.folderPath,
+        durationSeconds: entry.durationSeconds,
+        createdAt: entry.createdAt.millisecondsSinceEpoch,
+        tosKey: Value(entry.tosKey),
+        audioFormat: Value(entry.audioFormat),
+        uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+        weatherIcon: Value(entry.weatherIcon),
+        weatherText: Value(entry.weatherText),
+        temperature: Value(entry.temperature),
+        locationName: Value(entry.locationName),
+        locationLat: Value(entry.locationLat),
+        locationLon: Value(entry.locationLon),
+        status: Value(entry.status.name),
+        processingStage: Value(entry.processingStage.value),
+        asrTaskId: Value(entry.asrTaskId),
+      ),
+    );
   }
 
   Future<void> updateEntry(DiaryEntry entry) async {
-    await _db.updateEntry(DiaryEntriesCompanion(
-      id: Value(entry.id),
-      title: Value(entry.title),
-      folderPath: Value(entry.folderPath),
-      durationSeconds: Value(entry.durationSeconds),
-      createdAt: Value(entry.createdAt.millisecondsSinceEpoch),
-      tosKey: Value(entry.tosKey),
-      audioFormat: Value(entry.audioFormat),
-      uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
-      weatherIcon: Value(entry.weatherIcon),
-      weatherText: Value(entry.weatherText),
-      temperature: Value(entry.temperature),
-      locationName: Value(entry.locationName),
-      locationLat: Value(entry.locationLat),
-      locationLon: Value(entry.locationLon),
-      status: Value(entry.status.name),
-      processingStage: Value(entry.processingStage.value),
-      asrTaskId: Value(entry.asrTaskId),
-    ));
+    await _db.updateEntry(
+      DiaryEntriesCompanion(
+        id: Value(entry.id),
+        title: Value(entry.title),
+        folderPath: Value(entry.folderPath),
+        durationSeconds: Value(entry.durationSeconds),
+        createdAt: Value(entry.createdAt.millisecondsSinceEpoch),
+        tosKey: Value(entry.tosKey),
+        audioFormat: Value(entry.audioFormat),
+        uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+        weatherIcon: Value(entry.weatherIcon),
+        weatherText: Value(entry.weatherText),
+        temperature: Value(entry.temperature),
+        locationName: Value(entry.locationName),
+        locationLat: Value(entry.locationLat),
+        locationLon: Value(entry.locationLon),
+        status: Value(entry.status.name),
+        processingStage: Value(entry.processingStage.value),
+        asrTaskId: Value(entry.asrTaskId),
+      ),
+    );
   }
 
   Future<void> updateTitle(String id, String title) async {
-    await (_db.update(_db.diaryEntries)
-          ..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(title: Value(title)));
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(title: Value(title)),
+    );
   }
 
   Future<void> updateEntryStatus(String id, EntryStatus status) async {
-    await (_db.update(_db.diaryEntries)
-          ..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(status: Value(status.name)));
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(status: Value(status.name)),
+    );
   }
 
   Future<void> updateEntryTitleAndStatus(
-      String id, String title, EntryStatus status) async {
-    await (_db.update(_db.diaryEntries)
-          ..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(
-      title: Value(title),
-      status: Value(status.name),
-    ));
+    String id,
+    String title,
+    EntryStatus status,
+  ) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(title: Value(title), status: Value(status.name)),
+    );
   }
 
   // === 数据格式兼容性基线 ===
@@ -114,7 +118,9 @@ class DiaryStorageService {
   // --- transcript.json ---
 
   Future<void> writeTranscriptJson(
-      String folderPath, TranscriptData data) async {
+    String folderPath,
+    TranscriptData data,
+  ) async {
     final file = File(p.join(folderPath, 'transcript.json'));
     await _writeAtomic(file, jsonEncode(data.toJson()));
   }
@@ -122,8 +128,7 @@ class DiaryStorageService {
   Future<TranscriptData> readTranscriptJson(String folderPath) async {
     final file = File(p.join(folderPath, 'transcript.json'));
     final content = await file.readAsString();
-    return TranscriptData.fromJson(
-        jsonDecode(content) as Map<String, dynamic>);
+    return TranscriptData.fromJson(jsonDecode(content) as Map<String, dynamic>);
   }
 
   // --- summary.md ---
@@ -141,17 +146,19 @@ class DiaryStorageService {
   // --- summary_utterances.json ---
 
   Future<void> writeSummaryUtterances(
-      String folderPath, SummaryUtteranceData data) async {
+    String folderPath,
+    SummaryUtteranceData data,
+  ) async {
     final file = File(p.join(folderPath, 'summary_utterances.json'));
     await _writeAtomic(file, jsonEncode(data.toJson()));
   }
 
-  Future<SummaryUtteranceData> readSummaryUtterances(
-      String folderPath) async {
+  Future<SummaryUtteranceData> readSummaryUtterances(String folderPath) async {
     final file = File(p.join(folderPath, 'summary_utterances.json'));
     final content = await file.readAsString();
     return SummaryUtteranceData.fromJson(
-        jsonDecode(content) as Map<String, dynamic>);
+      jsonDecode(content) as Map<String, dynamic>,
+    );
   }
 
   // --- llm_result.json ---
@@ -164,8 +171,7 @@ class DiaryStorageService {
   Future<LlmResultData> readLlmResult(String folderPath) async {
     final file = File(p.join(folderPath, 'llm_result.json'));
     final content = await file.readAsString();
-    return LlmResultData.fromJson(
-        jsonDecode(content) as Map<String, dynamic>);
+    return LlmResultData.fromJson(jsonDecode(content) as Map<String, dynamic>);
   }
 
   Future<bool> hasLlmResult(String folderPath) async {
@@ -187,27 +193,29 @@ class DiaryStorageService {
   Future<List<DiaryEntry>> getAllEntries() async {
     final rows = await _db.getAllEntries();
     return rows
-        .map((r) => DiaryEntry(
-              id: r.id,
-              title: r.title,
-              folderPath: r.folderPath,
-              durationSeconds: r.durationSeconds,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-              tosKey: r.tosKey,
-              audioFormat: r.audioFormat,
-              uploadedAt: r.uploadedAt != null
-                  ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
-                  : null,
-              weatherIcon: r.weatherIcon,
-              weatherText: r.weatherText,
-              temperature: r.temperature,
-              locationName: r.locationName,
-              locationLat: r.locationLat,
-              locationLon: r.locationLon,
-              status: _parseStatus(r.status),
-              processingStage: ProcessingStage.fromString(r.processingStage),
-              asrTaskId: r.asrTaskId,
-            ))
+        .map(
+          (r) => DiaryEntry(
+            id: r.id,
+            title: r.title,
+            folderPath: r.folderPath,
+            durationSeconds: r.durationSeconds,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+            tosKey: r.tosKey,
+            audioFormat: r.audioFormat,
+            uploadedAt: r.uploadedAt != null
+                ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+                : null,
+            weatherIcon: r.weatherIcon,
+            weatherText: r.weatherText,
+            temperature: r.temperature,
+            locationName: r.locationName,
+            locationLat: r.locationLat,
+            locationLon: r.locationLon,
+            status: _parseStatus(r.status),
+            processingStage: ProcessingStage.fromString(r.processingStage),
+            asrTaskId: r.asrTaskId,
+          ),
+        )
         .toList();
   }
 
@@ -249,13 +257,15 @@ class DiaryStorageService {
   Future<List<Tag>> getAllTags() async {
     final rows = await _db.getAllTags();
     return rows
-        .map((r) => Tag(
-              id: r.id,
-              name: r.name,
-              matchPrompt: r.matchPrompt,
-              color: r.color,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-            ))
+        .map(
+          (r) => Tag(
+            id: r.id,
+            name: r.name,
+            matchPrompt: r.matchPrompt,
+            color: r.color,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+          ),
+        )
         .toList();
   }
 
@@ -271,23 +281,27 @@ class DiaryStorageService {
   }
 
   Future<void> createTag(Tag tag) async {
-    await _db.insertTag(TagsCompanion.insert(
-      id: tag.id,
-      name: tag.name,
-      matchPrompt: Value(tag.matchPrompt),
-      color: Value(tag.color),
-      createdAt: tag.createdAt.millisecondsSinceEpoch,
-    ));
+    await _db.insertTag(
+      TagsCompanion.insert(
+        id: tag.id,
+        name: tag.name,
+        matchPrompt: Value(tag.matchPrompt),
+        color: Value(tag.color),
+        createdAt: tag.createdAt.millisecondsSinceEpoch,
+      ),
+    );
   }
 
   Future<void> updateTag(Tag tag) async {
-    await _db.updateTag(TagsCompanion(
-      id: Value(tag.id),
-      name: Value(tag.name),
-      matchPrompt: Value(tag.matchPrompt),
-      color: Value(tag.color),
-      createdAt: Value(tag.createdAt.millisecondsSinceEpoch),
-    ));
+    await _db.updateTag(
+      TagsCompanion(
+        id: Value(tag.id),
+        name: Value(tag.name),
+        matchPrompt: Value(tag.matchPrompt),
+        color: Value(tag.color),
+        createdAt: Value(tag.createdAt.millisecondsSinceEpoch),
+      ),
+    );
   }
 
   Future<void> deleteTag(String tagId) async {
@@ -297,14 +311,19 @@ class DiaryStorageService {
 
   // --- DiaryTagRelation ---
 
-  Future<void> addDiaryTag(String diaryId, String tagId,
-      {String source = 'manual'}) async {
-    await _db.insertDiaryTag(DiaryTagRelationsCompanion.insert(
-      diaryId: diaryId,
-      tagId: tagId,
-      source: Value(source),
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-    ));
+  Future<void> addDiaryTag(
+    String diaryId,
+    String tagId, {
+    String source = 'manual',
+  }) async {
+    await _db.insertDiaryTag(
+      DiaryTagRelationsCompanion.insert(
+        diaryId: diaryId,
+        tagId: tagId,
+        source: Value(source),
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   Future<void> removeDiaryTag(String diaryId, String tagId) async {
@@ -314,12 +333,14 @@ class DiaryStorageService {
   Future<List<DiaryTagRelation>> getTagsForDiary(String diaryId) async {
     final rows = await _db.getTagsForDiary(diaryId);
     return rows
-        .map((r) => DiaryTagRelation(
-              diaryId: r.diaryId,
-              tagId: r.tagId,
-              source: r.source,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-            ))
+        .map(
+          (r) => DiaryTagRelation(
+            diaryId: r.diaryId,
+            tagId: r.tagId,
+            source: r.source,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+          ),
+        )
         .toList();
   }
 
@@ -330,12 +351,14 @@ class DiaryStorageService {
   Future<void> autoTagDiary(String diaryId, List<String> tagIds) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final tagId in tagIds) {
-      await _db.insertDiaryTag(DiaryTagRelationsCompanion.insert(
-        diaryId: diaryId,
-        tagId: tagId,
-        source: const Value('auto'),
-        createdAt: now,
-      ));
+      await _db.insertDiaryTag(
+        DiaryTagRelationsCompanion.insert(
+          diaryId: diaryId,
+          tagId: tagId,
+          source: const Value('auto'),
+          createdAt: now,
+        ),
+      );
     }
   }
 
@@ -368,15 +391,20 @@ class DiaryStorageService {
   }
 
   /// 更新日记的 TOS 上传信息
-  Future<void> updateTosInfo(String id,
-      {String? tosKey, String? audioFormat, int? uploadedAt}) async {
+  Future<void> updateTosInfo(
+    String id, {
+    String? tosKey,
+    String? audioFormat,
+    int? uploadedAt,
+  }) async {
     final companion = DiaryEntriesCompanion(
       tosKey: Value(tosKey),
       audioFormat: Value(audioFormat ?? 'wav'),
       uploadedAt: Value(uploadedAt),
     );
-    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
-        .write(companion);
+    await (_db.update(
+      _db.diaryEntries,
+    )..where((t) => t.id.equals(id))).write(companion);
   }
 
   /// 根据音频格式获取音频文件路径，优先 OGG，回退 WAV
@@ -421,54 +449,65 @@ class DiaryStorageService {
   Future<List<DiaryEntry>> getPendingEntries() async {
     final rows = await _db.getPendingEntries();
     return rows
-        .map((r) => DiaryEntry(
-              id: r.id,
-              title: r.title,
-              folderPath: r.folderPath,
-              durationSeconds: r.durationSeconds,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-              tosKey: r.tosKey,
-              audioFormat: r.audioFormat,
-              uploadedAt: r.uploadedAt != null
-                  ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
-                  : null,
-              weatherIcon: r.weatherIcon,
-              weatherText: r.weatherText,
-              temperature: r.temperature,
-              locationName: r.locationName,
-              locationLat: r.locationLat,
-              locationLon: r.locationLon,
-              status: _parseStatus(r.status),
-              processingStage: ProcessingStage.fromString(r.processingStage),
-              asrTaskId: r.asrTaskId,
-            ))
+        .map(
+          (r) => DiaryEntry(
+            id: r.id,
+            title: r.title,
+            folderPath: r.folderPath,
+            durationSeconds: r.durationSeconds,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+            tosKey: r.tosKey,
+            audioFormat: r.audioFormat,
+            uploadedAt: r.uploadedAt != null
+                ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
+                : null,
+            weatherIcon: r.weatherIcon,
+            weatherText: r.weatherText,
+            temperature: r.temperature,
+            locationName: r.locationName,
+            locationLat: r.locationLat,
+            locationLon: r.locationLon,
+            status: _parseStatus(r.status),
+            processingStage: ProcessingStage.fromString(r.processingStage),
+            asrTaskId: r.asrTaskId,
+          ),
+        )
         .toList();
   }
 
   /// 更新处理阶段
   Future<void> updateProcessingStage(String id, ProcessingStage stage) async {
-    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(
-      processingStage: Value(stage.value),
-    ));
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(processingStage: Value(stage.value)),
+    );
   }
 
   /// 更新处理阶段和 tosKey
-  Future<void> updateTosKeyAndStage(String id, String tosKey, ProcessingStage stage) async {
-    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(
-      tosKey: Value(tosKey),
-      processingStage: Value(stage.value),
-    ));
+  Future<void> updateTosKeyAndStage(
+    String id,
+    String tosKey,
+    ProcessingStage stage,
+  ) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(
+        tosKey: Value(tosKey),
+        processingStage: Value(stage.value),
+      ),
+    );
   }
 
   /// 更新处理阶段和 asrTaskId
-  Future<void> updateAsrTaskIdAndStage(String id, String asrTaskId, ProcessingStage stage) async {
-    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id)))
-        .write(DiaryEntriesCompanion(
-      asrTaskId: Value(asrTaskId),
-      processingStage: Value(stage.value),
-    ));
+  Future<void> updateAsrTaskIdAndStage(
+    String id,
+    String asrTaskId,
+    ProcessingStage stage,
+  ) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(
+        asrTaskId: Value(asrTaskId),
+        processingStage: Value(stage.value),
+      ),
+    );
   }
 
   /// 获取条目的 tosKey

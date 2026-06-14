@@ -132,9 +132,9 @@ class _RecordingPageState extends State<RecordingPage> {
         break;
       case 'processing':
         // 跳转到日记列表页面
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const DiaryListPage()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const DiaryListPage()));
       case 'completed':
         // 跳转到日记详情页，自动播放 summary
         await _navigateToDetailAndPlay(entryId);
@@ -148,9 +148,9 @@ class _RecordingPageState extends State<RecordingPage> {
     try {
       final entry = await _storageService.getEntryById(entryId);
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => DiaryDetailPage(entry: entry)),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => DiaryDetailPage(entry: entry)));
     } catch (e) {
       debugPrint('[RecordingPage] 跳转详情页失败: $e');
     }
@@ -314,9 +314,7 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -329,9 +327,9 @@ class _RecordingPageState extends State<RecordingPage> {
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
               },
             ),
             Padding(
@@ -375,21 +373,25 @@ class _RecordingPageState extends State<RecordingPage> {
                     _state == RecordingState.recording) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: WarmTokens.warmSurface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                          width: 0.5),
+                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+                        width: 0.5,
+                      ),
                     ),
                     child: Text(
                       '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: WarmTokens.warmMuted,
-                          letterSpacing: 0.2),
+                        fontSize: 12,
+                        color: WarmTokens.warmMuted,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
                 ],
@@ -402,13 +404,16 @@ class _RecordingPageState extends State<RecordingPage> {
                     constraints: const BoxConstraints(maxHeight: 120),
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: WarmTokens.warmSurface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                          width: 0.5),
+                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+                        width: 0.5,
+                      ),
                     ),
                     child: SingleChildScrollView(
                       controller: _realtimeScrollController,

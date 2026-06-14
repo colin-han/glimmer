@@ -18,10 +18,12 @@ class WeatherLocation {
 
 class WeatherService {
   // 天气/地理接口在录音期间"即发即忘"调用，配置超时避免请求挂起导致 future 泄漏
-  final _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 8),
-    receiveTimeout: const Duration(seconds: 10),
-  ));
+  final _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 10),
+    ),
+  );
   String? _token;
   String? _host;
 
@@ -33,7 +35,9 @@ class WeatherService {
 
   /// 根据经纬度获取天气和城市信息，失败返回 null
   Future<WeatherLocation?> fetchWeatherAndLocation(
-      double lat, double lon) async {
+    double lat,
+    double lon,
+  ) async {
     _ensureInitialized();
     final token = _token!;
     final host = _host!;
@@ -67,16 +71,14 @@ class WeatherService {
       // 2. 获取天气实况
       final weatherResponse = await _dio.get(
         'https://$host/v7/weather/now',
-        queryParameters: {
-          'location': locParam,
-          'lang': 'zh',
-          'key': token,
-        },
+        queryParameters: {'location': locParam, 'lang': 'zh', 'key': token},
       );
 
       final weatherCode = weatherResponse.data['code']?.toString();
       if (weatherCode != '200') {
-        debugPrint('[天气] 天气API 返回 code=$weatherCode, body=${weatherResponse.data}');
+        debugPrint(
+          '[天气] 天气API 返回 code=$weatherCode, body=${weatherResponse.data}',
+        );
         return null;
       }
 
@@ -88,7 +90,9 @@ class WeatherService {
         locationName: locationName,
       );
     } on DioException catch (e) {
-      debugPrint('[天气] HTTP 错误: status=${e.response?.statusCode}, body=${e.response?.data}');
+      debugPrint(
+        '[天气] HTTP 错误: status=${e.response?.statusCode}, body=${e.response?.data}',
+      );
       return null;
     } catch (e) {
       debugPrint('[天气] 获取失败: $e');

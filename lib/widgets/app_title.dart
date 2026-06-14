@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 class AppTitle extends StatelessWidget {
   final String title;
 
-  static const bool isDev =
-      bool.fromEnvironment('dev', defaultValue: false);
+  static const bool isDev = bool.fromEnvironment('dev', defaultValue: false);
 
   const AppTitle({super.key, required this.title});
 
@@ -25,9 +24,10 @@ class AppTitle extends StatelessWidget {
           child: const Text(
             'dev',
             style: TextStyle(
-                fontSize: 10,
-                color: Colors.orange,
-                fontWeight: FontWeight.bold),
+              fontSize: 10,
+              color: Colors.orange,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

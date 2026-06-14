@@ -109,8 +109,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   /// 仅加载 transcript 字幕数据（ASR 完成后立即显示）
   Future<void> _loadTranscript() async {
     try {
-      final transcriptData =
-          await _storageService.readTranscriptJson(_entry.folderPath);
+      final transcriptData = await _storageService.readTranscriptJson(
+        _entry.folderPath,
+      );
       if (mounted && !_hasLlm) {
         setState(() {
           _activeUtterances = transcriptData.utterances;
@@ -128,18 +129,21 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     } catch (_) {}
 
     final audioPath = _storageService.getAudioPath(
-        _entry.folderPath, _entry.audioFormat);
+      _entry.folderPath,
+      _entry.audioFormat,
+    );
     final audioExists = File(audioPath).existsSync();
-    final transcriptExists =
-        await File(p.join(_entry.folderPath, 'transcript.json'))
-            .exists();
+    final transcriptExists = await File(
+      p.join(_entry.folderPath, 'transcript.json'),
+    ).exists();
     final hasLlm = await _storageService.hasLlmResult(_entry.folderPath);
 
     TranscriptData? transcriptData;
     if (transcriptExists) {
       try {
-        transcriptData =
-            await _storageService.readTranscriptJson(_entry.folderPath);
+        transcriptData = await _storageService.readTranscriptJson(
+          _entry.folderPath,
+        );
       } catch (_) {}
     }
 
@@ -147,8 +151,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     List<Utterance> summaryUtterances = [];
 
     if (hasLlm) {
-      final llmData =
-          await _storageService.readLlmResult(_entry.folderPath);
+      final llmData = await _storageService.readLlmResult(_entry.folderPath);
       summary = llmData.summary;
       summaryUtterances = llmData.utterances;
     }
@@ -188,21 +191,25 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     try {
       final audioPath = _storageService.getAudioPath(
-          _entry.folderPath, _entry.audioFormat);
-      final transcriptPath =
-          p.join(_entry.folderPath, 'transcript.json');
+        _entry.folderPath,
+        _entry.audioFormat,
+      );
+      final transcriptPath = p.join(_entry.folderPath, 'transcript.json');
       final transcriptExists = File(transcriptPath).existsSync();
 
       List<Utterance> utterances;
 
       if (!transcriptExists) {
         final asrResult = await _asrService.transcribe(audioPath);
-        await _storageService.writeTranscriptJson(_entry.folderPath,
-            TranscriptData(version: 1, utterances: asrResult.utterances));
+        await _storageService.writeTranscriptJson(
+          _entry.folderPath,
+          TranscriptData(version: 1, utterances: asrResult.utterances),
+        );
         utterances = asrResult.utterances;
       } else {
-        final transcriptData =
-            await _storageService.readTranscriptJson(_entry.folderPath);
+        final transcriptData = await _storageService.readTranscriptJson(
+          _entry.folderPath,
+        );
         utterances = transcriptData.utterances;
       }
 
@@ -214,32 +221,37 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
       final llmResult = await _llmService.summarize(utterances);
       await _storageService.writeLlmResult(
-          _entry.folderPath,
-          LlmResultData(
-            version: 1,
-            title: llmResult.title,
-            summary: llmResult.summary,
-            outline: llmResult.outline,
-            utterances: llmResult.utterances,
-          ));
+        _entry.folderPath,
+        LlmResultData(
+          version: 1,
+          title: llmResult.title,
+          summary: llmResult.summary,
+          outline: llmResult.outline,
+          utterances: llmResult.utterances,
+        ),
+      );
 
       await _storageService.updateTitle(_entry.id, llmResult.title);
 
       // 自动打 tag
       try {
         final allTags = await _storageService.getAllTags();
-        final tagsWithPrompt =
-            allTags.where((t) => t.matchPrompt.isNotEmpty).toList();
+        final tagsWithPrompt = allTags
+            .where((t) => t.matchPrompt.isNotEmpty)
+            .toList();
         if (tagsWithPrompt.isNotEmpty) {
           final tagInfos = tagsWithPrompt
-              .map((t) => TagInfo(
-                  id: t.id, name: t.name, matchPrompt: t.matchPrompt))
+              .map(
+                (t) =>
+                    TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt),
+              )
               .toList();
-          final matchedTagIds =
-              await _llmService.matchTags(llmResult.summary, tagInfos);
+          final matchedTagIds = await _llmService.matchTags(
+            llmResult.summary,
+            tagInfos,
+          );
           if (matchedTagIds.isNotEmpty) {
-            await _storageService.autoTagDiary(
-                _entry.id, matchedTagIds);
+            await _storageService.autoTagDiary(_entry.id, matchedTagIds);
           }
         }
       } catch (e) {
@@ -254,9 +266,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _retrying = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('重试失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('重试失败: $e')));
       }
     }
   }
@@ -274,7 +286,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       ),
     );
     await _storageService.updateEntryTitleAndStatus(
-        _entry.id, '未识别到语音内容', EntryStatus.completed);
+      _entry.id,
+      '未识别到语音内容',
+      EntryStatus.completed,
+    );
     if (mounted) {
       setState(() {
         _retrying = false;
@@ -292,19 +307,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         content: const Text('删除后无法恢复，确定要删除这篇日记吗？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('删除', style: TextStyle(color: Colors.red))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
 
     if (confirmed == true && mounted) {
-      await _storageService.deleteEntry(
-          _entry.id, _entry.folderPath);
+      await _storageService.deleteEntry(_entry.id, _entry.folderPath);
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DiaryListPage()),
@@ -338,13 +353,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.pause_circle_outline,
-                  color: WarmTokens.warmMuted, size: 18),
+              const Icon(
+                Icons.pause_circle_outline,
+                color: WarmTokens.warmMuted,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('处理暂停 · $stageText 待处理',
-                    style: const TextStyle(
-                        color: WarmTokens.warmBrown, fontSize: 13)),
+                child: Text(
+                  '处理暂停 · $stageText 待处理',
+                  style: const TextStyle(
+                    color: WarmTokens.warmBrown,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
@@ -367,12 +389,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: WarmTokens.warmMuted),
+                    strokeWidth: 2,
+                    color: WarmTokens.warmMuted,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Text('$stageText中...',
-                    style: const TextStyle(
-                        color: WarmTokens.warmBrown, fontSize: 13)),
+                Text(
+                  '$stageText中...',
+                  style: const TextStyle(
+                    color: WarmTokens.warmBrown,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -399,24 +427,32 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: WarmTokens.failedAccent, size: 18),
+          const Icon(
+            Icons.error_outline,
+            color: WarmTokens.failedAccent,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(failedStage,
-                style: const TextStyle(
-                    color: WarmTokens.failedText, fontSize: 13)),
+            child: Text(
+              failedStage,
+              style: const TextStyle(
+                color: WarmTokens.failedText,
+                fontSize: 13,
+              ),
+            ),
           ),
           if (_retrying)
             const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2))
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           else
             TextButton.icon(
               onPressed: _retry,
               icon: const Icon(Icons.refresh, size: 14),
-              label: const Text('重新处理',
-                  style: TextStyle(fontSize: 12)),
+              label: const Text('重新处理', style: TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(
                 foregroundColor: WarmTokens.failedAccent,
               ),
@@ -429,7 +465,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   @override
   Widget build(BuildContext context) {
     final audioPath = _storageService.getAudioPath(
-        _entry.folderPath, _entry.audioFormat);
+      _entry.folderPath,
+      _entry.audioFormat,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -445,8 +483,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             if (AppTitle.isDev) ...[
               const SizedBox(width: 6),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
@@ -454,9 +491,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 child: const Text(
                   'dev',
                   style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold),
+                    fontSize: 10,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -464,8 +502,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _deleteDiary),
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _deleteDiary,
+          ),
         ],
       ),
       body: _loading
@@ -482,9 +521,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Text(
-                          _isActivelyProcessing ? '⏳ 处理中...' : '⏸ 处理暂停',
-                          style: const TextStyle(
-                              fontSize: 12, color: WarmTokens.warmMuted)),
+                        _isActivelyProcessing ? '⏳ 处理中...' : '⏸ 处理暂停',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: WarmTokens.warmMuted,
+                        ),
+                      ),
                     )
                   else if (_tags.isNotEmpty)
                     Padding(
@@ -493,59 +535,78 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         spacing: 6,
                         runSpacing: 4,
                         children: [
-                          ..._tags.map((tag) => Chip(
-                                label: Text(tag.name,
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        color: WarmTokens.warmBrown)),
-                                onDeleted: () async {
-                                  await _storageService.removeDiaryTag(
-                                      _entry.id, tag.id);
-                                  final updatedTag =
-                                      await _storageService.getTagById(tag.id);
-                                  if (!mounted) return;
-                                  await showTagEditorSheet(
-                                    // ignore: use_build_context_synchronously
-                                    context,
-                                    tag: updatedTag,
-                                    isRemoval: true,
-                                  );
-                                  _loadTags();
-                                },
-                                deleteIconColor: WarmTokens.warmMuted,
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                labelPadding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                side: const BorderSide(
-                                    color: WarmTokens.warmDivider),
-                                backgroundColor: WarmTokens.warmCardBg,
-                              )),
+                          ..._tags.map(
+                            (tag) => Chip(
+                              label: Text(
+                                tag.name,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: WarmTokens.warmBrown,
+                                ),
+                              ),
+                              onDeleted: () async {
+                                await _storageService.removeDiaryTag(
+                                  _entry.id,
+                                  tag.id,
+                                );
+                                final updatedTag = await _storageService
+                                    .getTagById(tag.id);
+                                if (!mounted) return;
+                                await showTagEditorSheet(
+                                  // ignore: use_build_context_synchronously
+                                  context,
+                                  tag: updatedTag,
+                                  isRemoval: true,
+                                );
+                                _loadTags();
+                              },
+                              deleteIconColor: WarmTokens.warmMuted,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              side: const BorderSide(
+                                color: WarmTokens.warmDivider,
+                              ),
+                              backgroundColor: WarmTokens.warmCardBg,
+                            ),
+                          ),
                           ActionChip(
-                            avatar: const Icon(Icons.add, size: 16,
-                                color: WarmTokens.warmMuted),
-                            label: const Text('标签',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: WarmTokens.warmMuted)),
+                            avatar: const Icon(
+                              Icons.add,
+                              size: 16,
+                              color: WarmTokens.warmMuted,
+                            ),
+                            label: const Text(
+                              '标签',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: WarmTokens.warmMuted,
+                              ),
+                            ),
                             onPressed: () async {
                               final selectedIds = await showTagSelectorSheet(
                                 context,
-                                selectedTagIds:
-                                    _tags.map((t) => t.id).toList(),
+                                selectedTagIds: _tags.map((t) => t.id).toList(),
                               );
                               if (selectedIds != null && mounted) {
-                                final currentIds =
-                                    _tags.map((t) => t.id).toSet();
+                                final currentIds = _tags
+                                    .map((t) => t.id)
+                                    .toSet();
                                 final newIds = selectedIds.toSet();
-                                for (final id
-                                    in newIds.difference(currentIds)) {
+                                for (final id in newIds.difference(
+                                  currentIds,
+                                )) {
                                   await _storageService.addDiaryTag(
-                                      _entry.id, id);
-                                  final tag =
-                                      await _storageService.getTagById(id);
+                                    _entry.id,
+                                    id,
+                                  );
+                                  final tag = await _storageService.getTagById(
+                                    id,
+                                  );
                                   if (!mounted) continue;
                                   await showTagEditorSheet(
                                     // ignore: use_build_context_synchronously
@@ -554,12 +615,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                     isRemoval: false,
                                   );
                                 }
-                                for (final id
-                                    in currentIds.difference(newIds)) {
+                                for (final id in currentIds.difference(
+                                  newIds,
+                                )) {
                                   await _storageService.removeDiaryTag(
-                                      _entry.id, id);
-                                  final tag =
-                                      await _storageService.getTagById(id);
+                                    _entry.id,
+                                    id,
+                                  );
+                                  final tag = await _storageService.getTagById(
+                                    id,
+                                  );
                                   if (!mounted) continue;
                                   await showTagEditorSheet(
                                     // ignore: use_build_context_synchronously
@@ -573,7 +638,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                             },
                             visualDensity: VisualDensity.compact,
                             side: const BorderSide(
-                                color: WarmTokens.warmDivider),
+                              color: WarmTokens.warmDivider,
+                            ),
                             backgroundColor: WarmTokens.warmCardBg,
                           ),
                         ],
@@ -582,8 +648,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   // 分隔线
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Divider(
-                        height: 1, color: WarmTokens.warmDivider),
+                    child: Divider(height: 1, color: WarmTokens.warmDivider),
                   ),
                   // 播放器区域
                   if (_audioExists)
@@ -599,8 +664,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   if (_hasLlm && _summary.isNotEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
-                      child: Divider(
-                          height: 1, color: WarmTokens.warmDivider),
+                      child: Divider(height: 1, color: WarmTokens.warmDivider),
                     ),
                   // 日记
                   if (_hasLlm && _summary.isNotEmpty)

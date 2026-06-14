@@ -65,10 +65,7 @@ class AudioRecorderService {
     final filePath = _filePath ?? '';
     _filePath = null;
 
-    return RecordingResult(
-      filePath: filePath,
-      durationSeconds: duration,
-    );
+    return RecordingResult(filePath: filePath, durationSeconds: duration);
   }
 
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {

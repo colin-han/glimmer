@@ -69,8 +69,7 @@ class DiaryEntry {
     );
   }
 
-  String get displayTitle =>
-      title.isNotEmpty ? title : '未命名日记';
+  String get displayTitle => title.isNotEmpty ? title : '未命名日记';
 
   String get formattedDate {
     return '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')} '

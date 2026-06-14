@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design_tokens.dart';
 
-enum RecordingState {
-  idle,
-  recording,
-  processing,
-}
+enum RecordingState { idle, recording, processing }
 
 class RecordingButton extends StatelessWidget {
   final RecordingState state;
@@ -48,10 +44,7 @@ class RecordingButton extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color.withValues(alpha: 0.08),
-        border: Border.all(
-          color: color.withValues(alpha: 0.5),
-          width: 2.5,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 2.5),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.12),
@@ -65,13 +58,13 @@ class RecordingButton extends StatelessWidget {
           RecordingState.idle => _buildIdleContent(color),
           RecordingState.recording => _buildRecordingContent(color),
           RecordingState.processing => SizedBox(
-              width: 36,
-              height: 36,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: WarmTokens.warmMuted,
-              ),
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: WarmTokens.warmMuted,
             ),
+          ),
         },
       ),
     );

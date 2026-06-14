@@ -29,12 +29,17 @@ class StorageMigrationService {
   /// 将应用文档目录打包为 zip 备份
   Future<void> _backupBeforeMigration(int fromVersion) async {
     final docDir = await getApplicationDocumentsDirectory();
-    final backupDir = Directory(p.join(docDir.parent.path, 'migration_backups'));
+    final backupDir = Directory(
+      p.join(docDir.parent.path, 'migration_backups'),
+    );
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
 
-    final timestamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+    final timestamp = DateTime.now().toUtc().toIso8601String().replaceAll(
+      ':',
+      '-',
+    );
     final backupName = 'backup_v${fromVersion}_$timestamp.zip';
     final backupPath = p.join(backupDir.path, backupName);
 

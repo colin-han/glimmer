@@ -85,10 +85,7 @@ class DetailContentSection extends StatelessWidget {
               color: WarmTokens.warmBrown,
               height: 1.8,
             ),
-            listBullet: TextStyle(
-              fontSize: 15,
-              color: WarmTokens.warmAmber,
-            ),
+            listBullet: TextStyle(fontSize: 15, color: WarmTokens.warmAmber),
             em: TextStyle(
               fontStyle: FontStyle.italic,
               color: WarmTokens.warmMuted,

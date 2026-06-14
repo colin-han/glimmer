@@ -92,15 +92,12 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
 
   @override
   Widget build(BuildContext context) {
-    final hasUtterances =
-        widget.hasTranscript && widget.utterances.isNotEmpty;
+    final hasUtterances = widget.hasTranscript && widget.utterances.isNotEmpty;
 
     return Column(
       children: [
         // 播放器
-        AudioPlayerBar(
-          playerService: widget.playerService,
-        ),
+        AudioPlayerBar(playerService: widget.playerService),
         if (hasUtterances && _loaded) ...[
           const SizedBox(height: 12),
           // 字幕行 + 展开区域
@@ -109,8 +106,10 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
             initialData: widget.playerService.currentState,
             builder: (context, snapshot) {
               final state = snapshot.data ?? const AudioPlayerState();
-              final currentIndex =
-                  findCurrentIndex(widget.utterances, state.position);
+              final currentIndex = findCurrentIndex(
+                widget.utterances,
+                state.position,
+              );
 
               // 当前句子变化时触发自动滚动
               if (currentIndex != _previousIndex && currentIndex >= 0) {
@@ -121,8 +120,8 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                 });
               }
 
-              final currentText = currentIndex >= 0 &&
-                      currentIndex < widget.utterances.length
+              final currentText =
+                  currentIndex >= 0 && currentIndex < widget.utterances.length
                   ? widget.utterances[currentIndex].text
                   : '';
 
@@ -133,9 +132,12 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
                     GestureDetector(
                       onTap: () {
                         if (currentIndex >= 0) {
-                          widget.playerService.seek(Duration(
+                          widget.playerService.seek(
+                            Duration(
                               milliseconds:
-                                  widget.utterances[currentIndex].startTime));
+                                  widget.utterances[currentIndex].startTime,
+                            ),
+                          );
                         }
                       },
                       child: AnimatedSwitcher(
@@ -177,13 +179,10 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color:
-              _expanded ? WarmTokens.warmSurface : Colors.transparent,
+          color: _expanded ? WarmTokens.warmSurface : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _expanded
-                ? WarmTokens.warmDivider
-                : Colors.transparent,
+            color: _expanded ? WarmTokens.warmDivider : Colors.transparent,
             width: 1,
           ),
         ),
@@ -261,8 +260,9 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
           ],
         ),
       ),
-      crossFadeState:
-          _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+      crossFadeState: _expanded
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
       duration: const Duration(milliseconds: 250),
       sizeCurve: Curves.easeOutCubic,
     );
@@ -309,8 +309,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
 
     return GestureDetector(
       onTap: () {
-        widget.playerService
-            .seek(Duration(milliseconds: utterance.startTime));
+        widget.playerService.seek(Duration(milliseconds: utterance.startTime));
       },
       child: Padding(
         key: _utteranceKeys[index],
@@ -335,10 +334,7 @@ class _DetailPlayerSectionState extends State<DetailPlayerSection> {
   void _copyFullText() {
     Clipboard.setData(ClipboardData(text: _fullText));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已复制'),
-        duration: Duration(seconds: 1),
-      ),
+      const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1)),
     );
   }
 }

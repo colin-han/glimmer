@@ -68,14 +68,20 @@ class MigrationService {
         await _convertWavToOgg(wavPath, oggPath);
       }
       final tosKey = await _tos.uploadAudio(oggPath, entry.id);
-      await _storage.updateTosInfo(entry.id,
-          tosKey: tosKey, audioFormat: 'wav');
+      await _storage.updateTosInfo(
+        entry.id,
+        tosKey: tosKey,
+        audioFormat: 'wav',
+      );
       return true;
     } else if (hasOgg) {
       // 新格式（录音已是 OGG，但 TOS 上传失败）：直接上传
       final tosKey = await _tos.uploadAudio(oggPath, entry.id);
-      await _storage.updateTosInfo(entry.id,
-          tosKey: tosKey, audioFormat: 'ogg');
+      await _storage.updateTosInfo(
+        entry.id,
+        tosKey: tosKey,
+        audioFormat: 'ogg',
+      );
       return true;
     } else {
       // 音频文件不存在，标记为已处理避免每次启动重复检查

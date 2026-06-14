@@ -36,22 +36,18 @@ class AsrService {
       'https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash',
       data: {
         'user': {'uid': appid},
-        'audio': {
-          'data': audioBase64,
-          'format': 'wav',
-        },
-        'request': {
-          'model_name': 'bigmodel',
-          'show_utterances': true,
-        },
+        'audio': {'data': audioBase64, 'format': 'wav'},
+        'request': {'model_name': 'bigmodel', 'show_utterances': true},
       },
-      options: Options(headers: {
-        'X-Api-App-Key': appid,
-        'X-Api-Access-Key': token,
-        'X-Api-Resource-Id': 'volc.bigasr.auc_turbo',
-        'X-Api-Request-Id': requestId,
-        'X-Api-Sequence': '-1',
-      }),
+      options: Options(
+        headers: {
+          'X-Api-App-Key': appid,
+          'X-Api-Access-Key': token,
+          'X-Api-Resource-Id': 'volc.bigasr.auc_turbo',
+          'X-Api-Request-Id': requestId,
+          'X-Api-Sequence': '-1',
+        },
+      ),
     );
 
     _ensureSuccess(response);
@@ -76,22 +72,18 @@ class AsrService {
       'https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash',
       data: {
         'user': {'uid': appid},
-        'audio': {
-          'url': audioUrl,
-          'format': 'ogg_opus',
-        },
-        'request': {
-          'model_name': 'bigmodel',
-          'show_utterances': true,
-        },
+        'audio': {'url': audioUrl, 'format': 'ogg_opus'},
+        'request': {'model_name': 'bigmodel', 'show_utterances': true},
       },
-      options: Options(headers: {
-        'X-Api-App-Key': appid,
-        'X-Api-Access-Key': token,
-        'X-Api-Resource-Id': 'volc.bigasr.auc_turbo',
-        'X-Api-Request-Id': requestId,
-        'X-Api-Sequence': '-1',
-      }),
+      options: Options(
+        headers: {
+          'X-Api-App-Key': appid,
+          'X-Api-Access-Key': token,
+          'X-Api-Resource-Id': 'volc.bigasr.auc_turbo',
+          'X-Api-Request-Id': requestId,
+          'X-Api-Sequence': '-1',
+        },
+      ),
     );
 
     _ensureSuccess(response);
@@ -110,35 +102,37 @@ class AsrService {
     final apiKey = dotenv.get('VOLCENGINE_SPEECH_API_KEY');
     final requestId = _uuid.v4();
 
-    debugPrint('[ASR] submitAsync: requestId=$requestId, url=${audioUrl.substring(0, audioUrl.indexOf("?"))}...');
+    debugPrint(
+      '[ASR] submitAsync: requestId=$requestId, url=${audioUrl.substring(0, audioUrl.indexOf("?"))}...',
+    );
 
     try {
       final response = await _dio.post(
         'https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit',
         data: {
           'user': {'uid': 'voice_diary'},
-          'audio': {
-            'url': audioUrl,
-            'format': 'ogg_opus',
-          },
-          'request': {
-            'model_name': 'bigmodel',
-            'show_utterances': true,
-          },
+          'audio': {'url': audioUrl, 'format': 'ogg_opus'},
+          'request': {'model_name': 'bigmodel', 'show_utterances': true},
         },
-        options: Options(headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'X-Api-Resource-Id': 'volc.seedasr.auc',
-          'X-Api-Request-Id': requestId,
-          'X-Api-Sequence': '-1',
-        }),
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'X-Api-Resource-Id': 'volc.seedasr.auc',
+            'X-Api-Request-Id': requestId,
+            'X-Api-Sequence': '-1',
+          },
+        ),
       );
 
-      debugPrint('[ASR] submitAsync 成功: statusCode=${response.statusCode}, data=${response.data}');
+      debugPrint(
+        '[ASR] submitAsync 成功: statusCode=${response.statusCode}, data=${response.data}',
+      );
       return requestId;
     } on DioException catch (e) {
-      debugPrint('[ASR] submitAsync 失败: ${e.type}, status=${e.response?.statusCode}');
+      debugPrint(
+        '[ASR] submitAsync 失败: ${e.type}, status=${e.response?.statusCode}',
+      );
       debugPrint('[ASR] submitAsync 响应头: ${e.response?.headers.map}');
       debugPrint('[ASR] submitAsync 响应体: ${e.response?.data}');
       rethrow;
@@ -154,12 +148,14 @@ class AsrService {
     final response = await _dio.post(
       'https://openspeech.bytedance.com/api/v3/auc/bigmodel/query',
       data: {},
-      options: Options(headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'X-Api-Resource-Id': 'volc.seedasr.auc',
-        'X-Api-Request-Id': requestId,
-      }),
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'X-Api-Resource-Id': 'volc.seedasr.auc',
+          'X-Api-Request-Id': requestId,
+        },
+      ),
     );
 
     final statusCode = response.headers.value('X-Api-Status-Code');
@@ -188,7 +184,8 @@ class AsrService {
   }
 
   /// 轮询异步 ASR 直到完成或超时
-  Future<AsrResult> pollAsyncResult(String requestId, {
+  Future<AsrResult> pollAsyncResult(
+    String requestId, {
     Duration interval = const Duration(seconds: 3),
     Duration timeout = const Duration(minutes: 10),
   }) async {
@@ -223,11 +220,13 @@ class AsrService {
       final endTime = u['end_time'];
       if (text is! String) continue;
       if (startTime is! num || endTime is! num) continue;
-      parsed.add(Utterance(
-        text: text,
-        startTime: startTime.toInt(),
-        endTime: endTime.toInt(),
-      ));
+      parsed.add(
+        Utterance(
+          text: text,
+          startTime: startTime.toInt(),
+          endTime: endTime.toInt(),
+        ),
+      );
     }
     return parsed;
   }

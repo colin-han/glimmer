@@ -47,7 +47,11 @@ class TosUploadService {
   /// 上传音频文件到 TOS（PUT + TOS4 Header 签名）
   Future<String> uploadAudio(String localPath, String diaryId) async {
     _ensureInitialized();
-    final ak = _ak!, sk = _sk!, endpoint = _endpoint!, bucket = _bucket!, region = _region!;
+    final ak = _ak!,
+        sk = _sk!,
+        endpoint = _endpoint!,
+        bucket = _bucket!,
+        region = _region!;
     final tosKey = tosKeyForDiary(diaryId);
     final host = '$bucket.$endpoint';
     final url = 'https://$host/$tosKey';
@@ -84,8 +88,9 @@ class TosUploadService {
 
     debugPrint('[TOS] canonicalRequest:\n$canonicalRequest');
 
-    final canonicalRequestHash =
-        sha256.convert(utf8.encode(canonicalRequest)).toString();
+    final canonicalRequestHash = sha256
+        .convert(utf8.encode(canonicalRequest))
+        .toString();
     final stringToSign =
         'TOS4-HMAC-SHA256\n$longDate\n$credentialScope\n$canonicalRequestHash';
 
@@ -114,7 +119,9 @@ class TosUploadService {
         ),
       );
     } on DioException catch (e) {
-      debugPrint('[TOS] 上传失败: status=${e.response?.statusCode} body=${e.response?.data}');
+      debugPrint(
+        '[TOS] 上传失败: status=${e.response?.statusCode} body=${e.response?.data}',
+      );
       rethrow;
     }
 
@@ -122,10 +129,16 @@ class TosUploadService {
   }
 
   /// 生成预签名 URL（GET + TOS4 签名查询参数）
-  Future<String> getPresignedUrl(String tosKey,
-      {int expiresSeconds = 3600}) async {
+  Future<String> getPresignedUrl(
+    String tosKey, {
+    int expiresSeconds = 3600,
+  }) async {
     _ensureInitialized();
-    final ak = _ak!, sk = _sk!, endpoint = _endpoint!, bucket = _bucket!, region = _region!;
+    final ak = _ak!,
+        sk = _sk!,
+        endpoint = _endpoint!,
+        bucket = _bucket!,
+        region = _region!;
     final now = DateTime.now().toUtc();
     final shortDate =
         '${now.year}${_twoDigits(now.month)}${_twoDigits(now.day)}';
@@ -145,8 +158,10 @@ class TosUploadService {
 
     final canonicalUri = '/${_urlEncodeKey(tosKey)}';
     final canonicalQueryString = queryParams.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     final canonicalHeaders = 'host:$host\n';
     final signedHeaders = 'host';
@@ -154,8 +169,9 @@ class TosUploadService {
     final canonicalRequest =
         'GET\n$canonicalUri\n$canonicalQueryString\n$canonicalHeaders\n$signedHeaders\nUNSIGNED-PAYLOAD';
 
-    final canonicalRequestHash =
-        sha256.convert(utf8.encode(canonicalRequest)).toString();
+    final canonicalRequestHash = sha256
+        .convert(utf8.encode(canonicalRequest))
+        .toString();
     final stringToSign =
         'TOS4-HMAC-SHA256\n$longDate\n$credentialScope\n$canonicalRequestHash';
 
@@ -165,8 +181,10 @@ class TosUploadService {
     final allQueryParams = Map<String, String>.from(queryParams);
     allQueryParams['X-Tos-Signature'] = signature;
     final queryString = allQueryParams.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
 
     return 'https://$host/$encodedKey?$queryString';
@@ -180,23 +198,29 @@ class TosUploadService {
   // ==================== 签名辅助方法 ====================
 
   static String _calcSignature(
-      String stringToSign, String shortDate, String region, String sk) {
+    String stringToSign,
+    String shortDate,
+    String region,
+    String sk,
+  ) {
     final signingKey = _calcSigningKey(shortDate, region, sk);
-    return Hmac(sha256, signingKey)
-        .convert(utf8.encode(stringToSign))
-        .toString();
+    return Hmac(
+      sha256,
+      signingKey,
+    ).convert(utf8.encode(stringToSign)).toString();
   }
 
-  static List<int> _calcSigningKey(
-      String shortDate, String region, String sk) {
-    final kDate =
-        Hmac(sha256, utf8.encode(sk)).convert(utf8.encode(shortDate)).bytes;
-    final kRegion =
-        Hmac(sha256, kDate).convert(utf8.encode(region)).bytes;
-    final kService =
-        Hmac(sha256, kRegion).convert(utf8.encode('tos')).bytes;
-    final kSigning =
-        Hmac(sha256, kService).convert(utf8.encode('request')).bytes;
+  static List<int> _calcSigningKey(String shortDate, String region, String sk) {
+    final kDate = Hmac(
+      sha256,
+      utf8.encode(sk),
+    ).convert(utf8.encode(shortDate)).bytes;
+    final kRegion = Hmac(sha256, kDate).convert(utf8.encode(region)).bytes;
+    final kService = Hmac(sha256, kRegion).convert(utf8.encode('tos')).bytes;
+    final kSigning = Hmac(
+      sha256,
+      kService,
+    ).convert(utf8.encode('request')).bytes;
     return kSigning;
   }
 

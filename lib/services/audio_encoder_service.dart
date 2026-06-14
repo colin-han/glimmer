@@ -75,7 +75,11 @@ class AudioEncoderService {
           ? pcmData.length - srcOffset
           : remaining;
       _buffer.setRange(
-          _bufferOffset, _bufferOffset + copyLen, pcmData, srcOffset);
+        _bufferOffset,
+        _bufferOffset + copyLen,
+        pcmData,
+        srcOffset,
+      );
       _bufferOffset += copyLen;
       srcOffset += copyLen;
 
@@ -124,7 +128,10 @@ class AudioEncoderService {
   void _encodeFrame(Uint8List pcmFrame) {
     // PCM bytes → Int16List for Opus encoder
     final pcmSamples = Int16List.view(
-        pcmFrame.buffer, pcmFrame.offsetInBytes, _frameSize);
+      pcmFrame.buffer,
+      pcmFrame.offsetInBytes,
+      _frameSize,
+    );
     final opusPacket = _encoder!.encode(pcmSamples, _frameSize);
     if (opusPacket == null) {
       throw StateError('Opus 编码失败');

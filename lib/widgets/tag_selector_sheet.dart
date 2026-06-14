@@ -63,12 +63,14 @@ class _TagSelectorContentState extends State<_TagSelectorContent> {
     }
     final tagId = dup?.id ?? _uuid.v4();
     if (dup == null) {
-      await _storageService.createTag(Tag(
-        id: tagId,
-        name: trimmed,
-        matchPrompt: '',
-        createdAt: DateTime.now(),
-      ));
+      await _storageService.createTag(
+        Tag(
+          id: tagId,
+          name: trimmed,
+          matchPrompt: '',
+          createdAt: DateTime.now(),
+        ),
+      );
     }
     _selectedIds.add(tagId);
     _newTagNameController.clear();

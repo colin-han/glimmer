@@ -36,21 +36,21 @@ class _ApiLogPageState extends State<ApiLogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('API 日志'),
-      ),
+      appBar: AppBar(title: const Text('API 日志')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _logs.isEmpty
-              ? Center(
-                  child: Text('暂无日志',
-                      style: TextStyle(
-                          fontSize: 15, color: WarmTokens.warmMuted)))
-              : RefreshIndicator(
-                  onRefresh: _loadLogs,
-                  color: WarmTokens.warmAmber,
-                  child: _buildGroupedList(),
-                ),
+          ? Center(
+              child: Text(
+                '暂无日志',
+                style: TextStyle(fontSize: 15, color: WarmTokens.warmMuted),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadLogs,
+              color: WarmTokens.warmAmber,
+              child: _buildGroupedList(),
+            ),
     );
   }
 
@@ -67,16 +67,16 @@ class _ApiLogPageState extends State<ApiLogPage> {
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      children: groups.entries
-          .expand((group) {
-            final totalCost = group.value
-                .fold<double>(0, (sum, l) => sum + (l.estimatedCost ?? 0));
-            return [
-              _buildGroupHeader(group.key, totalCost),
-              ...group.value.map((log) => _buildLogCard(log)),
-            ];
-          })
-          .toList(),
+      children: groups.entries.expand((group) {
+        final totalCost = group.value.fold<double>(
+          0,
+          (sum, l) => sum + (l.estimatedCost ?? 0),
+        );
+        return [
+          _buildGroupHeader(group.key, totalCost),
+          ...group.value.map((log) => _buildLogCard(log)),
+        ];
+      }).toList(),
     );
   }
 
@@ -94,22 +94,26 @@ class _ApiLogPageState extends State<ApiLogPage> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(_formatDateLabel(dateKey),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: WarmTokens.warmMuted,
-                letterSpacing: 0.3,
-              )),
+          Text(
+            _formatDateLabel(dateKey),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: WarmTokens.warmMuted,
+              letterSpacing: 0.3,
+            ),
+          ),
           const Spacer(),
           if (totalCost > 0)
-            Text('合计 ¥${totalCost.toStringAsFixed(4)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: WarmTokens.warmAmber,
-                  fontFamily: 'monospace',
-                  fontWeight: FontWeight.w500,
-                )),
+            Text(
+              '合计 ¥${totalCost.toStringAsFixed(4)}',
+              style: TextStyle(
+                fontSize: 11,
+                color: WarmTokens.warmAmber,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
         ],
       ),
     );
@@ -145,13 +149,11 @@ class _ApiLogPageState extends State<ApiLogPage> {
     final statusColor = isError
         ? WarmTokens.failedAccent
         : isSuccess
-            ? Colors.green
-            : WarmTokens.warmMuted;
+        ? Colors.green
+        : WarmTokens.warmMuted;
 
     // 背景
-    final bgColor = isError
-        ? WarmTokens.failedBg
-        : WarmTokens.warmCardBg;
+    final bgColor = isError ? WarmTokens.failedBg : WarmTokens.warmCardBg;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -167,24 +169,29 @@ class _ApiLogPageState extends State<ApiLogPage> {
           // 第一行：时间 + 状态
           Row(
             children: [
-              Text(timeStr,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: WarmTokens.warmMuted,
-                      fontFamily: 'monospace')),
+              Text(
+                timeStr,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: WarmTokens.warmMuted,
+                  fontFamily: 'monospace',
+                ),
+              ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(log.status,
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: statusColor,
-                        fontWeight: FontWeight.w500)),
+                child: Text(
+                  log.status,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
           ),
@@ -192,69 +199,91 @@ class _ApiLogPageState extends State<ApiLogPage> {
           // 第二行：apiType · step
           Row(
             children: [
-              Text(isStep ? 'STEP' : log.apiType,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: WarmTokens.warmBrown,
-                      fontFamily: 'monospace')),
-              Text(' · ',
-                  style: TextStyle(
-                      fontSize: 12, color: WarmTokens.warmMuted)),
-              Text(log.step,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: WarmTokens.warmBrown,
-                      fontFamily: 'monospace')),
+              Text(
+                isStep ? 'STEP' : log.apiType,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: WarmTokens.warmBrown,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              Text(
+                ' · ',
+                style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted),
+              ),
+              Text(
+                log.step,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: WarmTokens.warmBrown,
+                  fontFamily: 'monospace',
+                ),
+              ),
               if (log.durationMs != null) ...[
-                Text(' · ',
-                    style: TextStyle(
-                        fontSize: 12, color: WarmTokens.warmMuted)),
-                Text('${log.durationMs}ms',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: WarmTokens.warmMuted,
-                        fontFamily: 'monospace')),
+                Text(
+                  ' · ',
+                  style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted),
+                ),
+                Text(
+                  '${log.durationMs}ms',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: WarmTokens.warmMuted,
+                    fontFamily: 'monospace',
+                  ),
+                ),
               ],
             ],
           ),
           // 第三行：diaryId（缩写）
           const SizedBox(height: 2),
-          Text('diary: ${_shortId(log.diaryId)}',
-              style: TextStyle(
-                  fontSize: 10,
-                  color: WarmTokens.warmMuted,
-                  fontFamily: 'monospace')),
+          Text(
+            'diary: ${_shortId(log.diaryId)}',
+            style: TextStyle(
+              fontSize: 10,
+              color: WarmTokens.warmMuted,
+              fontFamily: 'monospace',
+            ),
+          ),
           // Token 用量
           if (log.promptTokens != null || log.completionTokens != null) ...[
             const SizedBox(height: 2),
             Text(
-                'tokens: ${log.promptTokens ?? 0}↑ ${log.completionTokens ?? 0}↓'
-                '${log.cachedTokens != null ? ' (cached: ${log.cachedTokens})' : ''}'
-                '${log.reasoningTokens != null ? ' (reasoning: ${log.reasoningTokens})' : ''}',
-                style: TextStyle(
-                    fontSize: 10,
-                    color: WarmTokens.warmMuted,
-                    fontFamily: 'monospace')),
+              'tokens: ${log.promptTokens ?? 0}↑ ${log.completionTokens ?? 0}↓'
+              '${log.cachedTokens != null ? ' (cached: ${log.cachedTokens})' : ''}'
+              '${log.reasoningTokens != null ? ' (reasoning: ${log.reasoningTokens})' : ''}',
+              style: TextStyle(
+                fontSize: 10,
+                color: WarmTokens.warmMuted,
+                fontFamily: 'monospace',
+              ),
+            ),
           ],
           // 费用
           if (log.estimatedCost != null) ...[
             const SizedBox(height: 2),
-            Text('cost: ¥${log.estimatedCost!.toStringAsFixed(4)}',
-                style: TextStyle(
-                    fontSize: 10,
-                    color: WarmTokens.warmAmber,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w500)),
+            Text(
+              'cost: ¥${log.estimatedCost!.toStringAsFixed(4)}',
+              style: TextStyle(
+                fontSize: 10,
+                color: WarmTokens.warmAmber,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
           // 音频时长
           if (log.audioDurationSeconds != null) ...[
             const SizedBox(height: 2),
-            Text('audio: ${log.audioDurationSeconds}s',
-                style: TextStyle(
-                    fontSize: 10,
-                    color: WarmTokens.warmMuted,
-                    fontFamily: 'monospace')),
+            Text(
+              'audio: ${log.audioDurationSeconds}s',
+              style: TextStyle(
+                fontSize: 10,
+                color: WarmTokens.warmMuted,
+                fontFamily: 'monospace',
+              ),
+            ),
           ],
           // 错误信息
           if (log.errorMessage != null) ...[
@@ -266,13 +295,16 @@ class _ApiLogPageState extends State<ApiLogPage> {
                 color: WarmTokens.failedAccent.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(log.errorMessage!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: WarmTokens.failedAccent,
-                      fontFamily: 'monospace')),
+              child: Text(
+                log.errorMessage!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: WarmTokens.failedAccent,
+                  fontFamily: 'monospace',
+                ),
+              ),
             ),
           ],
         ],

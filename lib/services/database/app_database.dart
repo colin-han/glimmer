@@ -30,69 +30,69 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-        },
-        onUpgrade: (Migrator m, int from, int to) async {
-          // 幂等迁移：每个 step 先检测目标是否已存在，已存在则跳过。
-          // 不再用 `try/catch(_){}` 吞掉异常——真正的失败（磁盘满/IO 错误等）必须抛出，
-          // 否则 schemaVersion 会推进到残缺状态，下次启动不再重试，DB 永久缺列。
-          // 真正失败时 drift 不会更新 user_version，下次启动从同一 from 版本重试（幂等故安全）。
-          if (from < 2) {
-            if (!await _tableExists('tags')) await m.createTable(tags);
-            if (!await _tableExists('diary_tag_relations')) {
-              await m.createTable(diaryTagRelations);
-            }
-          }
-          if (from < 3) {
-            if (!await _columnExists('diary_entries', 'tos_key')) {
-              await m.addColumn(diaryEntries, diaryEntries.tosKey);
-            }
-            if (!await _columnExists('diary_entries', 'audio_format')) {
-              await m.addColumn(diaryEntries, diaryEntries.audioFormat);
-            }
-            if (!await _columnExists('diary_entries', 'uploaded_at')) {
-              await m.addColumn(diaryEntries, diaryEntries.uploadedAt);
-            }
-          }
-          if (from < 4) {
-            if (!await _columnExists('diary_entries', 'weather_icon')) {
-              await m.addColumn(diaryEntries, diaryEntries.weatherIcon);
-            }
-            if (!await _columnExists('diary_entries', 'weather_text')) {
-              await m.addColumn(diaryEntries, diaryEntries.weatherText);
-            }
-            if (!await _columnExists('diary_entries', 'temperature')) {
-              await m.addColumn(diaryEntries, diaryEntries.temperature);
-            }
-            if (!await _columnExists('diary_entries', 'location_name')) {
-              await m.addColumn(diaryEntries, diaryEntries.locationName);
-            }
-            if (!await _columnExists('diary_entries', 'location_lat')) {
-              await m.addColumn(diaryEntries, diaryEntries.locationLat);
-            }
-            if (!await _columnExists('diary_entries', 'location_lon')) {
-              await m.addColumn(diaryEntries, diaryEntries.locationLon);
-            }
-          }
-          if (from < 5) {
-            if (!await _columnExists('diary_entries', 'status')) {
-              await m.addColumn(diaryEntries, diaryEntries.status);
-            }
-          }
-          if (from < 6) {
-            if (!await _columnExists('diary_entries', 'processing_stage')) {
-              await m.addColumn(diaryEntries, diaryEntries.processingStage);
-            }
-            if (!await _columnExists('diary_entries', 'asr_task_id')) {
-              await m.addColumn(diaryEntries, diaryEntries.asrTaskId);
-            }
-          }
-          if (from < 7) {
-            if (!await _tableExists('api_logs')) await m.createTable(apiLogs);
-          }
-        },
-      );
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      // 幂等迁移：每个 step 先检测目标是否已存在，已存在则跳过。
+      // 不再用 `try/catch(_){}` 吞掉异常——真正的失败（磁盘满/IO 错误等）必须抛出，
+      // 否则 schemaVersion 会推进到残缺状态，下次启动不再重试，DB 永久缺列。
+      // 真正失败时 drift 不会更新 user_version，下次启动从同一 from 版本重试（幂等故安全）。
+      if (from < 2) {
+        if (!await _tableExists('tags')) await m.createTable(tags);
+        if (!await _tableExists('diary_tag_relations')) {
+          await m.createTable(diaryTagRelations);
+        }
+      }
+      if (from < 3) {
+        if (!await _columnExists('diary_entries', 'tos_key')) {
+          await m.addColumn(diaryEntries, diaryEntries.tosKey);
+        }
+        if (!await _columnExists('diary_entries', 'audio_format')) {
+          await m.addColumn(diaryEntries, diaryEntries.audioFormat);
+        }
+        if (!await _columnExists('diary_entries', 'uploaded_at')) {
+          await m.addColumn(diaryEntries, diaryEntries.uploadedAt);
+        }
+      }
+      if (from < 4) {
+        if (!await _columnExists('diary_entries', 'weather_icon')) {
+          await m.addColumn(diaryEntries, diaryEntries.weatherIcon);
+        }
+        if (!await _columnExists('diary_entries', 'weather_text')) {
+          await m.addColumn(diaryEntries, diaryEntries.weatherText);
+        }
+        if (!await _columnExists('diary_entries', 'temperature')) {
+          await m.addColumn(diaryEntries, diaryEntries.temperature);
+        }
+        if (!await _columnExists('diary_entries', 'location_name')) {
+          await m.addColumn(diaryEntries, diaryEntries.locationName);
+        }
+        if (!await _columnExists('diary_entries', 'location_lat')) {
+          await m.addColumn(diaryEntries, diaryEntries.locationLat);
+        }
+        if (!await _columnExists('diary_entries', 'location_lon')) {
+          await m.addColumn(diaryEntries, diaryEntries.locationLon);
+        }
+      }
+      if (from < 5) {
+        if (!await _columnExists('diary_entries', 'status')) {
+          await m.addColumn(diaryEntries, diaryEntries.status);
+        }
+      }
+      if (from < 6) {
+        if (!await _columnExists('diary_entries', 'processing_stage')) {
+          await m.addColumn(diaryEntries, diaryEntries.processingStage);
+        }
+        if (!await _columnExists('diary_entries', 'asr_task_id')) {
+          await m.addColumn(diaryEntries, diaryEntries.asrTaskId);
+        }
+      }
+      if (from < 7) {
+        if (!await _tableExists('api_logs')) await m.createTable(apiLogs);
+      }
+    },
+  );
 
   /// 表是否存在（用于幂等迁移）。
   Future<bool> _tableExists(String tableName) async {
@@ -112,9 +112,9 @@ class AppDatabase extends _$AppDatabase {
   // --- DiaryEntries ---
 
   Future<List<DiaryEntry>> getAllEntries() {
-    return (select(diaryEntries)
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
+    return (select(
+      diaryEntries,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
   }
 
   Future<DiaryEntry> getEntryById(String id) {
@@ -126,8 +126,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> updateEntry(DiaryEntriesCompanion entry) {
-    return (update(diaryEntries)..where((t) => t.id.equals(entry.id.value)))
-        .write(entry);
+    return (update(
+      diaryEntries,
+    )..where((t) => t.id.equals(entry.id.value))).write(entry);
   }
 
   Future<void> deleteEntry(String id) {
@@ -144,8 +145,9 @@ class AppDatabase extends _$AppDatabase {
   // --- Tags ---
 
   Future<List<Tag>> getAllTags() {
-    return (select(tags)..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
-        .get();
+    return (select(
+      tags,
+    )..orderBy([(t) => OrderingTerm.asc(t.createdAt)])).get();
   }
 
   Future<Tag> getTagById(String id) {
@@ -167,47 +169,52 @@ class AppDatabase extends _$AppDatabase {
   // --- DiaryTagRelations ---
 
   Future<void> insertDiaryTag(DiaryTagRelationsCompanion relation) {
-    return into(diaryTagRelations)
-        .insert(relation, mode: InsertMode.insertOrIgnore);
+    return into(
+      diaryTagRelations,
+    ).insert(relation, mode: InsertMode.insertOrIgnore);
   }
 
   Future<void> deleteDiaryTag(String diaryId, String tagId) {
-    return (delete(diaryTagRelations)
-          ..where((t) => t.diaryId.equals(diaryId) & t.tagId.equals(tagId)))
-        .go();
+    return (delete(
+      diaryTagRelations,
+    )..where((t) => t.diaryId.equals(diaryId) & t.tagId.equals(tagId))).go();
   }
 
   Future<void> deleteDiaryTagsByTag(String tagId) {
-    return (delete(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
-        .go();
+    return (delete(
+      diaryTagRelations,
+    )..where((t) => t.tagId.equals(tagId))).go();
   }
 
   Future<void> deleteDiaryTagsByDiary(String diaryId) {
-    return (delete(diaryTagRelations)..where((t) => t.diaryId.equals(diaryId)))
-        .go();
+    return (delete(
+      diaryTagRelations,
+    )..where((t) => t.diaryId.equals(diaryId))).go();
   }
 
   Future<List<DiaryTagRelation>> getTagsForDiary(String diaryId) {
-    return (select(diaryTagRelations)..where((t) => t.diaryId.equals(diaryId)))
-        .get();
+    return (select(
+      diaryTagRelations,
+    )..where((t) => t.diaryId.equals(diaryId))).get();
   }
 
   Future<List<DiaryTagRelation>> getDiariesForTag(String tagId) {
-    return (select(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
-        .get();
+    return (select(
+      diaryTagRelations,
+    )..where((t) => t.tagId.equals(tagId))).get();
   }
 
   Future<int> getDiaryCountForTag(String tagId) {
-    return (select(diaryTagRelations)..where((t) => t.tagId.equals(tagId)))
-        .get()
-        .then((rows) => rows.length);
+    return (select(
+      diaryTagRelations,
+    )..where((t) => t.tagId.equals(tagId))).get().then((rows) => rows.length);
   }
 
   /// 查询未完成的日记数量（processing + failed）
   Future<int> getProcessingEntryCount() {
-    return (select(diaryEntries)
-          ..where((t) =>
-              t.status.equals('processing') | t.status.equals('failed')))
+    return (select(diaryEntries)..where(
+          (t) => t.status.equals('processing') | t.status.equals('failed'),
+        ))
         .get()
         .then((rows) => rows.length);
   }

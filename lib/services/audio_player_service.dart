@@ -39,9 +39,7 @@ class AudioPlayerState {
 class AudioPlayerService {
   final AudioPlayer _player = AudioPlayer();
   final BehaviorSubject<AudioPlayerState> _stateSubject =
-      BehaviorSubject<AudioPlayerState>.seeded(
-    const AudioPlayerState(),
-  );
+      BehaviorSubject<AudioPlayerState>.seeded(const AudioPlayerState());
 
   String? _loadedFilePath;
   double _speed = 1.0;
@@ -130,15 +128,9 @@ class AudioPlayerService {
 
   void _onPosition(Duration position) {
     final clamped = Duration(
-      milliseconds: position.inMilliseconds.clamp(
-        0,
-        _duration.inMilliseconds,
-      ),
+      milliseconds: position.inMilliseconds.clamp(0, _duration.inMilliseconds),
     );
-    _emit(_stateSubject.value.copyWith(
-      position: clamped,
-      isCompleted: false,
-    ));
+    _emit(_stateSubject.value.copyWith(position: clamped, isCompleted: false));
   }
 
   void _onDuration(Duration? duration) {
@@ -154,11 +146,13 @@ class AudioPlayerService {
 
   void _onProcessingState(ProcessingState state) {
     if (state == ProcessingState.completed) {
-      _emit(_stateSubject.value.copyWith(
-        position: _duration,
-        isPlaying: false,
-        isCompleted: true,
-      ));
+      _emit(
+        _stateSubject.value.copyWith(
+          position: _duration,
+          isPlaying: false,
+          isCompleted: true,
+        ),
+      );
     }
   }
 

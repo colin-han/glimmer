@@ -42,10 +42,10 @@ class Utterance {
   }
 
   Map<String, dynamic> toJson() => {
-        'text': text,
-        'startTime': startTime,
-        'endTime': endTime,
-      };
+    'text': text,
+    'startTime': startTime,
+    'endTime': endTime,
+  };
 }
 
 class TranscriptData {
@@ -64,9 +64,9 @@ class TranscriptData {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'utterances': utterances.map((u) => u.toJson()).toList(),
-      };
+    'version': version,
+    'utterances': utterances.map((u) => u.toJson()).toList(),
+  };
 }
 
 class SummaryUtteranceData {
@@ -83,9 +83,9 @@ class SummaryUtteranceData {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'utterances': utterances.map((u) => u.toJson()).toList(),
-      };
+    'version': version,
+    'utterances': utterances.map((u) => u.toJson()).toList(),
+  };
 }
 
 class LlmResultData {
@@ -114,10 +114,10 @@ class LlmResultData {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'title': title,
-        'summary': summary,
-        'outline': outline,
-        'utterances': utterances.map((u) => u.toJson()).toList(),
-      };
+    'version': version,
+    'title': title,
+    'summary': summary,
+    'outline': outline,
+    'utterances': utterances.map((u) => u.toJson()).toList(),
+  };
 }

@@ -66,8 +66,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
       final q = _searchQuery.toLowerCase();
       result = result.where((e) {
         if (e.title.toLowerCase().contains(q)) return true;
-        if ((_entryTags[e.id] ?? [])
-            .any((t) => t.name.toLowerCase().contains(q))) {
+        if ((_entryTags[e.id] ?? []).any(
+          (t) => t.name.toLowerCase().contains(q),
+        )) {
           return true;
         }
         return false;
@@ -76,8 +77,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     if (_selectedTagId != null) {
       result = result.where((e) {
-        return (_entryTags[e.id] ?? [])
-            .any((t) => t.id == _selectedTagId);
+        return (_entryTags[e.id] ?? []).any((t) => t.id == _selectedTagId);
       }).toList();
     }
 
@@ -136,8 +136,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
             icon: const Icon(Icons.label),
             onPressed: () {
               Navigator.of(context)
-                  .push(MaterialPageRoute(
-                      builder: (_) => const TagManagementPage()))
+                  .push(
+                    MaterialPageRoute(
+                      builder: (_) => const TagManagementPage(),
+                    ),
+                  )
                   .then((_) => _loadData());
             },
           ),
@@ -146,37 +149,46 @@ class _DiaryListPageState extends State<DiaryListPage> {
       body: _loading
           ? Center(
               child: CircularProgressIndicator(
-                  color: WarmTokens.warmAmber.withValues(alpha: 0.6)))
+                color: WarmTokens.warmAmber.withValues(alpha: 0.6),
+              ),
+            )
           : _entries.isEmpty
-              ? _buildEmptyState()
-              : Column(
-                  children: [
-                    if (_tags.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: TagChipBar(
-                          tags: _tags,
-                          selectedTagId: _selectedTagId,
-                          groupMode: _groupMode,
-                          onTagSelected: (id) =>
-                              setState(() => _selectedTagId = id),
-                          onGroupModeChanged: (mode) =>
-                              setState(() => _groupMode = mode),
-                        ),
-                      ),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? Center(child: Text('没有匹配的日记',
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  color: WarmTokens.warmMuted)))
-                          : _groupMode == GroupMode.date
-                              ? _buildDateGroups(filtered)
-                              : _buildTagGroups(filtered),
+          ? _buildEmptyState()
+          : Column(
+              children: [
+                if (_tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ],
+                    child: TagChipBar(
+                      tags: _tags,
+                      selectedTagId: _selectedTagId,
+                      groupMode: _groupMode,
+                      onTagSelected: (id) =>
+                          setState(() => _selectedTagId = id),
+                      onGroupModeChanged: (mode) =>
+                          setState(() => _groupMode = mode),
+                    ),
+                  ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            '没有匹配的日记',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: WarmTokens.warmMuted,
+                            ),
+                          ),
+                        )
+                      : _groupMode == GroupMode.date
+                      ? _buildDateGroups(filtered)
+                      : _buildTagGroups(filtered),
                 ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).pushReplacement(
@@ -211,14 +223,19 @@ class _DiaryListPageState extends State<DiaryListPage> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('还没有日记',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: WarmTokens.warmBrown)),
+            Text(
+              '还没有日记',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: WarmTokens.warmBrown,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('点击右下角 🎙️ 开始第一篇',
-                style: TextStyle(fontSize: 14, color: WarmTokens.warmMuted)),
+            Text(
+              '点击右下角 🎙️ 开始第一篇',
+              style: TextStyle(fontSize: 14, color: WarmTokens.warmMuted),
+            ),
           ],
         ),
       ),
@@ -264,7 +281,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     for (final entry in entries) {
       final date = DateTime(
-          entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        entry.createdAt.year,
+        entry.createdAt.month,
+        entry.createdAt.day,
+      );
       final diff = today.difference(date).inDays;
       final label = _getDateLabel(entry.createdAt, diff);
       groups.putIfAbsent(label, () => []).add(entry);
@@ -276,10 +296,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: groups.entries
-            .expand((group) => [
-                  _buildGroupHeader(group.key),
-                  ...group.value.map((entry) => _buildEntryCard(entry)),
-                ])
+            .expand(
+              (group) => [
+                _buildGroupHeader(group.key),
+                ...group.value.map((entry) => _buildEntryCard(entry)),
+              ],
+            )
             .toList(),
       ),
     );
@@ -316,8 +338,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       }
     }
 
-    final untagged =
-        entries.where((e) => !taggedIds.contains(e.id)).toList();
+    final untagged = entries.where((e) => !taggedIds.contains(e.id)).toList();
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -325,12 +346,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          ...tagGroups.entries
-              .expand((group) => [
-                    _buildGroupHeader('${group.key.name}（${group.value.length}）'),
-                    ...group.value
-                        .map((entry) => _buildEntryCard(entry)),
-                  ]),
+          ...tagGroups.entries.expand(
+            (group) => [
+              _buildGroupHeader('${group.key.name}（${group.value.length}）'),
+              ...group.value.map((entry) => _buildEntryCard(entry)),
+            ],
+          ),
           if (untagged.isNotEmpty) ...[
             _buildGroupHeader('未分类（${untagged.length}）'),
             ...untagged.map((entry) => _buildEntryCard(entry)),
@@ -351,8 +372,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final bgColor = isFailed
         ? WarmTokens.failedBg
         : isProcessing
-            ? WarmTokens.warmProcessBg
-            : WarmTokens.warmCardBg;
+        ? WarmTokens.warmProcessBg
+        : WarmTokens.warmCardBg;
 
     // 边框色
     final borderColor = isFailed
@@ -362,8 +383,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return GestureDetector(
       onTap: () {
         Navigator.of(context)
-            .push(MaterialPageRoute(
-                builder: (_) => DiaryDetailPage(entry: entry)))
+            .push(
+              MaterialPageRoute(builder: (_) => DiaryDetailPage(entry: entry)),
+            )
             .then((_) => _loadData());
       },
       child: Container(
@@ -388,7 +410,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: isFailed ? WarmTokens.failedText : WarmTokens.warmBrown,
+                      color: isFailed
+                          ? WarmTokens.failedText
+                          : WarmTokens.warmBrown,
                       height: 1.4,
                     ),
                   ),
@@ -408,8 +432,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 if (isFailed)
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
-                    child: Icon(Icons.error_outline,
-                        color: WarmTokens.failedAccent, size: 18),
+                    child: Icon(
+                      Icons.error_outline,
+                      color: WarmTokens.failedAccent,
+                      size: 18,
+                    ),
                   ),
               ],
             ),
@@ -438,32 +465,29 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final items = <Widget>[];
 
     // 时间
-    items.add(_metaIconText(
-      Icons.access_time,
-      entry.formattedDate,
-    ));
+    items.add(_metaIconText(Icons.access_time, entry.formattedDate));
 
     // 时长
-    items.add(_metaIconText(
-      Icons.timer_outlined,
-      entry.durationDisplay,
-    ));
+    items.add(_metaIconText(Icons.timer_outlined, entry.durationDisplay));
 
     // 天气信息
     if (entry.weatherDisplay.isNotEmpty) {
-      items.add(Padding(
-        padding: const EdgeInsets.only(left: 8),
-        child: Text(
-          entry.weatherDisplay,
-          style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted, height: 1.3),
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Text(
+            entry.weatherDisplay,
+            style: TextStyle(
+              fontSize: 12,
+              color: WarmTokens.warmMuted,
+              height: 1.3,
+            ),
+          ),
         ),
-      ));
+      );
     }
 
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: items,
-    );
+    return Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: items);
   }
 
   Widget _metaIconText(IconData icon, String text) {
@@ -476,7 +500,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
           const SizedBox(width: 3),
           Text(
             text,
-            style: TextStyle(fontSize: 12, color: WarmTokens.warmMuted, height: 1.3),
+            style: TextStyle(
+              fontSize: 12,
+              color: WarmTokens.warmMuted,
+              height: 1.3,
+            ),
           ),
         ],
       ),
@@ -496,10 +524,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: color.withValues(alpha: 0.2),
-              width: 0.5,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.2), width: 0.5),
           ),
           child: Text(
             tag.name,

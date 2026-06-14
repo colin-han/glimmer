@@ -76,11 +76,7 @@ class RealtimeAsrService {
     _sequence = 1;
 
     // 监听响应
-    _channel!.stream.listen(
-      _onData,
-      onError: _onError,
-      onDone: _onDone,
-    );
+    _channel!.stream.listen(_onData, onError: _onError, onDone: _onDone);
 
     _connected = true;
   }
@@ -152,8 +148,8 @@ class RealtimeAsrService {
     if (bytes.length < 12 + payloadLength) return;
 
     final payloadBytes = bytes.sublist(12, 12 + payloadLength);
-    final payloadJson = jsonDecode(utf8.decode(payloadBytes))
-        as Map<String, dynamic>;
+    final payloadJson =
+        jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
 
     final result = payloadJson['result'] as Map<String, dynamic>?;
     if (result == null) return;
@@ -185,7 +181,11 @@ class RealtimeAsrService {
     }
     if (!_completer.isCompleted) {
       _completer.completeError(
-          AsrException('ASR 错误 ($errorCode): $message', statusCode: errorCode.toString()));
+        AsrException(
+          'ASR 错误 ($errorCode): $message',
+          statusCode: errorCode.toString(),
+        ),
+      );
     }
     disconnect();
   }
@@ -214,10 +214,7 @@ class RealtimeAsrService {
     // 客户端请求帧：[4字节帧头] [4字节序列号] [4字节payload长度] [payload]
     final header = ByteData(4);
     header.setUint8(0, 0x11); // version=1, headerSize=1 (4 bytes)
-    header.setUint8(
-      1,
-      (messageType << 4) | flags,
-    );
+    header.setUint8(1, (messageType << 4) | flags);
     header.setUint8(
       2,
       (serialization << 4) | 0x00, // 无压缩

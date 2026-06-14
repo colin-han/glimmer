@@ -27,13 +27,15 @@ class OggMuxer {
     // EOS 页可以为空数据，此时写入一个零长度 segment 的页面
     if (data.isEmpty) {
       if (isEndOfStream) {
-        pages.add(_buildPage(
-          headerType: 0x04, // EOS
-          granulePosition: granulePosition,
-          pageSequenceNumber: _pageSequenceNumber,
-          segmentTable: [0], // 一个零长度 segment 表示空包
-          data: Uint8List(0),
-        ));
+        pages.add(
+          _buildPage(
+            headerType: 0x04, // EOS
+            granulePosition: granulePosition,
+            pageSequenceNumber: _pageSequenceNumber,
+            segmentTable: [0], // 一个零长度 segment 表示空包
+            data: Uint8List(0),
+          ),
+        );
         _pageSequenceNumber++;
       }
       return pages;
@@ -164,8 +166,7 @@ class OggMuxer {
   static int _crc32(Uint8List data) {
     int crc = 0;
     for (final byte in data) {
-      crc =
-          ((crc << 8) ^ _crcTable[((crc >> 24) ^ byte) & 0xFF]) & 0xFFFFFFFF;
+      crc = ((crc << 8) ^ _crcTable[((crc >> 24) ^ byte) & 0xFF]) & 0xFFFFFFFF;
     }
     return crc;
   }

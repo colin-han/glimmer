@@ -80,10 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(
-                  '0秒',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text('0秒', style: Theme.of(context).textTheme.bodySmall),
                 Expanded(
                   child: Slider(
                     value: _processingDelay,
@@ -103,27 +100,21 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                 ),
-                Text(
-                  '30秒',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text('30秒', style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
           const Divider(),
-          ListTile(
-            title: const Text('版本'),
-            subtitle: Text(_version),
-          ),
+          ListTile(title: const Text('版本'), subtitle: Text(_version)),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
             title: const Text('API 日志'),
             subtitle: const Text('查看最近的处理日志与消费记录'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ApiLogPage()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ApiLogPage()));
             },
           ),
         ],

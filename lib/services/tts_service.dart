@@ -31,11 +31,7 @@ class TtsService {
     final response = await _dio.post(
       'https://openspeech.bytedance.com/api/v1/tts',
       data: {
-        'app': {
-          'appid': appid,
-          'token': token,
-          'cluster': 'volcano_tts',
-        },
+        'app': {'appid': appid, 'token': token, 'cluster': 'volcano_tts'},
         'user': {'uid': appid},
         'audio': {
           'voice_type': _voiceTypes[voiceType],
@@ -49,10 +45,12 @@ class TtsService {
           'operation': 'query',
         },
       },
-      options: Options(headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer;$token',
-      }),
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer;$token',
+        },
+      ),
     );
     debugPrint('[TTS] HTTP 响应耗时: ${sw.elapsedMilliseconds}ms');
 
@@ -72,7 +70,9 @@ class TtsService {
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/tts_${_uuid.v4()}.mp3');
     await tempFile.writeAsBytes(audioBytes);
-    debugPrint('[TTS] 文件写入耗时: ${sw.elapsedMilliseconds}ms, 大小=${audioBytes.length} bytes');
+    debugPrint(
+      '[TTS] 文件写入耗时: ${sw.elapsedMilliseconds}ms, 大小=${audioBytes.length} bytes',
+    );
 
     final player = AudioPlayer();
     try {

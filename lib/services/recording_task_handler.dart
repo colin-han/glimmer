@@ -105,8 +105,8 @@ class RecordingTaskHandler extends TaskHandler {
       _amplitudeSub = _recorderService!
           .onAmplitudeChanged(const Duration(milliseconds: 80))
           .listen((amp) {
-        _sendToMain({'type': 'amplitude', 'value': amp.current});
-      });
+            _sendToMain({'type': 'amplitude', 'value': amp.current});
+          });
 
       // 启动计时器
       _recordingSeconds = 0;
@@ -154,27 +154,30 @@ class RecordingTaskHandler extends TaskHandler {
   void _connectRealtimeAsr() {
     _realtimeAsr = RealtimeAsrService();
     final sw = Stopwatch()..start();
-    _realtimeAsr!.connect().then((_) {
-      sw.stop();
-      _apiLogService.logApiCall(
-        diaryId: _folderId ?? '',
-        apiType: 'asr_realtime',
-        step: 'recording',
-        status: 'success',
-        durationMs: sw.elapsedMilliseconds,
-      );
-    }).catchError((e) {
-      sw.stop();
-      debugPrint('[TaskHandler] 实时 ASR 连接失败（不阻塞录音）: $e');
-      _apiLogService.logApiCall(
-        diaryId: _folderId ?? '',
-        apiType: 'asr_realtime',
-        step: 'recording',
-        status: 'error',
-        durationMs: sw.elapsedMilliseconds,
-        errorMessage: e.toString(),
-      );
-    });
+    _realtimeAsr!
+        .connect()
+        .then((_) {
+          sw.stop();
+          _apiLogService.logApiCall(
+            diaryId: _folderId ?? '',
+            apiType: 'asr_realtime',
+            step: 'recording',
+            status: 'success',
+            durationMs: sw.elapsedMilliseconds,
+          );
+        })
+        .catchError((e) {
+          sw.stop();
+          debugPrint('[TaskHandler] 实时 ASR 连接失败（不阻塞录音）: $e');
+          _apiLogService.logApiCall(
+            diaryId: _folderId ?? '',
+            apiType: 'asr_realtime',
+            step: 'recording',
+            status: 'error',
+            durationMs: sw.elapsedMilliseconds,
+            errorMessage: e.toString(),
+          );
+        });
 
     _partialResultSub = _realtimeAsr!.onPartialResult.listen((text) {
       _sendToMain({'type': 'partialText', 'text': text});
@@ -187,8 +190,10 @@ class RecordingTaskHandler extends TaskHandler {
         final loc = await _locationService.getCurrentLocation();
         if (loc == null) return;
         _location = loc;
-        _weatherLocation =
-            await _weatherService.fetchWeatherAndLocation(loc.lat, loc.lon);
+        _weatherLocation = await _weatherService.fetchWeatherAndLocation(
+          loc.lat,
+          loc.lon,
+        );
         if (_weatherLocation != null) {
           _sendToMain({
             'type': 'weather',
@@ -246,22 +251,24 @@ class RecordingTaskHandler extends TaskHandler {
         }
 
         // 创建 DB 条目
-        await _storageService.createEntry(DiaryEntry(
-          id: _folderId!,
-          title: '正在处理中...',
-          folderPath: _folderPath!,
-          durationSeconds: duration,
-          createdAt: DateTime.now(),
-          audioFormat: 'ogg',
-          status: EntryStatus.processing,
-          processingStage: ProcessingStage.uploading,
-          weatherIcon: _weatherLocation?.icon,
-          weatherText: _weatherLocation?.text,
-          temperature: _weatherLocation?.temp,
-          locationName: _weatherLocation?.locationName,
-          locationLat: _location?.lat,
-          locationLon: _location?.lon,
-        ));
+        await _storageService.createEntry(
+          DiaryEntry(
+            id: _folderId!,
+            title: '正在处理中...',
+            folderPath: _folderPath!,
+            durationSeconds: duration,
+            createdAt: DateTime.now(),
+            audioFormat: 'ogg',
+            status: EntryStatus.processing,
+            processingStage: ProcessingStage.uploading,
+            weatherIcon: _weatherLocation?.icon,
+            weatherText: _weatherLocation?.text,
+            temperature: _weatherLocation?.temp,
+            locationName: _weatherLocation?.locationName,
+            locationLat: _location?.lat,
+            locationLon: _location?.lon,
+          ),
+        );
 
         debugPrint('[TaskHandler] 录音完成，已创建 DB 条目');
 

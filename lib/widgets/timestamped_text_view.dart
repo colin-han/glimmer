@@ -27,8 +27,10 @@ class _TimestampedTextViewState extends State<TimestampedTextView> {
       initialData: widget.playerService.currentState,
       builder: (context, snapshot) {
         final state = snapshot.data ?? const AudioPlayerState();
-        final currentIndex =
-            _findCurrentIndex(widget.utterances, state.position);
+        final currentIndex = _findCurrentIndex(
+          widget.utterances,
+          state.position,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,8 +49,7 @@ class _TimestampedTextViewState extends State<TimestampedTextView> {
   }
 
   /// 根据播放位置计算当前高亮的 utterance 索引。
-  static int _findCurrentIndex(
-      List<Utterance> utterances, Duration position) {
+  static int _findCurrentIndex(List<Utterance> utterances, Duration position) {
     if (utterances.isEmpty) return -1;
     final posMs = position.inMilliseconds;
     for (var i = 0; i < utterances.length; i++) {
@@ -85,8 +86,7 @@ class _TimestampedTextViewState extends State<TimestampedTextView> {
 
     return GestureDetector(
       onTap: () {
-        widget.playerService
-            .seek(Duration(milliseconds: utterance.startTime));
+        widget.playerService.seek(Duration(milliseconds: utterance.startTime));
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
