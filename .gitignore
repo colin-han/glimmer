@@ -21,3 +21,4 @@ build/
 .idea/
 .superpowers/
 *.log
+.tmp-claude/
