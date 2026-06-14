@@ -36,7 +36,7 @@ class AudioPlayerBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 第一行：播放按钮 + 变速按钮
+        // 播放按钮 + 波形 + 倍速，单行紧凑布局
         Row(
           children: [
             IconButton(
@@ -44,8 +44,8 @@ class AudioPlayerBar extends StatelessWidget {
                 state.isCompleted
                     ? Icons.replay
                     : state.isPlaying
-                        ? Icons.pause
-                        : Icons.play_arrow,
+                    ? Icons.pause
+                    : Icons.play_arrow,
               ),
               onPressed: () async {
                 if (state.isCompleted) {
@@ -54,7 +54,37 @@ class AudioPlayerBar extends StatelessWidget {
                 await playerService.toggle();
               },
             ),
-            const Spacer(),
+            Expanded(
+              child: SizedBox(
+                height: 40,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 波形总宽 = spacing × samples。fitWidth 模式不会缩放波形，只从左侧
+                    // 平铺、超出 size.width 的右侧被裁。按真实可用宽度反算 spacing，
+                    // 让采样数恰好铺满，进度与时间严格成正比。
+                    const samples =
+                        100; // 需与 AudioPlayerService.load 的 noOfSamples 一致
+                    final spacing = constraints.maxWidth / samples;
+                    return AudioFileWaveforms(
+                      size: Size(constraints.maxWidth, 40),
+                      playerController: playerService.playerController,
+                      waveformType: WaveformType.fitWidth,
+                      enableSeekGesture: true,
+                      playerWaveStyle: PlayerWaveStyle(
+                        fixedWaveColor: WarmTokens.warmDivider,
+                        liveWaveColor: WarmTokens.warmAmber,
+                        waveThickness: 2.5,
+                        spacing: spacing,
+                        waveCap: StrokeCap.round,
+                        showSeekLine: true,
+                        seekLineColor: WarmTokens.warmAmber,
+                        seekLineThickness: 1.5,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
             _SpeedButton(
               currentSpeed: state.speed,
               onSpeedChanged: (speed) async {
@@ -62,38 +92,6 @@ class AudioPlayerBar extends StatelessWidget {
               },
             ),
           ],
-        ),
-        const SizedBox(height: 4),
-        // 波形展示
-        SizedBox(
-          height: 70,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // 波形总宽 = spacing × samples。fitWidth 模式不会缩放波形，只从左侧
-              // 平铺、超出 size.width 的右侧被裁。若固定 spacing 而忽略外层 padding
-              //（如详情页 body 的 horizontal padding），波形会溢出屏幕，导致进度色
-              // 提前"填满"可见区、与实际播放时间脱节。因此按真实可用宽度反算 spacing，
-              // 让采样数恰好铺满，进度与时间严格成正比。
-              const samples = 100; // 需与 AudioPlayerService.load 的 noOfSamples 一致
-              final spacing = constraints.maxWidth / samples;
-              return AudioFileWaveforms(
-                size: Size(constraints.maxWidth, 70),
-                playerController: playerService.playerController,
-                waveformType: WaveformType.fitWidth,
-                enableSeekGesture: true,
-                playerWaveStyle: PlayerWaveStyle(
-                  fixedWaveColor: WarmTokens.warmDivider,
-                  liveWaveColor: WarmTokens.warmAmber,
-                  waveThickness: 2.5,
-                  spacing: spacing,
-                  waveCap: StrokeCap.round,
-                  showSeekLine: true,
-                  seekLineColor: WarmTokens.warmAmber,
-                  seekLineThickness: 1.5,
-                ),
-              );
-            },
-          ),
         ),
         const SizedBox(height: 4),
         // 时间标签
