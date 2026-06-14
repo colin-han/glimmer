@@ -17,7 +17,11 @@ class WeatherLocation {
 }
 
 class WeatherService {
-  final _dio = Dio();
+  // 天气/地理接口在录音期间"即发即忘"调用，配置超时避免请求挂起导致 future 泄漏
+  final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 8),
+    receiveTimeout: const Duration(seconds: 10),
+  ));
   String? _token;
   String? _host;
 

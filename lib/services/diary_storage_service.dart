@@ -350,6 +350,21 @@ class DiaryStorageService {
     return tags;
   }
 
+  /// 批量查询所有日记的标签（2 次查询 + 内存组装），消除逐条 getFullTagsForDiary 的 N+1。
+  /// 返回 `Map<diaryId, List<Tag>>`。
+  Future<Map<String, List<Tag>>> getAllEntryTags() async {
+    final allTags = await getAllTags();
+    final tagById = {for (final t in allTags) t.id: t};
+    final relationRows = await (_db.select(_db.diaryTagRelations)).get();
+    final map = <String, List<Tag>>{};
+    for (final r in relationRows) {
+      final tag = tagById[r.tagId];
+      if (tag == null) continue;
+      (map[r.diaryId] ??= []).add(tag);
+    }
+    return map;
+  }
+
   /// 更新日记的 TOS 上传信息
   Future<void> updateTosInfo(String id,
       {String? tosKey, String? audioFormat, int? uploadedAt}) async {

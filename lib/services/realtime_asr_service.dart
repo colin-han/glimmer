@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/io.dart';
 
+import '../exceptions.dart';
+
 class RealtimeAsrService {
   static const _wsUrl =
       'wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async';
@@ -182,7 +184,8 @@ class RealtimeAsrService {
       message = utf8.decode(bytes.sublist(8, 8 + msgLen));
     }
     if (!_completer.isCompleted) {
-      _completer.completeError(Exception('ASR 错误 ($errorCode): $message'));
+      _completer.completeError(
+          AsrException('ASR 错误 ($errorCode): $message', statusCode: errorCode.toString()));
     }
     disconnect();
   }

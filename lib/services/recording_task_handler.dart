@@ -234,11 +234,13 @@ class RecordingTaskHandler extends TaskHandler {
         await _partialResultSub?.cancel();
         _partialResultSub = null;
 
-        // 停止录音
+        // 停止录音（_recorderService 在 onStart 失败时可能未初始化，需空安全）
         int duration = _recordingSeconds;
         try {
-          final result = await _recorderService!.stopRecording();
-          duration = result.durationSeconds;
+          final result = await _recorderService?.stopRecording();
+          if (result != null) {
+            duration = result.durationSeconds;
+          }
         } catch (e) {
           debugPrint('[TaskHandler] stopRecording 失败: $e');
         }

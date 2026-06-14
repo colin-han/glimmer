@@ -51,14 +51,26 @@ class _TagSelectorContentState extends State<_TagSelectorContent> {
   }
 
   Future<void> _createTag(String name) async {
-    final tag = Tag(
-      id: _uuid.v4(),
-      name: name.trim(),
-      matchPrompt: '',
-      createdAt: DateTime.now(),
-    );
-    await _storageService.createTag(tag);
-    _selectedIds.add(tag.id);
+    final trimmed = name.trim();
+    // tags.name 有唯一约束，直接 insert 重名会触发 UniqueIntegrityException；
+    // 先在已加载列表里查重，命中则复用已有标签，避免崩溃。
+    Tag? dup;
+    for (final t in _tags) {
+      if (t.name == trimmed) {
+        dup = t;
+        break;
+      }
+    }
+    final tagId = dup?.id ?? _uuid.v4();
+    if (dup == null) {
+      await _storageService.createTag(Tag(
+        id: tagId,
+        name: trimmed,
+        matchPrompt: '',
+        createdAt: DateTime.now(),
+      ));
+    }
+    _selectedIds.add(tagId);
     _newTagNameController.clear();
     _showCreateField = false;
     await _loadTags();

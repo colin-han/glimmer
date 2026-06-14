@@ -62,8 +62,12 @@ class TtsService {
       throw TtsException(message, code: code);
     }
 
-    final audioBase64 = response.data['data'] as String;
-    final audioBytes = base64Decode(audioBase64);
+    // code==3000 但 data 缺失/类型不符属异常响应，防御性校验避免 TypeError
+    final audioData = response.data['data'];
+    if (audioData is! String || audioData.isEmpty) {
+      throw TtsException('TTS 返回数据为空', code: code);
+    }
+    final audioBytes = base64Decode(audioData);
 
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/tts_${_uuid.v4()}.mp3');

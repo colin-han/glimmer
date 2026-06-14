@@ -211,15 +211,24 @@ class AsrService {
   }
 
   /// 从 ASR 响应 result 中解析 utterances 列表。无数据时返回空列表。
+  /// 容错解析：跳过结构/类型异常的单条，避免一条坏数据连累整篇。
   List<Utterance> _parseUtterances(Map<String, dynamic>? result) {
     final utterancesList = result?['utterances'] as List<dynamic>?;
     if (utterancesList == null || utterancesList.isEmpty) return [];
-    return utterancesList
-        .map((u) => Utterance(
-              text: u['text'] as String,
-              startTime: u['start_time'] as int,
-              endTime: u['end_time'] as int,
-            ))
-        .toList();
+    final parsed = <Utterance>[];
+    for (final u in utterancesList) {
+      if (u is! Map<String, dynamic>) continue;
+      final text = u['text'];
+      final startTime = u['start_time'];
+      final endTime = u['end_time'];
+      if (text is! String) continue;
+      if (startTime is! num || endTime is! num) continue;
+      parsed.add(Utterance(
+        text: text,
+        startTime: startTime.toInt(),
+        endTime: endTime.toInt(),
+      ));
+    }
+    return parsed;
   }
 }

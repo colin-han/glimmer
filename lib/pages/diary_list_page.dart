@@ -24,6 +24,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
   List<Tag> _tags = [];
   Map<String, List<Tag>> _entryTags = {};
   bool _loading = true;
+  int _loadVersion = 0; // 并发保护：_loadData 版本号
 
   String? _selectedTagId;
   GroupMode _groupMode = GroupMode.date;
@@ -40,13 +41,13 @@ class _DiaryListPageState extends State<DiaryListPage> {
   }
 
   Future<void> _loadData() async {
+    // 并发保护：_onTaskData / onRefresh / 页面返回 .then 等多处可能并发触发 _loadData，
+    // 用版本号确保只有最后一次发起的加载结果写入 UI，避免旧结果覆盖新结果。
+    final version = ++_loadVersion;
     final entries = await _storageService.getAllEntries();
     final tags = await _storageService.getAllTags();
-    final entryTags = <String, List<Tag>>{};
-    for (final entry in entries) {
-      entryTags[entry.id] =
-          await _storageService.getFullTagsForDiary(entry.id);
-    }
+    final entryTags = await _storageService.getAllEntryTags();
+    if (version != _loadVersion) return;
     if (mounted) {
       setState(() {
         _entries = entries;
