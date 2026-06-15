@@ -583,6 +583,11 @@ class DiaryStorageService {
     return rows.map(_summaryRowToModel).toList();
   }
 
+  Future<List<DailySummary>> getAllDailySummaries() async {
+    final rows = await _db.getAllDailySummaries();
+    return rows.map(_summaryRowToModel).toList();
+  }
+
   /// upsert：写入或覆盖某天的总结元数据。
   Future<void> saveDailySummary(DailySummary summary) async {
     await _db.upsertDailySummary(

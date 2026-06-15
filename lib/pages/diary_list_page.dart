@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../design_tokens.dart';
+import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../widgets/app_title.dart';
 import '../widgets/tag_chip_bar.dart';
+import 'daily_summary_page.dart';
 import 'diary_detail_page.dart';
 import 'recording_page.dart';
 import 'tag_management_page.dart';
+import '../services/recording_processor.dart' show ensureProcessingFgsRunning;
 
 class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
@@ -23,6 +26,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
   List<DiaryEntry> _entries = [];
   List<Tag> _tags = [];
   Map<String, List<Tag>> _entryTags = {};
+  Map<String, DailySummary> _dailySummaries = {};
   bool _loading = true;
   int _loadVersion = 0; // 并发保护：_loadData 版本号
 
@@ -48,12 +52,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final tags = await _storageService.getAllTags();
     // 复用上面已查的 tags，避免 getAllEntryTags 内部重复查询 tags 表
     final entryTags = await _storageService.getAllEntryTags(allTags: tags);
+    final dailySummaries = await _storageService.getAllDailySummaries();
     if (version != _loadVersion) return;
     if (mounted) {
       setState(() {
         _entries = entries;
         _tags = tags;
         _entryTags = entryTags;
+        _dailySummaries = {for (final d in dailySummaries) d.date: d};
         _loading = false;
       });
     }
@@ -91,11 +97,15 @@ class _DiaryListPageState extends State<DiaryListPage> {
     super.dispose();
   }
 
-  /// 接收 FGS 消息，重试完成/失败时刷新列表
+  /// 接收 FGS 消息，录音/每日总结完成/失败/阶段更新时刷新列表
   void _onTaskData(Object data) {
     if (data is! Map<String, dynamic>) return;
     final type = data['type'] as String;
-    if (type == 'completed' || type == 'failed') {
+    if (type == 'completed' ||
+        type == 'failed' ||
+        type == 'dailySummaryCompleted' ||
+        type == 'dailySummaryFailed' ||
+        type == 'dailySummaryStage') {
       _loadData();
     }
   }
@@ -275,19 +285,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
   // ─── 日期分组 ───────────────────────────────────────────────
 
   Widget _buildDateGroups(List<DiaryEntry> entries) {
-    final groups = <String, List<DiaryEntry>>{};
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final todayDate = DateTime(now.year, now.month, now.day);
 
+    // 按 dateKey 'yyyy-MM-dd' 分组，保留插入顺序（entries 已按 createdAt desc）
+    final groups = <String, List<DiaryEntry>>{};
     for (final entry in entries) {
-      final date = DateTime(
-        entry.createdAt.year,
-        entry.createdAt.month,
-        entry.createdAt.day,
-      );
-      final diff = today.difference(date).inDays;
-      final label = _getDateLabel(entry.createdAt, diff);
-      groups.putIfAbsent(label, () => []).add(entry);
+      final key = _dateKey(entry.createdAt);
+      groups.putIfAbsent(key, () => []).add(entry);
     }
 
     return RefreshIndicator(
@@ -295,14 +300,187 @@ class _DiaryListPageState extends State<DiaryListPage> {
       color: WarmTokens.warmAmber,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: groups.entries
-            .expand(
-              (group) => [
-                _buildGroupHeader(group.key),
-                ...group.value.map((entry) => _buildEntryCard(entry)),
-              ],
-            )
-            .toList(),
+        children: groups.entries.expand((group) {
+          final date = DateTime.parse(group.key);
+          final diff = todayDate.difference(date).inDays;
+          final label = _getDateLabel(date, diff);
+          return [
+            _buildGroupHeader(label),
+            _buildDailySummaryRow(group.key),
+            ...group.value.map((entry) => _buildEntryCard(entry)),
+          ];
+        }).toList(),
+      ),
+    );
+  }
+
+  /// DateTime → 'yyyy-MM-dd'。
+  String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// 请求生成/重新生成某天的每日总结：置 status=processing + 启动 FGS。
+  Future<void> _requestDailySummary(String dateKey) async {
+    final now = DateTime.now();
+    final existing = _dailySummaries[dateKey];
+    await _storageService.saveDailySummary(
+      DailySummary(
+        date: dateKey,
+        title: '正在生成…',
+        status: EntryStatus.processing,
+        sourceEntryIds: existing?.sourceEntryIds ?? const [],
+        entryCount: existing?.entryCount ?? 0,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      ),
+    );
+    await ensureProcessingFgsRunning(notificationText: '生成每日总结...');
+    _loadData();
+  }
+
+  /// 每个日期分组下的「本日总结」行，按 DailySummary 状态自适应。
+  Widget _buildDailySummaryRow(String dateKey) {
+    final summary = _dailySummaries[dateKey];
+
+    // processing：转圈
+    if (summary?.status == EntryStatus.processing) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: WarmTokens.warmProcessBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: WarmTokens.warmAmber,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '⏳ 正在生成本日总结…',
+              style: TextStyle(fontSize: 14, color: WarmTokens.warmBrown),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // failed：重试
+    if (summary?.status == EntryStatus.failed) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: WarmTokens.failedBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: WarmTokens.failedAccent, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '⚠ 生成失败',
+                style: TextStyle(fontSize: 14, color: WarmTokens.failedText),
+              ),
+            ),
+            TextButton(
+              onPressed: () => _requestDailySummary(dateKey),
+              child: const Text('重试', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // completed：标题预览 + 重新生成
+    if (summary?.status == EntryStatus.completed) {
+      final s = summary!;
+      return GestureDetector(
+        onTap: () {
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (_) => DailySummaryPage(date: dateKey),
+                ),
+              )
+              .then((_) => _loadData());
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: WarmTokens.warmCardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: WarmTokens.warmAmber.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.auto_stories, size: 18, color: WarmTokens.warmAmber),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  s.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: WarmTokens.warmBrown,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _requestDailySummary(dateKey),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.refresh,
+                    size: 16,
+                    color: WarmTokens.warmMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 无记录：生成本日总结
+    return GestureDetector(
+      onTap: () => _requestDailySummary(dateKey),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: WarmTokens.warmAmber.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: WarmTokens.warmAmber.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.edit_note, size: 18, color: WarmTokens.warmAmber),
+            const SizedBox(width: 8),
+            Text(
+              '📝 生成本日总结',
+              style: TextStyle(
+                fontSize: 14,
+                color: WarmTokens.warmAmber,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
