@@ -17,9 +17,6 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase._internal() : super(_openConnection());
   static AppDatabase? _instance;
 
-  /// 仅用于测试：注入内存或其他 executor，绕过单例与文件连接。
-  AppDatabase.forTesting(super.executor);
-
   /// 单例工厂。
   ///
   /// AppDatabase 内部用 NativeDatabase.createInBackground，每个实例都会起一个独立
