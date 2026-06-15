@@ -18,6 +18,24 @@ void processingCallback() {
   FlutterForegroundTask.setTaskHandler(ProcessingTaskHandler());
 }
 
+/// 确保 processing FGS 正在运行：未运行则启动（复用现有 channel / processingCallback）；
+/// 已运行则不重复启动。供启动钩子、详情页重新生成、list 手动生成共用。
+Future<void> ensureProcessingFgsRunning({
+  String notificationText = '语音日记 - 处理中...',
+}) async {
+  if (await FlutterForegroundTask.isRunningService) return;
+  FlutterForegroundTask.initCommunicationPort();
+  final result = await FlutterForegroundTask.startService(
+    serviceTypes: [ForegroundServiceTypes.dataSync],
+    notificationTitle: '正在处理',
+    notificationText: notificationText,
+    callback: processingCallback,
+  );
+  if (result is ServiceRequestFailure) {
+    debugPrint('[Processing] 启动 FGS 失败: ${result.error}');
+  }
+}
+
 /// 处理阶段调度器，运行在 FGS isolate 中。
 ///
 /// 查询录音（DiaryEntries status=processing）+ 每日总结（DailySummaries

@@ -114,13 +114,26 @@ class DayWeatherSummary {
       locationName == null &&
       weatherIcon == null &&
       weatherText == null &&
-      tempMin == null;
+      tempMin == null &&
+      tempMax == null;
 
   /// 温度展示：无数据→''；全相同→'24°'；有差异→'18°~25°'。
   String get tempDisplay {
     if (tempMin == null || tempMax == null) return '';
     if (tempMin == tempMax) return '${tempMin!.round()}°';
     return '${tempMin!.round()}°~${tempMax!.round()}°';
+  }
+
+  /// 聚合天气的展示文本，如 '海淀区  ☁️ 18°~25°'；无数据返回 ''。
+  String get display {
+    final parts = <String>[];
+    if (locationName != null) parts.add(locationName!);
+    if (weatherIcon != null) {
+      final emoji = DiaryEntry.weatherEmoji(weatherIcon!) ?? weatherText ?? '';
+      if (emoji.isNotEmpty) parts.add(emoji);
+    }
+    if (tempDisplay.isNotEmpty) parts.add(tempDisplay);
+    return parts.join('  ');
   }
 }
 
