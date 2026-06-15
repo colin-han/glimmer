@@ -35,12 +35,16 @@ void main() {
       });
 
       test('pre-skip 为 3840', () {
-        final preSkip = ByteData.sublistView(header).getUint16(10, Endian.little);
+        final preSkip = ByteData.sublistView(
+          header,
+        ).getUint16(10, Endian.little);
         expect(preSkip, 3840);
       });
 
       test('sample rate 为 16000', () {
-        final sampleRate = ByteData.sublistView(header).getUint32(12, Endian.little);
+        final sampleRate = ByteData.sublistView(
+          header,
+        ).getUint32(12, Endian.little);
         expect(sampleRate, 16000);
       });
 
@@ -67,19 +71,22 @@ void main() {
       });
 
       test('vendor string 正确编码', () {
-        final vendorLength =
-            ByteData.sublistView(header).getUint32(8, Endian.little);
+        final vendorLength = ByteData.sublistView(
+          header,
+        ).getUint32(8, Endian.little);
         final vendorBytes = header.sublist(12, 12 + vendorLength);
         final vendor = String.fromCharCodes(vendorBytes);
         expect(vendor, 'voice_diary_opus_encoder');
       });
 
       test('comment count 为 0', () {
-        final vendorLength =
-            ByteData.sublistView(header).getUint32(8, Endian.little);
+        final vendorLength = ByteData.sublistView(
+          header,
+        ).getUint32(8, Endian.little);
         final commentCountOffset = 12 + vendorLength;
-        final commentCount = ByteData.sublistView(header)
-            .getUint32(commentCountOffset, Endian.little);
+        final commentCount = ByteData.sublistView(
+          header,
+        ).getUint32(commentCountOffset, Endian.little);
         expect(commentCount, 0);
       });
     });
@@ -126,7 +133,9 @@ void main() {
           // 分批喂入 PCM 数据
           const chunkSize = 960 * 2; // 一帧 1920 bytes
           for (int offset = 0; offset < pcmSize; offset += chunkSize) {
-            final end = (offset + chunkSize > pcmSize) ? pcmSize : offset + chunkSize;
+            final end = (offset + chunkSize > pcmSize)
+                ? pcmSize
+                : offset + chunkSize;
             await service.addPcmData(pcmData.sublist(offset, end));
           }
 
@@ -140,10 +149,7 @@ void main() {
 
           // 验证文件以 "OggS" 开头
           final bytes = await outputFile.readAsBytes();
-          expect(
-            String.fromCharCodes(bytes.sublist(0, 4)),
-            'OggS',
-          );
+          expect(String.fromCharCodes(bytes.sublist(0, 4)), 'OggS');
 
           // 清理
           await outputFile.delete();

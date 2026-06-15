@@ -28,16 +28,15 @@ void main() {
         granulePosition: 0,
         isBeginOfStream: true,
       );
-      final page2 = muxer.writePage(
-        data: dummy,
-        granulePosition: 960,
-      );
+      final page2 = muxer.writePage(data: dummy, granulePosition: 960);
 
       // page sequence number 在 header offset 18，4字节 LE
-      final seq1 =
-          ByteData.sublistView(page1.first).getUint32(18, Endian.little);
-      final seq2 =
-          ByteData.sublistView(page2.first).getUint32(18, Endian.little);
+      final seq1 = ByteData.sublistView(
+        page1.first,
+      ).getUint32(18, Endian.little);
+      final seq2 = ByteData.sublistView(
+        page2.first,
+      ).getUint32(18, Endian.little);
       expect(seq2, equals(seq1 + 1));
     });
 
@@ -68,8 +67,11 @@ void main() {
       expect(pages.first[5] & 0x01, equals(0));
       // 后续页应有 continuation flag
       for (int i = 1; i < pages.length; i++) {
-        expect(pages[i][5] & 0x01, isNonZero,
-            reason: 'Page $i should have continuation flag');
+        expect(
+          pages[i][5] & 0x01,
+          isNonZero,
+          reason: 'Page $i should have continuation flag',
+        );
       }
     });
 
@@ -98,8 +100,9 @@ void main() {
 
       // CRC 字段在 offset 22，4字节 LE
       // 不为 0 即表示已计算
-      final crc =
-          ByteData.sublistView(pages.first).getUint32(22, Endian.little);
+      final crc = ByteData.sublistView(
+        pages.first,
+      ).getUint32(22, Endian.little);
       expect(crc, isNonZero);
     });
 
@@ -108,10 +111,7 @@ void main() {
       // 255 字节恰好一个 segment，需要追加 0 长度终止段
       final data = Uint8List(255);
 
-      final pages = muxer.writePage(
-        data: data,
-        granulePosition: 0,
-      );
+      final pages = muxer.writePage(data: data, granulePosition: 0);
 
       // segment count 在 offset 26
       final segmentCount = pages.first[26];
@@ -123,10 +123,7 @@ void main() {
 
     test('空数据返回空页面列表', () {
       final muxer = OggMuxer(serialNumber: 1);
-      final pages = muxer.writePage(
-        data: Uint8List(0),
-        granulePosition: 0,
-      );
+      final pages = muxer.writePage(data: Uint8List(0), granulePosition: 0);
       expect(pages, isEmpty);
     });
   });

@@ -61,8 +61,7 @@ void main() {
       test('X-Tos-Date 格式为 YYYYMMDDTHHmmSSZ', () async {
         final url = await service.getPresignedUrl('audio/test-id.ogg');
         // 提取 X-Tos-Date 值
-        final dateMatch =
-            RegExp(r'X-Tos-Date=(\d{8}T\d{6}Z)').firstMatch(url);
+        final dateMatch = RegExp(r'X-Tos-Date=(\d{8}T\d{6}Z)').firstMatch(url);
         expect(dateMatch, isNotNull);
         final dateStr = dateMatch!.group(1)!;
         // 验证格式：20260531T120000Z
@@ -73,8 +72,7 @@ void main() {
       test('X-Tos-Credential 包含正确的 scope 格式', () async {
         final url = await service.getPresignedUrl('audio/test-id.ogg');
         // 提取 credential 值（URL 编码后的）
-        final credMatch =
-            RegExp(r'X-Tos-Credential=([^&]+)').firstMatch(url);
+        final credMatch = RegExp(r'X-Tos-Credential=([^&]+)').firstMatch(url);
         expect(credMatch, isNotNull);
         final cred = Uri.decodeComponent(credMatch!.group(1)!);
         // 格式：ak/date/region/tos/request
@@ -88,8 +86,10 @@ void main() {
       });
 
       test('X-Tos-Expires 使用自定义值', () async {
-        final url = await service.getPresignedUrl('audio/test-id.ogg',
-            expiresSeconds: 7200);
+        final url = await service.getPresignedUrl(
+          'audio/test-id.ogg',
+          expiresSeconds: 7200,
+        );
         expect(url, contains('X-Tos-Expires=7200'));
       });
 
@@ -100,23 +100,28 @@ void main() {
         const sk = 'test-sk';
 
         // 计算 signing key：sk -> kDate -> kRegion -> kService -> kSigning
-        final kDate = Hmac(sha256, utf8.encode(sk))
-            .convert(utf8.encode(shortDate))
-            .bytes;
-        final kRegion =
-            Hmac(sha256, kDate).convert(utf8.encode(region)).bytes;
-        final kService =
-            Hmac(sha256, kRegion).convert(utf8.encode('tos')).bytes;
-        final kSigning =
-            Hmac(sha256, kService).convert(utf8.encode('request')).bytes;
+        final kDate = Hmac(
+          sha256,
+          utf8.encode(sk),
+        ).convert(utf8.encode(shortDate)).bytes;
+        final kRegion = Hmac(sha256, kDate).convert(utf8.encode(region)).bytes;
+        final kService = Hmac(
+          sha256,
+          kRegion,
+        ).convert(utf8.encode('tos')).bytes;
+        final kSigning = Hmac(
+          sha256,
+          kService,
+        ).convert(utf8.encode('request')).bytes;
 
         // 验证 signing key 长度正确（SHA256 = 32 bytes）
         expect(kSigning.length, 32);
 
         // 使用 signing key 计算签名
-        final signature = Hmac(sha256, kSigning)
-            .convert(utf8.encode('test-string-to-sign'))
-            .toString();
+        final signature = Hmac(
+          sha256,
+          kSigning,
+        ).convert(utf8.encode('test-string-to-sign')).toString();
 
         // 签名应该是 64 字符的十六进制字符串
         expect(signature.length, 64);
@@ -127,10 +132,12 @@ void main() {
         final url1 = await service.getPresignedUrl('audio/diary-1.ogg');
         final url2 = await service.getPresignedUrl('audio/diary-2.ogg');
 
-        final sig1 =
-            RegExp(r'X-Tos-Signature=([0-9a-f]+)').firstMatch(url1)?.group(1);
-        final sig2 =
-            RegExp(r'X-Tos-Signature=([0-9a-f]+)').firstMatch(url2)?.group(1);
+        final sig1 = RegExp(
+          r'X-Tos-Signature=([0-9a-f]+)',
+        ).firstMatch(url1)?.group(1);
+        final sig2 = RegExp(
+          r'X-Tos-Signature=([0-9a-f]+)',
+        ).firstMatch(url2)?.group(1);
 
         // 不同 key 的签名一定不同
         expect(sig1, isNot(equals(sig2)));
@@ -138,8 +145,9 @@ void main() {
 
       test('签名长度为 64 字符的 hex', () async {
         final url = await service.getPresignedUrl('audio/test-id.ogg');
-        final sigMatch =
-            RegExp(r'X-Tos-Signature=([0-9a-f]{64})').firstMatch(url);
+        final sigMatch = RegExp(
+          r'X-Tos-Signature=([0-9a-f]{64})',
+        ).firstMatch(url);
         expect(sigMatch, isNotNull);
       });
     });

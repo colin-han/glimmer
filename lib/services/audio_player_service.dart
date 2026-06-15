@@ -85,9 +85,9 @@ class AudioPlayerService {
     final maxMs = await _controller.getDuration(DurationType.max);
     if (maxMs > 0) {
       _maxDurationMs = maxMs;
-      _emit(_stateSubject.value.copyWith(
-        duration: Duration(milliseconds: maxMs),
-      ));
+      _emit(
+        _stateSubject.value.copyWith(duration: Duration(milliseconds: maxMs)),
+      );
     }
   }
 
@@ -151,16 +151,19 @@ class AudioPlayerService {
     final isPlaying = playerState == PlayerState.playing;
 
     // 检测播放完成：PlayerState 变为 paused（FinishMode.pause）且位置接近末尾
-    final isCompleted = (playerState == PlayerState.paused ||
+    final isCompleted =
+        (playerState == PlayerState.paused ||
             playerState == PlayerState.stopped) &&
         _maxDurationMs > 0 &&
         durationMs >= _maxDurationMs - 100;
 
-    _emit(_stateSubject.value.copyWith(
-      position: position,
-      isPlaying: isPlaying,
-      isCompleted: isCompleted ? true : null,
-    ));
+    _emit(
+      _stateSubject.value.copyWith(
+        position: position,
+        isPlaying: isPlaying,
+        isCompleted: isCompleted ? true : null,
+      ),
+    );
   }
 
   // --------------------------------------------------
@@ -172,15 +175,18 @@ class AudioPlayerService {
     final isPlaying = playerState == PlayerState.playing;
 
     // 检测播放完成
-    final isCompleted = (playerState == PlayerState.paused ||
+    final isCompleted =
+        (playerState == PlayerState.paused ||
             playerState == PlayerState.stopped) &&
         _maxDurationMs > 0 &&
         _currentMs >= _maxDurationMs - 100;
 
-    _emit(_stateSubject.value.copyWith(
-      isPlaying: isPlaying,
-      isCompleted: isCompleted ? true : null,
-    ));
+    _emit(
+      _stateSubject.value.copyWith(
+        isPlaying: isPlaying,
+        isCompleted: isCompleted ? true : null,
+      ),
+    );
   }
 
   void _emit(AudioPlayerState state) {
