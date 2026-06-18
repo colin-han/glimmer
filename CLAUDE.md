@@ -40,6 +40,7 @@ dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆�
 | `./scripts/run_prod.sh` | 运行 **prod** flavor（`--flavor prod`） |
 | `./scripts/build.sh` | `flutter clean` 后构建 **prod release** APK，输出到 `build/app/outputs/flutter-apk/app-prod-release.apk` |
 | `./scripts/install.sh` | 将 prod release APK 安装到已连接设备（`adb install -r` 保留数据），需先执行 `build.sh` |
+| `./scripts/backup.sh` | 备份真机 app 数据目录到指定路径并打包 tar.gz。用法 `<version> <target_dir>`（`version` 为 `main`/`w1`/`w2`/...，对应包名；通过 `run-as` 访问，需 app 可调试，详见脚本头部注释） |
 | `./scripts/update_version.sh` | 更新版本号：bump 版本 → 改 `pubspec.yaml` → git 提交 → 打 tag → **push 到 origin**。用法 `[major\|minor\|patch\|<#.#.#>]`，默认 patch；仅限 main 分支且工作区干净；`--skip-version` 跳过版本号只打 tag |
 | `./scripts/release.sh` | 完整发布流程：`update_version` → `build` → `install`。用法同 update_version |
 
