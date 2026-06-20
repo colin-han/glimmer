@@ -9,7 +9,7 @@ import 'models/diary_entry.dart';
 import 'pages/recording_page.dart';
 import 'services/diary_storage_service.dart';
 import 'services/migration_service.dart';
-import 'services/recording_processor.dart' show ensureProcessingFgsRunning;
+import 'services/processing_fgs_controller.dart';
 import 'services/storage_migration_service.dart';
 import 'services/tos_upload_service.dart';
 
@@ -119,8 +119,8 @@ Future<void> _runDailySummaryIfNeeded() async {
       return;
     }
 
-    // 启动 processing FGS（若未运行）。复用现有 channel / processingCallback。
-    await ensureProcessingFgsRunning();
+    // 启动 processing FGS（若未运行）。统一走 ProcessingFgsController。
+    await ProcessingFgsController.start();
 
     await prefs.setString('last_daily_summary_gen_date', target);
   } catch (e) {

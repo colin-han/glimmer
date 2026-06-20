@@ -16,6 +16,9 @@ abstract interface class ProcessingFgsBackend {
 
   /// 读取用户设置的 processing 延迟秒数（<=0 表示无延迟）。
   Future<int> getProcessingDelay();
+
+  /// FGS 是否正在运行（FlutterForegroundTask.isRunningService）。
+  Future<bool> isServiceRunning();
 }
 
 class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
@@ -49,4 +52,7 @@ class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
 
   @override
   Future<int> getProcessingDelay() => SettingsPage.getProcessingDelay();
+
+  @override
+  Future<bool> isServiceRunning() => FlutterForegroundTask.isRunningService;
 }

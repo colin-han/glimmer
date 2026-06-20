@@ -12,7 +12,7 @@ import 'daily_summary_page.dart';
 import 'diary_detail_page.dart';
 import 'recording_page.dart';
 import 'tag_management_page.dart';
-import '../services/recording_processor.dart' show ensureProcessingFgsRunning;
+import '../services/processing_fgs_controller.dart';
 
 class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
@@ -333,7 +333,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
         updatedAt: now,
       ),
     );
-    await ensureProcessingFgsRunning(notificationText: '生成每日总结...');
+    await ProcessingFgsController.start();
     _loadData();
   }
 

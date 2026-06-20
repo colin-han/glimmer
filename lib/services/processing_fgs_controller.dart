@@ -29,7 +29,14 @@ class ProcessingFgsController {
   /// mode==recording 时拒绝（别中断录音），返回 false。
   static Future<bool> start() async {
     if (FgsRuntime.mode == FgsMode.recording) return false;
-    if (_isRunning) return true; // 幂等
+    // FGS 已在跑（可能别的入口启动的，如 daily-summary）→ 不重复启动
+    // （startProcessingFgs 内部会 stopService 清理，会中断已在跑的 FGS），仅标记状态。
+    if (await backend.isServiceRunning()) {
+      _isRunning = true;
+      FgsRuntime.setProcessing();
+      return true;
+    }
+    if (_isRunning) return true; // 幂等（防 isServiceRunning 与 _isRunning 竞态）
     final ok = await backend.startProcessingFgs();
     if (!ok) return false;
     _isRunning = true;

@@ -5,7 +5,7 @@ import '../design_tokens.dart';
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
 import '../services/diary_storage_service.dart';
-import '../services/recording_processor.dart';
+import '../services/processing_fgs_controller.dart';
 import '../services/tts_service.dart';
 import '../widgets/detail/detail_content_section.dart';
 import 'diary_detail_page.dart';
@@ -117,7 +117,7 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
         updatedAt: now,
       ),
     );
-    await ensureProcessingFgsRunning(notificationText: '生成每日总结...');
+    await ProcessingFgsController.start();
     if (mounted) setState(() => _isActivelyProcessing = true);
     _loadData();
   }

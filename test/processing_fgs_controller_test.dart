@@ -10,6 +10,7 @@ class _FakeBackend implements ProcessingFgsBackend {
   int startCalls = 0;
   int stopCalls = 0;
   int delayValue = 0;
+  bool isServiceRunningValue = false;
 
   @override
   Future<bool> startProcessingFgs() async {
@@ -22,6 +23,9 @@ class _FakeBackend implements ProcessingFgsBackend {
 
   @override
   Future<int> getProcessingDelay() async => delayValue;
+
+  @override
+  Future<bool> isServiceRunning() async => isServiceRunningValue;
 }
 
 void main() {
@@ -76,6 +80,18 @@ void main() {
       final result = await ProcessingFgsController.start();
       expect(result, isTrue);
       expect(backend.startCalls, 1); // 只调一次
+    });
+
+    test('FGS 已在跑（isServiceRunning）→ 标记状态返回 true，不重复启动', () async {
+      backend.isServiceRunningValue = true;
+      final result = await ProcessingFgsController.start();
+      expect(result, isTrue);
+      expect(
+        backend.startCalls,
+        0,
+      ); // 不调 startProcessingFgs（避免其内部 stopService 中断）
+      expect(ProcessingFgsController.isRunning, isTrue);
+      expect(FgsRuntime.mode, FgsMode.processing);
     });
   });
 
