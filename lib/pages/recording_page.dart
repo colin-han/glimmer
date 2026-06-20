@@ -7,7 +7,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../design_tokens.dart';
 import '../exceptions.dart';
+import '../models/audio_input_device.dart';
 import '../models/diary_entry.dart';
+import '../services/audio_device_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/fgs_runtime.dart';
 import '../services/processing_fgs_controller.dart';
@@ -36,6 +38,7 @@ class _RecordingPageState extends State<RecordingPage> {
   int _processingCount = 0;
   final _realtimeScrollController = ScrollController();
   WeatherLocation? _currentWeatherLocation;
+  AudioInputDevice? _currentInputDevice;
 
   // 振幅流（从 FGS 接收振幅数据，转为 Stream<Amplitude> 给波形组件）
   final _amplitudeController = StreamController<Amplitude>.broadcast();
@@ -229,6 +232,12 @@ class _RecordingPageState extends State<RecordingPage> {
       setState(() => _state = RecordingState.recording);
       FgsRuntime.setRecording();
       WakelockPlus.enable();
+
+      // 查询当前录音输入设备（失败/为 null 则不显示 pill）
+      final device = await AudioDeviceService().getCurrentInputDevice();
+      if (mounted && device != null && _state == RecordingState.recording) {
+        setState(() => _currentInputDevice = device);
+      }
     } catch (e) {
       _showError('录音启动失败：$e');
       setState(() => _state = RecordingState.idle);
@@ -244,6 +253,7 @@ class _RecordingPageState extends State<RecordingPage> {
       _recordingSeconds = 0;
       _realtimeText = '';
       _currentWeatherLocation = null;
+      _currentInputDevice = null;
     });
     _refreshProcessingCount();
     // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
@@ -425,6 +435,34 @@ class _RecordingPageState extends State<RecordingPage> {
                   onTap: _onTap,
                   recordingSeconds: _recordingSeconds,
                 ),
+
+                // 当前录音输入设备 pill（录音按钮下方）
+                if (_state == RecordingState.recording &&
+                    _currentInputDevice != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: WarmTokens.warmSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      '${_currentInputDevice!.emoji} ${_currentInputDevice!.label}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: WarmTokens.warmMuted,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
