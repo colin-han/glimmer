@@ -90,4 +90,20 @@ class ProcessingTask {
   /// 是否处于活跃状态（在队列或正在跑）。
   bool get isActive =>
       status == TaskStatus.queued || status == TaskStatus.running;
+
+  /// 复制（FGS 消息刷新内存时用：更新 stage/status，其余字段不变）。
+  ProcessingTask copyWith({String? stage, TaskStatus? status}) {
+    return ProcessingTask(
+      id: id,
+      taskType: taskType,
+      refId: refId,
+      status: status ?? this.status,
+      stage: stage ?? this.stage,
+      failedMessage: failedMessage,
+      meta: meta,
+      queuedAt: queuedAt,
+      startedAt: startedAt,
+      finishedAt: finishedAt,
+    );
+  }
 }
