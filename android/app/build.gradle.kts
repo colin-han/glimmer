@@ -62,6 +62,11 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+            // release 启用 debuggable：本 app 仅个人自用、sideload 安装、不上 Play Store
+            // （Play Store 拒绝 debuggable 的 APK），无需防逆向。开启后 adb run-as 可访问
+            // /data/data 私有目录，使 scripts/backup.sh 能备份 prod 包数据。
+            // 仅影响 Android 调试器的可附加性，release 的 AOT 性能与 tree-shake 不受影响。
+            isDebuggable = true
         }
     }
 }
