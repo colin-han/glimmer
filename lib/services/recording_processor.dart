@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import '../models/processing_task.dart' as task_model;
 import 'api_log_service.dart';
 import 'asr_service.dart';
 import 'daily_summary_processing_task.dart';
@@ -20,10 +21,10 @@ void processingCallback() {
 
 /// 处理阶段调度器，运行在 FGS isolate 中。
 ///
-/// 查询录音（DiaryEntries status=processing）+ 每日总结（DailySummaries
-/// status=processing）两类 pending 任务，分别包成 DiaryProcessingTask /
-/// DailySummaryProcessingTask，录音在前、总结在后，依次 execute；错误隔离。
-/// 具体处理逻辑在各 Task 内部。
+/// 查询 processing_tasks 表的所有活跃任务（queued + running），按 task_type
+/// 分发：diary → getEntryById 后构造 DiaryProcessingTask，daily_summary →
+/// DailySummaryProcessingTask。diary 在前、summary 在后（summary 依赖当天
+/// diary 已处理完成），依次 execute；错误隔离。具体处理逻辑在各 Task 内部。
 class ProcessingTaskHandler extends TaskHandler {
   void _sendToMain(Map<String, dynamic> data) {
     FlutterForegroundTask.sendDataToMain(data);
@@ -50,38 +51,50 @@ class ProcessingTaskHandler extends TaskHandler {
       sendToMain: _sendToMain,
     );
 
-    // 录音任务在前、每日总结在后（总结依赖当天录音已处理完成）
-    final entries = await storage.getPendingEntries();
-    final summaries = await storage.getPendingDailySummaries();
-    final tasks = <ProcessingTask>[
-      ...entries.map(DiaryProcessingTask.new),
-      ...summaries.map((s) => DailySummaryProcessingTask(s.date)),
-    ];
-
-    if (tasks.isEmpty) {
+    // 统一查 processing_tasks 表，按 task_type 分发
+    final pendingTasks = await storage.getPendingProcessingTasks();
+    if (pendingTasks.isEmpty) {
       debugPrint('[ProcessingHandler] 无待处理任务，停止');
       _sendToMain({'type': 'processingDone'});
       await _stopService();
       return;
     }
 
-    debugPrint('[ProcessingHandler] 待处理任务: ${tasks.length} 个');
-    for (final task in tasks) {
+    // diary 在前、summary 在后（summary 依赖当天 diary 已处理完成）
+    pendingTasks.sort((a, b) {
+      final aDiary = a.taskType == task_model.TaskType.diary ? 0 : 1;
+      final bDiary = b.taskType == task_model.TaskType.diary ? 0 : 1;
+      return aDiary.compareTo(bDiary);
+    });
+
+    debugPrint('[ProcessingHandler] 待处理任务: ${pendingTasks.length} 个');
+    for (final t in pendingTasks) {
       FlutterForegroundTask.updateService(
         notificationTitle: '正在处理',
-        notificationText: task.notificationText,
+        notificationText: _notificationFor(t),
       );
       try {
-        await task.execute(ctx);
+        if (t.taskType == task_model.TaskType.diary) {
+          final entry = await storage.getEntryById(t.refId);
+          await DiaryProcessingTask(entry, t).execute(ctx);
+        } else {
+          await DailySummaryProcessingTask(t).execute(ctx);
+        }
       } catch (e) {
         // 防御性兜底：Task 应自管失败，这里防止一个 Task 的未捕获异常中断其他
-        debugPrint('[ProcessingHandler] task ${task.id} 未捕获异常: $e');
+        debugPrint('[ProcessingHandler] task ${t.id} 未捕获异常: $e');
       }
     }
 
     debugPrint('[ProcessingHandler] 全部处理完成');
     _sendToMain({'type': 'processingDone'});
     await _stopService();
+  }
+
+  String _notificationFor(task_model.ProcessingTask t) {
+    return t.taskType == task_model.TaskType.diary
+        ? '语音日记 - 处理中...'
+        : '生成每日总结（${t.refId}）';
   }
 
   Future<void> _stopService() async {

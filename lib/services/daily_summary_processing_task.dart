@@ -2,30 +2,48 @@ import 'package:flutter/foundation.dart';
 
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
+import '../models/processing_task.dart' as task_model;
 import 'processing_task.dart';
 
 /// 每日总结处理任务：把指定日期当天所有录音的 ASR 全文重组为一篇总结。
 ///
+/// 持有 model ProcessingTask（refId=date），写 task.status（completed/failed）。
+/// daily_summary 表的 status 列废弃（任务状态以 processing_tasks 表为准），
+/// 写入时给一个固定值占位（不读）。
+///
 /// 流程：查当天 entries → 0 篇空完成 / 有 processing 篇判 failed / 否则
-/// summarizeDay 聚合 → 写正文文件 + 更新元数据。失败时标记 status=failed +
-/// 通知，不向上抛。
+/// summarizeDay 聚合 → 写正文文件 + 更新元数据 + task.status。失败时标记
+/// task.status=failed + 通知，不向上抛。
 class DailySummaryProcessingTask implements ProcessingTask {
-  final String date;
+  final task_model.ProcessingTask task;
 
-  DailySummaryProcessingTask(this.date);
+  DailySummaryProcessingTask(this.task);
 
   @override
-  String get id => date;
+  String get id => task.id;
 
   @override
   String get taskType => 'daily_summary';
 
   @override
-  String get notificationText => '生成每日总结（$date）';
+  String get notificationText => '生成每日总结（${task.refId}）';
+
+  String get date => task.refId;
 
   @override
   Future<void> execute(ProcessingContext ctx) async {
     debugPrint('[DailySummaryTask] 开始处理: $date');
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.running,
+    );
+    ctx.sendToMain({
+      'type': 'taskStarted',
+      'taskId': task.id,
+      'refId': date,
+      'taskType': 'daily_summary',
+    });
+
     final entries = await ctx.storage.getEntriesByDate(date);
     final sourceEntryIds = entries.map((e) => e.id).toList();
 
@@ -40,11 +58,16 @@ class DailySummaryProcessingTask implements ProcessingTask {
         entryCount: 0,
         degraded: false,
       );
-      ctx.sendToMain({'type': 'dailySummaryCompleted', 'date': date});
+      ctx.sendToMain({
+        'type': 'dailySummaryCompleted',
+        'date': date,
+        'taskId': task.id,
+      });
       return;
     }
 
-    // 前置：当天有 recording 尚未处理完成 → 判 failed（明确失败优于静默跳过）
+    // 前置：当天有 diary 尚未处理完成 → 判 failed（明确失败优于静默跳过）
+    // TODO(Task 7): entry.status 废弃后，改用 processing_tasks 表查当天有无 active task
     final hasProcessing = entries.any(
       (e) => e.status == EntryStatus.processing,
     );
@@ -70,7 +93,11 @@ class DailySummaryProcessingTask implements ProcessingTask {
         entryCount: entries.length,
         degraded: result.degraded,
       );
-      ctx.sendToMain({'type': 'dailySummaryCompleted', 'date': date});
+      ctx.sendToMain({
+        'type': 'dailySummaryCompleted',
+        'date': date,
+        'taskId': task.id,
+      });
     } catch (e) {
       await _markFailed(ctx, e.toString());
     }
@@ -98,6 +125,7 @@ class DailySummaryProcessingTask implements ProcessingTask {
       ),
     );
     final existing = await ctx.storage.getDailySummary(date);
+    // daily_summary 表 status 列废弃（任务状态走 processing_tasks），这里给占位值不读。
     await ctx.storage.saveDailySummary(
       DailySummary(
         date: date,
@@ -109,25 +137,23 @@ class DailySummaryProcessingTask implements ProcessingTask {
         updatedAt: DateTime.now(),
       ),
     );
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.completed,
+    );
   }
 
   Future<void> _markFailed(ProcessingContext ctx, String error) async {
     debugPrint('[DailySummaryTask] 失败 ($date): $error');
-    final existing = await ctx.storage.getDailySummary(date);
-    await ctx.storage.saveDailySummary(
-      DailySummary(
-        date: date,
-        title: existing?.title ?? '生成失败',
-        status: EntryStatus.failed,
-        sourceEntryIds: existing?.sourceEntryIds ?? const [],
-        entryCount: existing?.entryCount ?? 0,
-        createdAt: existing?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.failed,
+      failedMessage: error,
     );
     ctx.sendToMain({
       'type': 'dailySummaryFailed',
       'date': date,
+      'taskId': task.id,
       'error': error,
     });
   }
