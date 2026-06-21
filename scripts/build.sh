@@ -86,8 +86,35 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   flutter clean
 
   echo "==> 编译 prod release APK..."
+  # release buildType 开启了 isDebuggable=true（见 android/app/build.gradle.kts，
+  # 为支持 scripts/backup.sh 的 run-as 备份 prod 数据）。Flutter 的 gradle plugin
+  # 用 buildModeFor() 判断构建模式时只看 isDebuggable 标志、不看 buildType 名字
+  # （FlutterPluginUtils.kt: isDebuggable → "debug"），于是把 release 产出的 APK
+  # 错误重命名为 app-prod-debug.apk，导致 flutter-apk/app-prod-release.apk 缺失、
+  # flutter build 以非零退出码报 "failed to produce an .apk file"。
+  # 这是 Flutter 对 release+debuggable 的既定行为（master 仍未改，issue #54126
+  # 追踪至今 open），不会随版本修复，故此处不依赖 set -e 立即失败，改为构建后
+  # 从 gradle 真实输出路径 outputs/apk/prod/release/ 补齐正确命名的 APK。
+  set +e
   flutter build apk --flavor prod --release "$@"
+  build_rc=$?
+  set -e
   echo ""
+
+  # flutter-apk/ 下没有正确命名的 release APK 时，从 gradle 实际输出路径补齐，
+  # 确保后续 install.sh 可用（Flutter 会把该 APK 错命名成 app-prod-debug.apk）。
+  if [ ! -f "$APK" ]; then
+    GRADLE_APK="build/app/outputs/apk/prod/release/app-prod-release.apk"
+    if [ -f "$GRADLE_APK" ]; then
+      echo "==> 从 gradle 输出路径补齐 release APK: $GRADLE_APK"
+      cp "$GRADLE_APK" "$APK"
+    fi
+  fi
+
+  if [ ! -f "$APK" ]; then
+    echo "✗ 构建失败：未找到 $APK（flutter build 退出码 $build_rc）" >&2
+    exit 1
+  fi
 
   echo "==> 编译完成: $APK"
   ls -lh "$APK"
