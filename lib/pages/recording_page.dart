@@ -9,7 +9,7 @@ import '../design_tokens.dart';
 import '../exceptions.dart';
 import '../models/audio_input_device.dart';
 import '../models/diary_entry.dart';
-import '../models/processing_task.dart';
+import '../models/processing_task.dart' as task_model;
 import '../services/audio_device_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/fgs_runtime.dart';
@@ -37,7 +37,6 @@ class _RecordingPageState extends State<RecordingPage> {
   RecordingState _state = RecordingState.idle;
   int _recordingSeconds = 0;
   String _realtimeText = '';
-  int _processingCount = 0;
   final _realtimeScrollController = ScrollController();
   WeatherLocation? _currentWeatherLocation;
   AudioInputDevice? _currentInputDevice;
@@ -49,17 +48,23 @@ class _RecordingPageState extends State<RecordingPage> {
   void initState() {
     super.initState();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
-    _refreshProcessingCount();
+    // 订阅 store：active task 数量变化时刷新 badge
+    processingTaskStore.activeRefIds.addListener(_onStoreChange);
     ProcessingFgsController.schedule(isStartup: true);
   }
 
   @override
   void dispose() {
+    processingTaskStore.activeRefIds.removeListener(_onStoreChange);
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _amplitudeController.close();
     _realtimeScrollController.dispose();
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  void _onStoreChange() {
+    if (mounted) setState(() {});
   }
 
   /// 接收老张（FGS）发来的消息
@@ -102,7 +107,7 @@ class _RecordingPageState extends State<RecordingPage> {
         final entryId = data['entryId'] as String?;
         if (entryId != null) {
           await processingTaskStore.enqueueTask(
-            taskType: TaskType.diary,
+            taskType: task_model.TaskType.diary,
             refId: entryId,
             stage: 'uploading',
           );
@@ -110,12 +115,10 @@ class _RecordingPageState extends State<RecordingPage> {
       case 'processingDone':
         // Processing FGS 结束（无论是否有条目被处理）
         ProcessingFgsController.onStopped();
-        _refreshProcessingCount();
       case 'completed':
       case 'failed':
-        // 处理完成或失败时刷新 Badge 数量
+        // 处理完成或失败：store 已移除 active task，listener 自动刷新 badge
         ProcessingFgsController.onStopped();
-        _refreshProcessingCount();
       case 'notificationPressed':
         _handleNotificationPressed(data);
     }
@@ -247,18 +250,7 @@ class _RecordingPageState extends State<RecordingPage> {
       _currentWeatherLocation = null;
       _currentInputDevice = null;
     });
-    _refreshProcessingCount();
     // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
-  }
-
-  /// 刷新处理中的日记数量
-  Future<void> _refreshProcessingCount() async {
-    try {
-      final count = await _storageService.getProcessingEntryCount();
-      if (mounted) {
-        setState(() => _processingCount = count);
-      }
-    } catch (_) {}
   }
 
   void _showError(String msg) {
@@ -284,16 +276,14 @@ class _RecordingPageState extends State<RecordingPage> {
               padding: const EdgeInsets.only(right: 12),
               child: Badge(
                 offset: const Offset(-8, 4),
-                label: Text('$_processingCount'),
-                isLabelVisible: _processingCount > 0,
+                label: Text('${processingTaskStore.activeCount}'),
+                isLabelVisible: processingTaskStore.activeCount > 0,
                 child: IconButton(
                   icon: const Icon(Icons.history),
                   onPressed: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const DiaryListPage()),
                     );
-                    // 从列表页返回后刷新处理中数量
-                    _refreshProcessingCount();
                   },
                 ),
               ),

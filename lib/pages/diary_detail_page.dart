@@ -8,7 +8,7 @@ import '../design_tokens.dart';
 import '../main.dart';
 import '../models/diary_entry.dart';
 import '../models/processing_stage.dart';
-import '../models/processing_task.dart';
+import '../models/processing_task.dart' as task_model;
 import '../models/tag.dart';
 import '../models/utterance.dart';
 import '../services/audio_player_service.dart';
@@ -49,8 +49,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   List<Tag> _tags = [];
   bool _retrying = false;
 
-  /// FGS 是否正在活跃处理当前日记（收到 stageUpdate 即为 true）
-  bool _isActivelyProcessing = false;
+  /// DB 最新 task（含 failed，用于失败横幅）。store 内存只含 active，故 failed 需查 DB。
+  task_model.ProcessingTask? _latestTask;
 
   /// 可变的 entry 副本，用于在处理过程中刷新元数据
   late DiaryEntry _entry;
@@ -61,13 +61,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     _entry = widget.entry;
     _loadContent();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+    processingTaskStore.activeRefIds.addListener(_onStoreChange);
   }
 
   @override
   void dispose() {
+    processingTaskStore.activeRefIds.removeListener(_onStoreChange);
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _playerService.dispose();
     super.dispose();
+  }
+
+  void _onStoreChange() {
+    if (mounted) setState(() {});
   }
 
   void _onTaskData(Object data) {
@@ -78,11 +84,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (entryId != null && entryId != _entry.id) return;
 
     if (type == 'stageUpdate' && mounted) {
-      // 直接从消息中提取阶段信息，避免 DB 跨 isolate 读取延迟
+      // stageUpdate 实时更新 title（store 同步刷新 active task 的 stage，
+      // 这里仅更新 entry.title，避免 DB 跨 isolate 读取延迟）。
       final stageStr = data['stage'] as String?;
       final title = data['title'] as String?;
       setState(() {
-        _isActivelyProcessing = true;
         _entry = _entry.copyWith(
           processingStage: stageStr != null
               ? ProcessingStage.fromString(stageStr)
@@ -95,19 +101,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         _loadTranscript();
       }
     } else if (type == 'completed' && mounted) {
-      // 处理完成，加载最终内容
+      // 处理完成，加载最终内容（store 已移除 active task，listener 会刷新横幅）
       ProcessingFgsController.onStopped();
-      setState(() => _isActivelyProcessing = false);
       _loadContent();
     } else if (type == 'processingDone' && mounted) {
-      // FGS 停止，标记为非活跃
+      // FGS 停止，重新加载内容（刷新 _latestTask，可能含 failed）
       ProcessingFgsController.onStopped();
-      setState(() => _isActivelyProcessing = false);
       _loadContent();
     } else if (type == 'failed' && mounted) {
-      // 处理失败：重置 mode + 显示失败横幅
+      // 处理失败：重新加载内容（_latestTask 会含 failed，显示失败横幅）
       ProcessingFgsController.onStopped();
-      setState(() => _isActivelyProcessing = false);
       _loadContent();
     }
   }
@@ -132,6 +135,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     try {
       final updated = await _storageService.getEntryById(_entry.id);
       if (mounted) _entry = updated;
+    } catch (_) {}
+
+    // 查最新 task（含 failed，用于失败横幅；store 内存只含 active）
+    try {
+      _latestTask = await _storageService.getLatestProcessingTask(_entry.id);
     } catch (_) {}
 
     final audioPath = _storageService.getAudioPath(
@@ -199,21 +207,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       // 继承旧失败 task 的 stage/meta（断点续跑）。
       final oldTask = await _storageService.getLatestProcessingTask(_entry.id);
       await processingTaskStore.enqueueTask(
-        taskType: TaskType.diary,
+        taskType: task_model.TaskType.diary,
         refId: _entry.id,
         stage: oldTask?.stage ?? 'asr', // 继承失败处 stage
         meta: oldTask?.meta ?? const {}, // 继承 asrTaskId
       );
       if (!mounted) return;
-      // 本地乐观更新：切到处理中横幅
-      setState(() {
-        _retrying = false;
-        _entry = _entry.copyWith(
-          status: EntryStatus.processing,
-          processingStage: ProcessingStage.fromString(oldTask?.stage ?? 'asr'),
-        );
-        _isActivelyProcessing = true;
-      });
+      // 入队后 store 通知 activeRefIds listener 自动刷新横幅（无需本地乐观更新）
+      setState(() => _retrying = false);
     } catch (e) {
       if (mounted) {
         setState(() => _retrying = false);
@@ -246,22 +247,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     try {
       // 入队全量重跑 task（stage=asr + 清 asrTaskId）。
-      // enqueueTask 新建 task 行，不碰 entry.status（UI 暂时 stale，Task 6 改订阅 store）。
+      // enqueueTask 新建 task 行，store 通知 listener 自动刷新横幅。
       await processingTaskStore.enqueueTask(
-        taskType: TaskType.diary,
+        taskType: task_model.TaskType.diary,
         refId: _entry.id,
         stage: 'asr',
         meta: const {}, // 清 asrTaskId，全量重跑
       );
-      if (!mounted) return;
-      // 本地乐观更新：立即切到处理中横幅
-      setState(() {
-        _entry = _entry.copyWith(
-          status: EntryStatus.processing,
-          processingStage: ProcessingStage.asr,
-        );
-        _isActivelyProcessing = true;
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -301,21 +293,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   Widget _buildStatusBanner() {
-    final isProcessing = _entry.status == EntryStatus.processing;
-    final isFailed = _entry.status == EntryStatus.failed;
-    if (!isProcessing && !isFailed) return const SizedBox.shrink();
+    // 优先看 store 内存（active: queued/running），回退 _latestTask（含 failed）
+    final activeTask = processingTaskStore.getTask(_entry.id);
+    final task = activeTask ?? _latestTask;
+    if (task == null) return const SizedBox.shrink();
 
-    if (isProcessing) {
-      final stageText = switch (_entry.processingStage) {
-        ProcessingStage.uploading => '上传',
-        ProcessingStage.asr => '语音识别',
-        ProcessingStage.llm => 'AI 总结',
-        ProcessingStage.tagging => '自动归类',
-        ProcessingStage.completed => '即将完成',
+    if (task.status == task_model.TaskStatus.running ||
+        task.status == task_model.TaskStatus.queued) {
+      final stageText = switch (task.stage) {
+        'uploading' => '上传',
+        'asr' => '语音识别',
+        'llm' => 'AI 总结',
+        'tagging' => '自动归类',
+        _ => '处理中',
       };
 
-      // 暂停状态：FGS 未运行，不显示转圈动画
-      if (!_isActivelyProcessing) {
+      // queued（待延时启动）显示暂停样式；running 显示转圈进度
+      if (task.status == task_model.TaskStatus.queued) {
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.all(14),
@@ -382,56 +376,60 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       );
     }
 
-    // failed
-    final failedStage = switch (_entry.processingStage) {
-      ProcessingStage.uploading => '上传失败',
-      ProcessingStage.asr => '语音识别失败',
-      ProcessingStage.llm => 'AI 总结失败',
-      ProcessingStage.tagging => '归类失败',
-      ProcessingStage.completed => '处理失败',
-    };
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: WarmTokens.failedBg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.error_outline,
-            color: WarmTokens.failedAccent,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              failedStage,
-              style: const TextStyle(
-                color: WarmTokens.failedText,
-                fontSize: 13,
+    if (task.status == task_model.TaskStatus.failed) {
+      final failedStage = switch (task.stage) {
+        'uploading' => '上传失败',
+        'asr' => '语音识别失败',
+        'llm' => 'AI 总结失败',
+        'tagging' => '归类失败',
+        _ => '处理失败',
+      };
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: WarmTokens.failedBg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.error_outline,
+              color: WarmTokens.failedAccent,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                failedStage,
+                style: const TextStyle(
+                  color: WarmTokens.failedText,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
-          if (_retrying)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            TextButton.icon(
-              onPressed: _retry,
-              icon: const Icon(Icons.refresh, size: 14),
-              label: const Text('重新处理', style: TextStyle(fontSize: 12)),
-              style: TextButton.styleFrom(
-                foregroundColor: WarmTokens.failedAccent,
+            if (_retrying)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              TextButton.icon(
+                onPressed: _retry,
+                icon: const Icon(Icons.refresh, size: 14),
+                label: const Text('重新处理', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: WarmTokens.failedAccent,
+                ),
               ),
-            ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    }
+
+    // completed：不显示横幅
+    return const SizedBox.shrink();
   }
 
   @override
@@ -473,7 +471,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ],
         ),
         actions: [
-          if (_entry.status == EntryStatus.completed)
+          // 仅在未处理中且未失败时显示「重新分析」（store 内存无 active task + DB 最新 task 非 failed）
+          if (!processingTaskStore.isProcessing(_entry.id) &&
+              _latestTask?.status != task_model.TaskStatus.failed)
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: '重新分析',
@@ -499,7 +499,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Text(
-                        _isActivelyProcessing ? '⏳ 处理中...' : '⏸ 处理暂停',
+                        processingTaskStore.getTask(_entry.id)?.status ==
+                                task_model.TaskStatus.running
+                            ? '⏳ 处理中...'
+                            : '⏸ 处理暂停',
                         style: const TextStyle(
                           fontSize: 12,
                           color: WarmTokens.warmMuted,

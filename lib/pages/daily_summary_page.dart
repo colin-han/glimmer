@@ -5,7 +5,7 @@ import '../design_tokens.dart';
 import '../main.dart';
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
-import '../models/processing_task.dart';
+import '../models/processing_task.dart' as task_model;
 import '../services/diary_storage_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/detail/detail_content_section.dart';
@@ -26,28 +26,39 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
   final _ttsService = TtsService();
 
   bool _loading = true;
-  DailySummary? _summary;
   DailySummaryData? _data;
   List<DiaryEntry> _entries = const [];
-  bool _isActivelyProcessing = false;
   bool _isPlayingTts = false;
+
+  /// DB 最新 task（含 failed，用于失败横幅；store 内存只含 active）。
+  task_model.ProcessingTask? _latestTask;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+    processingTaskStore.activeRefIds.addListener(_onStoreChange);
   }
 
   @override
   void dispose() {
+    processingTaskStore.activeRefIds.removeListener(_onStoreChange);
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     super.dispose();
   }
 
+  void _onStoreChange() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadData() async {
-    final summary = await _storageService.getDailySummary(widget.date);
     final entries = await _storageService.getEntriesByDate(widget.date);
+    // 查最新 task（含 failed，用于失败横幅；store 内存只含 active）
+    task_model.ProcessingTask? latestTask;
+    try {
+      latestTask = await _storageService.getLatestProcessingTask(widget.date);
+    } catch (_) {}
     DailySummaryData? data;
     if (await _storageService.hasDailySummary(widget.date)) {
       try {
@@ -56,8 +67,8 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
     }
     if (mounted) {
       setState(() {
-        _summary = summary;
         _entries = entries;
+        _latestTask = latestTask;
         _data = data;
         _loading = false;
       });
@@ -70,12 +81,9 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
     final date = data['date'] as String?;
     if (date != null && date != widget.date) return;
 
-    if (type == 'dailySummaryStage' && mounted) {
-      setState(() => _isActivelyProcessing = true);
-    } else if ((type == 'dailySummaryCompleted' ||
-            type == 'dailySummaryFailed') &&
+    // completed/failed 后重新加载数据（刷新 _latestTask）；stage 变化由 store listener 处理
+    if ((type == 'dailySummaryCompleted' || type == 'dailySummaryFailed') &&
         mounted) {
-      setState(() => _isActivelyProcessing = false);
       _loadData();
     }
   }
@@ -106,10 +114,10 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
 
   Future<void> _regenerate() async {
     await processingTaskStore.enqueueTask(
-      taskType: TaskType.dailySummary,
+      taskType: task_model.TaskType.dailySummary,
       refId: widget.date,
     );
-    if (mounted) setState(() => _isActivelyProcessing = true);
+    // 入队后 store 通知 listener 自动刷新横幅（无需本地乐观更新）
     _loadData();
   }
 
@@ -230,8 +238,13 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
   }
 
   Widget _buildStatusBanner() {
-    final status = _summary?.status;
-    if (status == EntryStatus.processing) {
+    // 优先看 store 内存（active: queued/running），回退 _latestTask（含 failed）
+    final activeTask = processingTaskStore.getTask(widget.date);
+    final task = activeTask ?? _latestTask;
+    if (task == null) return const SizedBox.shrink();
+
+    if (task.status == task_model.TaskStatus.running ||
+        task.status == task_model.TaskStatus.queued) {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(14),
@@ -251,14 +264,16 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              _isActivelyProcessing ? '正在生成每日总结...' : '生成暂停',
+              task.status == task_model.TaskStatus.running
+                  ? '正在生成每日总结...'
+                  : '生成暂停',
               style: const TextStyle(color: WarmTokens.warmBrown, fontSize: 13),
             ),
           ],
         ),
       );
     }
-    if (status == EntryStatus.failed) {
+    if (task.status == task_model.TaskStatus.failed) {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(14),
@@ -292,6 +307,7 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
         ),
       );
     }
+    // completed：不显示横幅
     return const SizedBox.shrink();
   }
 

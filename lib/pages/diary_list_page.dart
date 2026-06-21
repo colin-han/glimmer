@@ -5,7 +5,7 @@ import '../design_tokens.dart';
 import '../main.dart';
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
-import '../models/processing_task.dart';
+import '../models/processing_task.dart' as task_model;
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../widgets/app_title.dart';
@@ -43,6 +43,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     _loadData();
     // 监听 FGS 消息，处理完成/失败时刷新列表
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+    // 订阅 store：active task 变化时刷新卡片/daily_summary 行
+    processingTaskStore.activeRefIds.addListener(_onStoreChange);
   }
 
   Future<void> _loadData() async {
@@ -93,9 +95,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   @override
   void dispose() {
+    processingTaskStore.activeRefIds.removeListener(_onStoreChange);
     FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onStoreChange() {
+    if (mounted) setState(() {});
   }
 
   /// 接收 FGS 消息，录音/每日总结完成/失败/阶段更新时刷新列表
@@ -322,18 +329,20 @@ class _DiaryListPageState extends State<DiaryListPage> {
   /// 请求生成/重新生成某天的每日总结：入队 daily_summary task。
   Future<void> _requestDailySummary(String dateKey) async {
     await processingTaskStore.enqueueTask(
-      taskType: TaskType.dailySummary,
+      taskType: task_model.TaskType.dailySummary,
       refId: dateKey,
     );
     _loadData();
   }
 
-  /// 每个日期分组下的「本日总结」行，按 DailySummary 状态自适应。
+  /// 每个日期分组下的「本日总结」行，按 task 状态自适应。
+  /// processing 读 store（active task）；completed/none 读 DailySummary 记录；
+  /// failed 暂不在此展示（列表页价值低，可在 daily_summary 页查看）。
   Widget _buildDailySummaryRow(String dateKey) {
     final summary = _dailySummaries[dateKey];
 
-    // processing：转圈
-    if (summary?.status == EntryStatus.processing) {
+    // processing：转圈（读 store 内存，active task）
+    if (processingTaskStore.isProcessing(dateKey)) {
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -361,37 +370,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
       );
     }
 
-    // failed：重试
-    if (summary?.status == EntryStatus.failed) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: WarmTokens.failedBg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: WarmTokens.failedAccent, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '⚠ 生成失败',
-                style: TextStyle(fontSize: 14, color: WarmTokens.failedText),
-              ),
-            ),
-            TextButton(
-              onPressed: () => _requestDailySummary(dateKey),
-              child: const Text('重试', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // completed：标题预览 + 重新生成
-    if (summary?.status == EntryStatus.completed) {
-      final s = summary!;
+    // completed：标题预览 + 重新生成（summary 记录存在即视为已生成）
+    if (summary != null) {
       return GestureDetector(
         onTap: () {
           Navigator.of(context)
@@ -418,7 +398,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  s.title,
+                  summary.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -534,20 +514,16 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   Widget _buildEntryCard(DiaryEntry entry) {
     final tags = _entryTags[entry.id] ?? [];
-    final isProcessing = entry.status == EntryStatus.processing;
-    final isFailed = entry.status == EntryStatus.failed;
+    // 处理中状态读 store（active task）；failed 在列表页价值低，按普通卡片渲染。
+    final isProcessing = processingTaskStore.isProcessing(entry.id);
 
     // 卡片背景色
-    final bgColor = isFailed
-        ? WarmTokens.failedBg
-        : isProcessing
+    final bgColor = isProcessing
         ? WarmTokens.warmProcessBg
         : WarmTokens.warmCardBg;
 
     // 边框色
-    final borderColor = isFailed
-        ? WarmTokens.failedAccent.withValues(alpha: 0.3)
-        : WarmTokens.warmDivider;
+    final borderColor = WarmTokens.warmDivider;
 
     return GestureDetector(
       onTap: () {
@@ -579,9 +555,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: isFailed
-                          ? WarmTokens.failedText
-                          : WarmTokens.warmBrown,
+                      color: WarmTokens.warmBrown,
                       height: 1.4,
                     ),
                   ),
@@ -596,15 +570,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
                         strokeWidth: 2,
                         color: WarmTokens.warmAmber,
                       ),
-                    ),
-                  ),
-                if (isFailed)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Icon(
-                      Icons.error_outline,
-                      color: WarmTokens.failedAccent,
-                      size: 18,
                     ),
                   ),
               ],
