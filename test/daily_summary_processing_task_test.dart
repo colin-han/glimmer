@@ -102,6 +102,10 @@ void main() {
         failedMessage: any(named: 'failedMessage'),
       ),
     ).thenAnswer((_) async {});
+    // 默认无 active task（hasProcessing=false）；个别测试 override
+    when(
+      () => storage.getPendingProcessingTasks(),
+    ).thenAnswer((_) async => <task_model.ProcessingTask>[]);
   }
 
   test('0 篇 → 标记 completed 空总结，通知 dailySummaryCompleted', () async {
@@ -144,6 +148,18 @@ void main() {
     when(
       () => storage.getEntriesByDate(any()),
     ).thenAnswer((_) async => [_entry(status: EntryStatus.processing)]);
+    // 当天 diary e1 有 active task → hasProcessing=true → failed
+    when(() => storage.getPendingProcessingTasks()).thenAnswer(
+      (_) async => [
+        task_model.ProcessingTask(
+          id: 'pt1',
+          taskType: task_model.TaskType.diary,
+          refId: 'e1',
+          status: task_model.TaskStatus.running,
+          queuedAt: DateTime(2026, 6, 13),
+        ),
+      ],
+    );
 
     await DailySummaryProcessingTask(
       _task(date),
