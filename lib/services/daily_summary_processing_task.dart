@@ -67,10 +67,12 @@ class DailySummaryProcessingTask implements ProcessingTask {
     }
 
     // 前置：当天有 diary 尚未处理完成 → 判 failed（明确失败优于静默跳过）
-    // TODO(Task 7): entry.status 废弃后，改用 processing_tasks 表查当天有无 active task
-    final hasProcessing = entries.any(
-      (e) => e.status == EntryStatus.processing,
-    );
+    // 查 processing_tasks 表（不读废弃的 entry.status）：当天任一 diary 仍有
+    // queued/running 任务即视为未完成。FGS isolate 不能访问 main isolate 的
+    // processingTaskStore（static 不跨 isolate），改由 ctx.storage 直接查 DB。
+    final diaryIds = entries.map((e) => e.id).toSet();
+    final allPending = await ctx.storage.getPendingProcessingTasks();
+    final hasProcessing = allPending.any((t) => diaryIds.contains(t.refId));
     if (hasProcessing) {
       await _markFailed(ctx, '当天有录音尚未处理完成');
       return;

@@ -98,12 +98,20 @@ class DiaryStorageService {
     );
   }
 
+  /// 更新业务表 status（已废弃，业务表 status 列不再维护）。
+  @Deprecated(
+    '已废弃：改用 updateProcessingTaskStatus()（processing_tasks 表）。业务表 status 不再维护。',
+  )
   Future<void> updateEntryStatus(String id, EntryStatus status) async {
     await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
       DiaryEntriesCompanion(status: Value(status.name)),
     );
   }
 
+  /// 更新 title + status（已废弃，status 列不再写入）。
+  @Deprecated(
+    '已废弃：改用 updateEntryTitleAndUploadedAt() + updateProcessingTaskStatus()。业务表 status 不再维护。',
+  )
   Future<void> updateEntryTitleAndStatus(
     String id,
     String title,
@@ -214,7 +222,10 @@ class DiaryStorageService {
 
   // --- 查询 ---
 
-  /// 查询处理中的日记数量
+  /// 查询处理中的日记数量（已废弃）。
+  @Deprecated(
+    '已废弃：改用 processingTaskStore.activeCount（processing_tasks 表）。业务表 status 不再维护。',
+  )
   Future<int> getProcessingEntryCount() => _db.getProcessingEntryCount();
 
   EntryStatus _parseStatus(String? status) {
@@ -406,13 +417,16 @@ class DiaryStorageService {
     return tags;
   }
 
-  /// 重置日记条目到「可被全量重新分析」的状态：
+  /// 重置日记条目到「可被全量重新分析」的状态（已废弃）：
   /// - status → processing（让 ProcessingTaskHandler.getPendingEntries 拾取）
   /// - processingStage → asr（tosKey 已存在则跳过重新上传；无 tosKey 落到 uploading）
   /// - asrTaskId → null（强制 _doAsr 重新 submit，而非 poll 旧 task 拿旧结果）
   ///
   /// 不动 title / folderPath / transcript.json / llm_result.json 等数据。
   /// 失败时抛异常（调用方负责 catch + 提示）。
+  @Deprecated(
+    '已废弃：改用 processingTaskStore.enqueueTask()（processing_tasks 表）。业务表 status 不再维护。',
+  )
   Future<void> resetEntryForReanalysis(String id) async {
     final entry = await _db.getEntryById(id);
     final stage = entry.tosKey != null
@@ -499,7 +513,10 @@ class DiaryStorageService {
     return results;
   }
 
-  /// 查询所有待处理的条目（status=processing），按创建时间升序
+  /// 查询所有待处理的条目（status=processing），按创建时间升序（已废弃）。
+  @Deprecated(
+    '已废弃：改用 getPendingProcessingTasks()（processing_tasks 表）。业务表 status 不再维护。',
+  )
   Future<List<DiaryEntry>> getPendingEntries() async {
     final rows = await _db.getPendingEntries();
     return rows
@@ -605,6 +622,10 @@ class DiaryStorageService {
     return row == null ? null : _summaryRowToModel(row);
   }
 
+  /// 查询所有 status=processing 的每日总结（已废弃）。
+  @Deprecated(
+    '已废弃：改用 getPendingProcessingTasks()（processing_tasks 表，taskType=daily_summary）。业务表 status 不再维护。',
+  )
   Future<List<DailySummary>> getPendingDailySummaries() async {
     final rows = await _db.getPendingDailySummaries();
     return rows.map(_summaryRowToModel).toList();
@@ -659,14 +680,20 @@ class DiaryStorageService {
     return const [];
   }
 
-  /// 更新处理阶段
+  /// 更新处理阶段（已废弃，业务表 processing_stage 列不再写入）。
+  @Deprecated(
+    '已废弃：改用 updateProcessingTaskStage()（processing_tasks 表）。业务表 processing_stage 不再维护。',
+  )
   Future<void> updateProcessingStage(String id, ProcessingStage stage) async {
     await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
       DiaryEntriesCompanion(processingStage: Value(stage.value)),
     );
   }
 
-  /// 更新处理阶段和 tosKey
+  /// 更新处理阶段和 tosKey（已废弃）。
+  @Deprecated(
+    '已废弃：改用 updateTosKey() + updateProcessingTaskStage()。业务表 processing_stage 不再维护。',
+  )
   Future<void> updateTosKeyAndStage(
     String id,
     String tosKey,
@@ -680,7 +707,10 @@ class DiaryStorageService {
     );
   }
 
-  /// 更新处理阶段和 asrTaskId
+  /// 更新处理阶段和 asrTaskId（已废弃）。
+  @Deprecated(
+    '已废弃：改用 updateProcessingTaskMeta()（processing_tasks 表）。业务表 processing_stage/asr_task_id 不再维护。',
+  )
   Future<void> updateAsrTaskIdAndStage(
     String id,
     String asrTaskId,

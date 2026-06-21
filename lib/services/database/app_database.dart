@@ -213,6 +213,10 @@ class AppDatabase extends _$AppDatabase {
     return (delete(diaryEntries)..where((t) => t.id.equals(id))).go();
   }
 
+  /// 查询 status=processing 的日记（已废弃，db 层）。
+  @Deprecated(
+    '已废弃：改用 processing_tasks 表（DiaryStorageService.getPendingProcessingTasks）。业务表 status 不再维护。',
+  )
   Future<List<DiaryEntry>> getPendingEntries() {
     return (select(diaryEntries)
           ..where((t) => t.status.equals('processing'))
@@ -288,7 +292,10 @@ class AppDatabase extends _$AppDatabase {
     )..where((t) => t.tagId.equals(tagId))).get().then((rows) => rows.length);
   }
 
-  /// 查询未完成的日记数量（processing + failed）
+  /// 查询未完成的日记数量（processing + failed）（已废弃，db 层）。
+  @Deprecated(
+    '已废弃：改用 processing_tasks 表（processingTaskStore.activeCount）。业务表 status 不再维护。',
+  )
   Future<int> getProcessingEntryCount() {
     return (select(diaryEntries)..where(
           (t) => t.status.equals('processing') | t.status.equals('failed'),
@@ -331,6 +338,10 @@ class AppDatabase extends _$AppDatabase {
     )..where((t) => t.date.equals(date))).getSingleOrNull();
   }
 
+  /// 查询 status=processing 的每日总结（已废弃，db 层）。
+  @Deprecated(
+    '已废弃：改用 processing_tasks 表（taskType=daily_summary）。业务表 status 不再维护。',
+  )
   Future<List<DailySummaryRow>> getPendingDailySummaries() {
     return (select(dailySummaries)
           ..where((t) => t.status.equals('processing'))
