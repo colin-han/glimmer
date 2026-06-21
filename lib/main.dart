@@ -4,14 +4,16 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'design_tokens.dart';
-import 'models/daily_summary.dart';
-import 'models/diary_entry.dart';
+import 'models/processing_task.dart';
 import 'pages/recording_page.dart';
 import 'services/diary_storage_service.dart';
 import 'services/migration_service.dart';
-import 'services/processing_fgs_controller.dart';
+import 'services/processing_task_store.dart';
 import 'services/storage_migration_service.dart';
 import 'services/tos_upload_service.dart';
+
+/// 全局 task store（main isolate 单例）。UI/入口通过此访问。
+late final ProcessingTaskStore processingTaskStore;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +36,11 @@ void main() async {
   );
   final migrationService = StorageMigrationService();
   await migrationService.runMigrations();
+
+  // 全局 task store 初始化：从 DB 加载活跃 task + 注册 FGS 消息回调
+  processingTaskStore = ProcessingTaskStore(storage: DiaryStorageService());
+  await processingTaskStore.loadFromDb();
+  processingTaskStore.startListening();
 
   // 异步执行历史 WAV → OGG + TOS 迁移（不阻塞 UI）
   _runTosMigrationIfNeeded();
@@ -81,6 +88,10 @@ String? dailySummaryTargetDate({
 
 /// 异步执行：每天首次打开 app 时自动为「昨天」生成每日总结。
 /// 仿 _runTosMigrationIfNeeded，fire-and-forget，不阻塞 UI。
+///
+/// 通过 task 表判断是否已生成（不再依赖 DailySummaries.status）：
+/// - 若该 date 已有 completed/active task，跳过（更新 gen date）
+/// - 否则入队 daily_summary task
 Future<void> _runDailySummaryIfNeeded() async {
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -100,27 +111,18 @@ Future<void> _runDailySummaryIfNeeded() async {
       return;
     }
 
-    // 已有记录的处理：null→新建 pending；processing→重启 FGS 继续；
-    // completed/failed→不自动重新生成，更新 gen date 跳过
-    final existing = await storage.getDailySummary(target);
-    if (existing == null) {
-      await storage.saveDailySummary(
-        DailySummary(
-          date: target,
-          title: '正在生成…',
-          status: EntryStatus.processing,
-          sourceEntryIds: const [],
-          entryCount: 0,
-          createdAt: DateTime.now(),
-        ),
-      );
-    } else if (existing.status != EntryStatus.processing) {
+    // 查 task 表：若该 date 已有 task（completed 不重复生成；active 不重复入队），跳过
+    final existingTask = await storage.getLatestProcessingTask(target);
+    if (existingTask != null) {
       await prefs.setString('last_daily_summary_gen_date', target);
       return;
     }
 
-    // 启动 processing FGS（若未运行）。统一走 ProcessingFgsController。
-    await ProcessingFgsController.start();
+    // 入队 daily_summary task（store 内部会触发 FGS）
+    await processingTaskStore.enqueueTask(
+      taskType: TaskType.dailySummary,
+      refId: target,
+    );
 
     await prefs.setString('last_daily_summary_gen_date', target);
   } catch (e) {

@@ -9,12 +9,14 @@ import '../design_tokens.dart';
 import '../exceptions.dart';
 import '../models/audio_input_device.dart';
 import '../models/diary_entry.dart';
+import '../models/processing_task.dart';
 import '../services/audio_device_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/fgs_runtime.dart';
 import '../services/processing_fgs_controller.dart';
 import '../services/recording_task_handler.dart';
 import '../services/weather_service.dart';
+import '../main.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
@@ -61,7 +63,7 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   /// 接收老张（FGS）发来的消息
-  void _onTaskData(Object data) {
+  Future<void> _onTaskData(Object data) async {
     if (data is! Map<String, dynamic>) return;
     if (!mounted) return;
 
@@ -95,9 +97,16 @@ class _RecordingPageState extends State<RecordingPage> {
           );
         });
       case 'recordingComplete':
-        // 录音完成，重置 recording mode，延迟启动 Processing FGS
+        // 录音完成，重置 recording mode，入队 diary task
         FgsRuntime.setNone();
-        ProcessingFgsController.schedule();
+        final entryId = data['entryId'] as String?;
+        if (entryId != null) {
+          await processingTaskStore.enqueueTask(
+            taskType: TaskType.diary,
+            refId: entryId,
+            stage: 'uploading',
+          );
+        }
       case 'processingDone':
         // Processing FGS 结束（无论是否有条目被处理）
         ProcessingFgsController.onStopped();

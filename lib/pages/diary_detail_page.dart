@@ -5,14 +5,14 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path/path.dart' as p;
 
 import '../design_tokens.dart';
+import '../main.dart';
 import '../models/diary_entry.dart';
 import '../models/processing_stage.dart';
+import '../models/processing_task.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
-import '../services/asr_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/diary_storage_service.dart';
-import '../services/llm_service.dart';
 import '../services/processing_fgs_controller.dart';
 import '../widgets/app_title.dart';
 import '../widgets/detail/detail_content_section.dart';
@@ -39,8 +39,6 @@ class DiaryDetailPage extends StatefulWidget {
 class _DiaryDetailPageState extends State<DiaryDetailPage> {
   final _playerService = AudioPlayerService();
   final _storageService = DiaryStorageService();
-  final _asrService = AsrService();
-  final _llmService = LlmService();
 
   bool _loading = true;
   bool _audioExists = false;
@@ -198,79 +196,24 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     setState(() => _retrying = true);
 
     try {
-      final audioPath = _storageService.getAudioPath(
-        _entry.folderPath,
-        _entry.audioFormat,
+      // 继承旧失败 task 的 stage/meta（断点续跑）。
+      final oldTask = await _storageService.getLatestProcessingTask(_entry.id);
+      await processingTaskStore.enqueueTask(
+        taskType: TaskType.diary,
+        refId: _entry.id,
+        stage: oldTask?.stage ?? 'asr', // 继承失败处 stage
+        meta: oldTask?.meta ?? const {}, // 继承 asrTaskId
       );
-      final transcriptPath = p.join(_entry.folderPath, 'transcript.json');
-      final transcriptExists = File(transcriptPath).existsSync();
-
-      List<Utterance> utterances;
-
-      if (!transcriptExists) {
-        final asrResult = await _asrService.transcribe(audioPath);
-        await _storageService.writeTranscriptJson(
-          _entry.folderPath,
-          TranscriptData(version: 1, utterances: asrResult.utterances),
-        );
-        utterances = asrResult.utterances;
-      } else {
-        final transcriptData = await _storageService.readTranscriptJson(
-          _entry.folderPath,
-        );
-        utterances = transcriptData.utterances;
-      }
-
-      // 识别结果为空：写占位结果并标记完成，不进入 LLM
-      if (utterances.isEmpty) {
-        await _finishAsEmpty();
-        return;
-      }
-
-      final llmResult = await _llmService.summarize(utterances);
-      await _storageService.writeLlmResult(
-        _entry.folderPath,
-        LlmResultData(
-          version: 1,
-          title: llmResult.title,
-          summary: llmResult.summary,
-          outline: llmResult.outline,
-          utterances: llmResult.utterances,
-        ),
-      );
-
-      await _storageService.updateTitle(_entry.id, llmResult.title);
-
-      // 自动打 tag
-      try {
-        final allTags = await _storageService.getAllTags();
-        final tagsWithPrompt = allTags
-            .where((t) => t.matchPrompt.isNotEmpty)
-            .toList();
-        if (tagsWithPrompt.isNotEmpty) {
-          final tagInfos = tagsWithPrompt
-              .map(
-                (t) =>
-                    TagInfo(id: t.id, name: t.name, matchPrompt: t.matchPrompt),
-              )
-              .toList();
-          final matchedTagIds = await _llmService.matchTags(
-            llmResult.summary,
-            tagInfos,
-          );
-          if (matchedTagIds.isNotEmpty) {
-            await _storageService.autoTagDiary(_entry.id, matchedTagIds);
-          }
-        }
-      } catch (e) {
-        debugPrint('[重试] 自动归类失败（不阻塞）: $e');
-      }
-
+      if (!mounted) return;
+      // 本地乐观更新：切到处理中横幅
       setState(() {
         _retrying = false;
-        _loading = true;
+        _entry = _entry.copyWith(
+          status: EntryStatus.processing,
+          processingStage: ProcessingStage.fromString(oldTask?.stage ?? 'asr'),
+        );
+        _isActivelyProcessing = true;
       });
-      await _loadContent();
     } catch (e) {
       if (mounted) {
         setState(() => _retrying = false);
@@ -278,32 +221,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('重试失败: $e')));
       }
-    }
-  }
-
-  /// ASR 识别结果为空时的重试处理：写占位 LLM 结果，标记完成，刷新页面。
-  Future<void> _finishAsEmpty() async {
-    await _storageService.writeLlmResult(
-      _entry.folderPath,
-      LlmResultData(
-        version: 1,
-        title: '未识别到语音内容',
-        summary: '本次录音未识别到语音内容，可能录音过短或无声。',
-        outline: '',
-        utterances: [],
-      ),
-    );
-    await _storageService.updateEntryTitleAndStatus(
-      _entry.id,
-      '未识别到语音内容',
-      EntryStatus.completed,
-    );
-    if (mounted) {
-      setState(() {
-        _retrying = false;
-        _loading = true;
-      });
-      await _loadContent();
     }
   }
 
@@ -328,9 +245,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (confirmed != true) return;
 
     try {
-      await _storageService.resetEntryForReanalysis(_entry.id);
+      // 入队全量重跑 task（stage=asr + 清 asrTaskId）。
+      // enqueueTask 新建 task 行，不碰 entry.status（UI 暂时 stale，Task 6 改订阅 store）。
+      await processingTaskStore.enqueueTask(
+        taskType: TaskType.diary,
+        refId: _entry.id,
+        stage: 'asr',
+        meta: const {}, // 清 asrTaskId，全量重跑
+      );
       if (!mounted) return;
-      // 本地乐观更新：立即切到处理中横幅（_buildStatusBanner 按 processingStage 显示阶段文本）
+      // 本地乐观更新：立即切到处理中横幅
       setState(() {
         _entry = _entry.copyWith(
           status: EntryStatus.processing,
@@ -338,15 +262,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         );
         _isActivelyProcessing = true;
       });
-
-      final started = await ProcessingFgsController.start();
-      if (!started && mounted) {
-        // 未启动（录音中）：entry 已入队但 FGS 没跑，显示「处理暂停」而非假进度
-        setState(() => _isActivelyProcessing = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已加入处理队列，录音结束后将自动处理')));
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

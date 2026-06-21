@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../design_tokens.dart';
+import '../main.dart';
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
+import '../models/processing_task.dart';
 import '../services/diary_storage_service.dart';
-import '../services/processing_fgs_controller.dart';
 import '../services/tts_service.dart';
 import '../widgets/detail/detail_content_section.dart';
 import 'diary_detail_page.dart';
@@ -104,20 +105,10 @@ class _DailySummaryPageState extends State<DailySummaryPage> {
   }
 
   Future<void> _regenerate() async {
-    final now = DateTime.now();
-    final existing = await _storageService.getDailySummary(widget.date);
-    await _storageService.saveDailySummary(
-      DailySummary(
-        date: widget.date,
-        title: '正在生成…',
-        status: EntryStatus.processing,
-        sourceEntryIds: existing?.sourceEntryIds ?? const [],
-        entryCount: existing?.entryCount ?? 0,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-      ),
+    await processingTaskStore.enqueueTask(
+      taskType: TaskType.dailySummary,
+      refId: widget.date,
     );
-    await ProcessingFgsController.start();
     if (mounted) setState(() => _isActivelyProcessing = true);
     _loadData();
   }

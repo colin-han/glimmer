@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../design_tokens.dart';
+import '../main.dart';
 import '../models/daily_summary.dart';
 import '../models/diary_entry.dart';
+import '../models/processing_task.dart';
 import '../models/tag.dart';
 import '../services/diary_storage_service.dart';
 import '../widgets/app_title.dart';
@@ -12,7 +14,6 @@ import 'daily_summary_page.dart';
 import 'diary_detail_page.dart';
 import 'recording_page.dart';
 import 'tag_management_page.dart';
-import '../services/processing_fgs_controller.dart';
 
 class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
@@ -318,22 +319,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
   String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// 请求生成/重新生成某天的每日总结：置 status=processing + 启动 FGS。
+  /// 请求生成/重新生成某天的每日总结：入队 daily_summary task。
   Future<void> _requestDailySummary(String dateKey) async {
-    final now = DateTime.now();
-    final existing = _dailySummaries[dateKey];
-    await _storageService.saveDailySummary(
-      DailySummary(
-        date: dateKey,
-        title: '正在生成…',
-        status: EntryStatus.processing,
-        sourceEntryIds: existing?.sourceEntryIds ?? const [],
-        entryCount: existing?.entryCount ?? 0,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-      ),
+    await processingTaskStore.enqueueTask(
+      taskType: TaskType.dailySummary,
+      refId: dateKey,
     );
-    await ProcessingFgsController.start();
     _loadData();
   }
 
