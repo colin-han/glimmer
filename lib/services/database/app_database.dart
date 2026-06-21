@@ -264,6 +264,12 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  // --- ProcessingTasks ---
+
+  Future<void> insertProcessingTask(ProcessingTasksCompanion task) {
+    return into(processingTasks).insert(task);
+  }
+
   // --- DailySummaries ---
 
   Future<DailySummaryRow?> getDailySummaryByDate(String date) {

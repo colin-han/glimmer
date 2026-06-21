@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/diary_entry.dart';
 import '../models/daily_summary.dart';
 import '../models/processing_stage.dart';
+import '../models/processing_task.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
 import 'database/app_database.dart' hide DiaryEntry, Tag, DiaryTagRelation;
@@ -671,5 +672,93 @@ class DiaryStorageService {
   Future<String?> getTosKey(String id) async {
     final entry = await _db.getEntryById(id);
     return entry.tosKey;
+  }
+
+  // --- ProcessingTasks ---
+
+  ProcessingTask _taskRowToModel(ProcessingTaskRow r) => ProcessingTask(
+    id: r.id,
+    taskType: TaskType.fromString(r.taskType),
+    refId: r.refId,
+    status: TaskStatus.fromString(r.status),
+    stage: r.stage,
+    failedMessage: r.failedMessage,
+    meta: r.meta,
+    queuedAt: DateTime.fromMillisecondsSinceEpoch(r.queuedAt),
+    startedAt: r.startedAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(r.startedAt!)
+        : null,
+    finishedAt: r.finishedAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(r.finishedAt!)
+        : null,
+  );
+
+  Future<void> insertProcessingTask(ProcessingTask task) async {
+    await _db.insertProcessingTask(
+      ProcessingTasksCompanion.insert(
+        id: task.id,
+        taskType: task.taskType.value,
+        refId: task.refId,
+        status: Value(task.status.value),
+        stage: Value(task.stage),
+        failedMessage: Value(task.failedMessage),
+        meta: Value(task.meta),
+        queuedAt: task.queuedAt.millisecondsSinceEpoch,
+        startedAt: Value(task.startedAt?.millisecondsSinceEpoch),
+        finishedAt: Value(task.finishedAt?.millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  /// 更新 status。completed/failed 时写 finished_at；failed 时写 failed_message。
+  Future<void> updateProcessingTaskStatus(
+    String id,
+    TaskStatus status, {
+    String? failedMessage,
+  }) async {
+    final companion = ProcessingTasksCompanion(
+      status: Value(status.value),
+      finishedAt: Value(
+        (status == TaskStatus.completed || status == TaskStatus.failed)
+            ? DateTime.now().millisecondsSinceEpoch
+            : null,
+      ),
+      failedMessage: failedMessage != null
+          ? Value(failedMessage)
+          : const Value.absent(),
+    );
+    await (_db.update(
+      _db.processingTasks,
+    )..where((t) => t.id.equals(id))).write(companion);
+  }
+
+  /// 更新 stage（FGS 续跑进度）。
+  Future<void> updateProcessingTaskStage(String id, String stage) async {
+    await (_db.update(_db.processingTasks)..where((t) => t.id.equals(id)))
+        .write(ProcessingTasksCompanion(stage: Value(stage)));
+  }
+
+  /// 取 ref_id 的最新一行（按 queued_at desc）。方案 A：当前状态 = 最新行。
+  Future<ProcessingTask?> getLatestProcessingTask(String refId) async {
+    final rows =
+        await (_db.select(_db.processingTasks)
+              ..where((t) => t.refId.equals(refId))
+              ..orderBy([(t) => OrderingTerm.desc(t.queuedAt)])
+              ..limit(1))
+            .get();
+    return rows.isEmpty ? null : _taskRowToModel(rows.first);
+  }
+
+  /// 取所有活跃任务（queued + running），按 queued_at 升序。FGS onStart 消费。
+  Future<List<ProcessingTask>> getPendingProcessingTasks() async {
+    final rows =
+        await (_db.select(_db.processingTasks)
+              ..where(
+                (t) =>
+                    (t.status.equals('queued')) | (t.status.equals('running')),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.queuedAt)]))
+            .get();
+    return rows.map(_taskRowToModel).toList();
   }
 }
