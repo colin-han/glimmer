@@ -6,6 +6,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../exceptions.dart';
 import '../models/diary_entry.dart';
 import '../models/processing_stage.dart';
+import '../models/processing_task.dart' as task_model;
 import '../models/utterance.dart';
 import 'asr_service.dart';
 import 'llm_service.dart';
@@ -19,11 +20,12 @@ import 'processing_task.dart';
 /// 不向上抛。
 class DiaryProcessingTask implements ProcessingTask {
   final DiaryEntry entry;
+  final task_model.ProcessingTask task;
 
-  DiaryProcessingTask(this.entry);
+  DiaryProcessingTask(this.entry, this.task);
 
   @override
-  String get id => entry.id;
+  String get id => task.id;
 
   @override
   String get taskType => 'diary';
@@ -42,6 +44,16 @@ class DiaryProcessingTask implements ProcessingTask {
       status: 'started',
       message: '从 ${entry.processingStage.value} 阶段恢复',
     );
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.running,
+    );
+    ctx.sendToMain({
+      'type': 'taskStarted',
+      'taskId': task.id,
+      'refId': entry.id,
+      'taskType': 'diary',
+    });
     try {
       await _processEntry(ctx);
       await ctx.apiLog.logStep(
@@ -62,7 +74,10 @@ class DiaryProcessingTask implements ProcessingTask {
   }
 
   Future<void> _processEntry(ProcessingContext ctx) async {
-    switch (entry.processingStage) {
+    final stage = task.stage != null
+        ? ProcessingStage.fromString(task.stage!)
+        : ProcessingStage.uploading;
+    switch (stage) {
       case ProcessingStage.uploading:
         await _doUpload(ctx);
         // ASR 结果为空则直接完成，跳过 LLM/tagging
@@ -115,11 +130,8 @@ class DiaryProcessingTask implements ProcessingTask {
     }
 
     final tosKey = await ctx.tos.uploadAudio(audioFilePath, entry.id);
-    await ctx.storage.updateTosKeyAndStage(
-      entry.id,
-      tosKey,
-      ProcessingStage.asr,
-    );
+    await ctx.storage.updateTosKey(entry.id, tosKey);
+    await ctx.storage.updateProcessingTaskStage(task.id, 'asr');
     ctx.sendToMain({
       'type': 'stageUpdate',
       'entryId': entry.id,
@@ -147,27 +159,24 @@ class DiaryProcessingTask implements ProcessingTask {
       final presignedUrl = await ctx.tos.getPresignedUrl(tosKey);
 
       AsrResult asrResult;
-      if (entry.asrTaskId != null) {
-        debugPrint('[DiaryTask] 恢复 ASR 查询: ${entry.asrTaskId}');
+      final existingAsrTaskId = task.meta['asrTaskId'] as String?;
+      if (existingAsrTaskId != null) {
+        debugPrint('[DiaryTask] 恢复 ASR 查询: $existingAsrTaskId');
         try {
-          asrResult = await ctx.asr.pollAsyncResult(entry.asrTaskId!);
+          asrResult = await ctx.asr.pollAsyncResult(existingAsrTaskId);
         } catch (e) {
           debugPrint('[DiaryTask] ASR 查询失败，重新提交: $e');
           final newTaskId = await ctx.asr.submitAsync(presignedUrl);
-          await ctx.storage.updateAsrTaskIdAndStage(
-            entry.id,
-            newTaskId,
-            ProcessingStage.asr,
-          );
+          await ctx.storage.updateProcessingTaskMeta(task.id, {
+            'asrTaskId': newTaskId,
+          });
           asrResult = await ctx.asr.pollAsyncResult(newTaskId);
         }
       } else {
         final asrTaskId = await ctx.asr.submitAsync(presignedUrl);
-        await ctx.storage.updateAsrTaskIdAndStage(
-          entry.id,
-          asrTaskId,
-          ProcessingStage.asr,
-        );
+        await ctx.storage.updateProcessingTaskMeta(task.id, {
+          'asrTaskId': asrTaskId,
+        });
         asrResult = await ctx.asr.pollAsyncResult(asrTaskId);
       }
 
@@ -181,7 +190,7 @@ class DiaryProcessingTask implements ProcessingTask {
         return _handleEmptyAsr(ctx, sw.elapsedMilliseconds);
       }
 
-      await ctx.storage.updateProcessingStage(entry.id, ProcessingStage.llm);
+      await ctx.storage.updateProcessingTaskStage(task.id, 'llm');
 
       sw.stop();
       ctx.sendToMain({
@@ -268,10 +277,7 @@ class DiaryProcessingTask implements ProcessingTask {
           utterances: llmResult.utterances,
         ),
       );
-      await ctx.storage.updateProcessingStage(
-        entry.id,
-        ProcessingStage.tagging,
-      );
+      await ctx.storage.updateProcessingTaskStage(task.id, 'tagging');
 
       sw.stop();
       ctx.sendToMain({
@@ -370,25 +376,10 @@ class DiaryProcessingTask implements ProcessingTask {
       title = llmResult.title;
     } catch (_) {}
 
-    await ctx.storage.updateEntry(
-      DiaryEntry(
-        id: entry.id,
-        title: title,
-        folderPath: entry.folderPath,
-        durationSeconds: entry.durationSeconds,
-        createdAt: entry.createdAt,
-        tosKey: entry.tosKey,
-        audioFormat: entry.audioFormat,
-        uploadedAt: DateTime.now(),
-        weatherIcon: entry.weatherIcon,
-        weatherText: entry.weatherText,
-        temperature: entry.temperature,
-        locationName: entry.locationName,
-        locationLat: entry.locationLat,
-        locationLon: entry.locationLon,
-        status: EntryStatus.completed,
-        processingStage: ProcessingStage.completed,
-      ),
+    await ctx.storage.updateEntryTitleAndUploadedAt(entry.id, title);
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.completed,
     );
 
     FlutterForegroundTask.updateService(
@@ -396,25 +387,25 @@ class DiaryProcessingTask implements ProcessingTask {
       notificationText: '语音日记 - $title',
     );
 
-    ctx.sendToMain({'type': 'completed', 'entryId': entry.id});
+    ctx.sendToMain({
+      'type': 'completed',
+      'entryId': entry.id,
+      'taskId': task.id,
+    });
     debugPrint('[DiaryTask] 处理完成: ${entry.id}');
   }
 
-  Future<void> _markFailed(ProcessingContext ctx, String title) async {
-    try {
-      await ctx.storage.updateEntryTitleAndStatus(
-        entry.id,
-        title,
-        EntryStatus.failed,
-      );
-    } catch (e) {
-      debugPrint('[DiaryTask] 标记 failed 失败: $e');
-    }
+  Future<void> _markFailed(ProcessingContext ctx, String error) async {
+    await ctx.storage.updateProcessingTaskStatus(
+      task.id,
+      task_model.TaskStatus.failed,
+      failedMessage: error,
+    );
     ctx.sendToMain({
       'type': 'failed',
       'entryId': entry.id,
-      'step': 0,
-      'error': '',
+      'taskId': task.id,
+      'error': error,
     });
   }
 }

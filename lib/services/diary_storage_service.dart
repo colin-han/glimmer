@@ -114,6 +114,32 @@ class DiaryStorageService {
     );
   }
 
+  /// 只更 title + uploadedAt（不碰 status/processingStage——业务表废弃这两列写入）。
+  Future<void> updateEntryTitleAndUploadedAt(String id, String title) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(
+        title: Value(title),
+        uploadedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  /// 只更 tosKey（不动 stage）。
+  Future<void> updateTosKey(String id, String tosKey) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(tosKey: Value(tosKey)),
+    );
+  }
+
+  /// 更新 task.meta（整列覆盖写）。
+  Future<void> updateProcessingTaskMeta(
+    String id,
+    Map<String, dynamic> meta,
+  ) async {
+    await (_db.update(_db.processingTasks)..where((t) => t.id.equals(id)))
+        .write(ProcessingTasksCompanion(meta: Value(meta)));
+  }
+
   // === 数据格式兼容性基线 ===
   // 自 v1.0.0 起，本应用只保证对 v1.0.0 及之后产生的数据格式向后兼容
   // （transcript.json / llm_result.json / audio.wav|ogg）。
