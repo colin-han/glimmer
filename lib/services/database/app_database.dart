@@ -45,6 +45,13 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    beforeOpen: (details) async {
+      // WAL + busy_timeout：main isolate 与 FGS isolate 各持有一个 DB 连接，
+      // 并发读写（store 读 task / FGS 写 task）时避免 SQLITE_BUSY (code 5)。
+      // WAL 持久（数据库级，首次设置后保持）；busy_timeout 连接级（每次打开设，写冲突时等待而非立即失败）。
+      await customStatement('PRAGMA journal_mode=WAL');
+      await customStatement('PRAGMA busy_timeout=5000');
+    },
     onCreate: (Migrator m) async {
       await m.createAll();
     },
