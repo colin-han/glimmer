@@ -31,6 +31,26 @@ CURRENT_BUILD="${CURRENT##*+}" # 5
 
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VER"
 
+# ─── 检查自当前版本 tag 以来是否有新的提交 ───────────────────────
+CURRENT_TAG="v${CURRENT_VER}"
+if git rev-parse --verify --quiet "$CURRENT_TAG" >/dev/null; then
+  COMMITS=$(git rev-list --count "$CURRENT_TAG"..HEAD)
+  if [[ "$COMMITS" -eq 0 ]]; then
+    echo "⚠️  自 ${CURRENT_TAG} 以来没有任何新的 git 提交，代码未发生变化。"
+    echo ""
+    read -r -p "是否跳过版本更新及后续 tag/推送流程？[Y/n] " response
+    if [[ "$response" =~ ^[Nn]$ ]]; then
+      echo "==> 继续执行版本更新流程"
+      echo ""
+    else
+      echo "==> 已跳过版本更新（未做任何改动）"
+      exit 0
+    fi
+  fi
+else
+  echo "⚠️  未找到当前版本 tag ${CURRENT_TAG}，跳过提交检查"
+fi
+
 if [[ "$SKIP_VERSION" == false ]]; then
   # ─── 计算新版本号 ─────────────────────────────────────────────
   if [[ "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
