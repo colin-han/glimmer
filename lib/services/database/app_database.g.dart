@@ -3160,6 +3160,640 @@ class DailySummariesCompanion extends UpdateCompanion<DailySummaryRow> {
   }
 }
 
+class $ProcessingTasksTable extends ProcessingTasks
+    with TableInfo<$ProcessingTasksTable, ProcessingTaskRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProcessingTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _taskTypeMeta = const VerificationMeta(
+    'taskType',
+  );
+  @override
+  late final GeneratedColumn<String> taskType = GeneratedColumn<String>(
+    'task_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _refIdMeta = const VerificationMeta('refId');
+  @override
+  late final GeneratedColumn<String> refId = GeneratedColumn<String>(
+    'ref_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('queued'),
+  );
+  static const VerificationMeta _stageMeta = const VerificationMeta('stage');
+  @override
+  late final GeneratedColumn<String> stage = GeneratedColumn<String>(
+    'stage',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _failedMessageMeta = const VerificationMeta(
+    'failedMessage',
+  );
+  @override
+  late final GeneratedColumn<String> failedMessage = GeneratedColumn<String>(
+    'failed_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+  meta = GeneratedColumn<String>(
+    'meta',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  ).withConverter<Map<String, dynamic>>($ProcessingTasksTable.$convertermeta);
+  static const VerificationMeta _queuedAtMeta = const VerificationMeta(
+    'queuedAt',
+  );
+  @override
+  late final GeneratedColumn<int> queuedAt = GeneratedColumn<int>(
+    'queued_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+    'started_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _finishedAtMeta = const VerificationMeta(
+    'finishedAt',
+  );
+  @override
+  late final GeneratedColumn<int> finishedAt = GeneratedColumn<int>(
+    'finished_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    taskType,
+    refId,
+    status,
+    stage,
+    failedMessage,
+    meta,
+    queuedAt,
+    startedAt,
+    finishedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'processing_tasks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProcessingTaskRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('task_type')) {
+      context.handle(
+        _taskTypeMeta,
+        taskType.isAcceptableOrUnknown(data['task_type']!, _taskTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskTypeMeta);
+    }
+    if (data.containsKey('ref_id')) {
+      context.handle(
+        _refIdMeta,
+        refId.isAcceptableOrUnknown(data['ref_id']!, _refIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_refIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('stage')) {
+      context.handle(
+        _stageMeta,
+        stage.isAcceptableOrUnknown(data['stage']!, _stageMeta),
+      );
+    }
+    if (data.containsKey('failed_message')) {
+      context.handle(
+        _failedMessageMeta,
+        failedMessage.isAcceptableOrUnknown(
+          data['failed_message']!,
+          _failedMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('queued_at')) {
+      context.handle(
+        _queuedAtMeta,
+        queuedAt.isAcceptableOrUnknown(data['queued_at']!, _queuedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_queuedAtMeta);
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+        _finishedAtMeta,
+        finishedAt.isAcceptableOrUnknown(data['finished_at']!, _finishedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProcessingTaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProcessingTaskRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      taskType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_type'],
+      )!,
+      refId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ref_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      stage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stage'],
+      ),
+      failedMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}failed_message'],
+      ),
+      meta: $ProcessingTasksTable.$convertermeta.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}meta'],
+        )!,
+      ),
+      queuedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}queued_at'],
+      )!,
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}started_at'],
+      ),
+      finishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}finished_at'],
+      ),
+    );
+  }
+
+  @override
+  $ProcessingTasksTable createAlias(String alias) {
+    return $ProcessingTasksTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<Map<String, dynamic>, String> $convertermeta =
+      const MapConverter();
+}
+
+class ProcessingTaskRow extends DataClass
+    implements Insertable<ProcessingTaskRow> {
+  /// 任务 id（UUID）。
+  final String id;
+
+  /// 'diary' | 'daily_summary'（可扩展）。
+  final String taskType;
+
+  /// diary 的 entryId，或 daily_summary 的日期 'yyyy-MM-dd'。
+  final String refId;
+
+  /// 'queued' | 'running' | 'completed' | 'failed'。
+  final String status;
+
+  /// 通用调度字段，FGS 续跑用。diary: uploading/asr/llm/tagging；daily_summary 可 null。
+  final String? stage;
+
+  /// task 进入 failed 时的原因（异常 toString）。只在 failed 时写。
+  final String? failedMessage;
+
+  /// 任务专有数据（JSON）。diary 的 {"asrTaskId":"..."}；daily_summary 的 {}。
+  final Map<String, dynamic> meta;
+
+  /// 入队时间（毫秒）。
+  final int queuedAt;
+
+  /// FGS 开始处理时间。
+  final int? startedAt;
+
+  /// 完成/失败时间。
+  final int? finishedAt;
+  const ProcessingTaskRow({
+    required this.id,
+    required this.taskType,
+    required this.refId,
+    required this.status,
+    this.stage,
+    this.failedMessage,
+    required this.meta,
+    required this.queuedAt,
+    this.startedAt,
+    this.finishedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['task_type'] = Variable<String>(taskType);
+    map['ref_id'] = Variable<String>(refId);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || stage != null) {
+      map['stage'] = Variable<String>(stage);
+    }
+    if (!nullToAbsent || failedMessage != null) {
+      map['failed_message'] = Variable<String>(failedMessage);
+    }
+    {
+      map['meta'] = Variable<String>(
+        $ProcessingTasksTable.$convertermeta.toSql(meta),
+      );
+    }
+    map['queued_at'] = Variable<int>(queuedAt);
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<int>(startedAt);
+    }
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<int>(finishedAt);
+    }
+    return map;
+  }
+
+  ProcessingTasksCompanion toCompanion(bool nullToAbsent) {
+    return ProcessingTasksCompanion(
+      id: Value(id),
+      taskType: Value(taskType),
+      refId: Value(refId),
+      status: Value(status),
+      stage: stage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stage),
+      failedMessage: failedMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failedMessage),
+      meta: Value(meta),
+      queuedAt: Value(queuedAt),
+      startedAt: startedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startedAt),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
+    );
+  }
+
+  factory ProcessingTaskRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProcessingTaskRow(
+      id: serializer.fromJson<String>(json['id']),
+      taskType: serializer.fromJson<String>(json['taskType']),
+      refId: serializer.fromJson<String>(json['refId']),
+      status: serializer.fromJson<String>(json['status']),
+      stage: serializer.fromJson<String?>(json['stage']),
+      failedMessage: serializer.fromJson<String?>(json['failedMessage']),
+      meta: serializer.fromJson<Map<String, dynamic>>(json['meta']),
+      queuedAt: serializer.fromJson<int>(json['queuedAt']),
+      startedAt: serializer.fromJson<int?>(json['startedAt']),
+      finishedAt: serializer.fromJson<int?>(json['finishedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'taskType': serializer.toJson<String>(taskType),
+      'refId': serializer.toJson<String>(refId),
+      'status': serializer.toJson<String>(status),
+      'stage': serializer.toJson<String?>(stage),
+      'failedMessage': serializer.toJson<String?>(failedMessage),
+      'meta': serializer.toJson<Map<String, dynamic>>(meta),
+      'queuedAt': serializer.toJson<int>(queuedAt),
+      'startedAt': serializer.toJson<int?>(startedAt),
+      'finishedAt': serializer.toJson<int?>(finishedAt),
+    };
+  }
+
+  ProcessingTaskRow copyWith({
+    String? id,
+    String? taskType,
+    String? refId,
+    String? status,
+    Value<String?> stage = const Value.absent(),
+    Value<String?> failedMessage = const Value.absent(),
+    Map<String, dynamic>? meta,
+    int? queuedAt,
+    Value<int?> startedAt = const Value.absent(),
+    Value<int?> finishedAt = const Value.absent(),
+  }) => ProcessingTaskRow(
+    id: id ?? this.id,
+    taskType: taskType ?? this.taskType,
+    refId: refId ?? this.refId,
+    status: status ?? this.status,
+    stage: stage.present ? stage.value : this.stage,
+    failedMessage: failedMessage.present
+        ? failedMessage.value
+        : this.failedMessage,
+    meta: meta ?? this.meta,
+    queuedAt: queuedAt ?? this.queuedAt,
+    startedAt: startedAt.present ? startedAt.value : this.startedAt,
+    finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
+  );
+  ProcessingTaskRow copyWithCompanion(ProcessingTasksCompanion data) {
+    return ProcessingTaskRow(
+      id: data.id.present ? data.id.value : this.id,
+      taskType: data.taskType.present ? data.taskType.value : this.taskType,
+      refId: data.refId.present ? data.refId.value : this.refId,
+      status: data.status.present ? data.status.value : this.status,
+      stage: data.stage.present ? data.stage.value : this.stage,
+      failedMessage: data.failedMessage.present
+          ? data.failedMessage.value
+          : this.failedMessage,
+      meta: data.meta.present ? data.meta.value : this.meta,
+      queuedAt: data.queuedAt.present ? data.queuedAt.value : this.queuedAt,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      finishedAt: data.finishedAt.present
+          ? data.finishedAt.value
+          : this.finishedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProcessingTaskRow(')
+          ..write('id: $id, ')
+          ..write('taskType: $taskType, ')
+          ..write('refId: $refId, ')
+          ..write('status: $status, ')
+          ..write('stage: $stage, ')
+          ..write('failedMessage: $failedMessage, ')
+          ..write('meta: $meta, ')
+          ..write('queuedAt: $queuedAt, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    taskType,
+    refId,
+    status,
+    stage,
+    failedMessage,
+    meta,
+    queuedAt,
+    startedAt,
+    finishedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProcessingTaskRow &&
+          other.id == this.id &&
+          other.taskType == this.taskType &&
+          other.refId == this.refId &&
+          other.status == this.status &&
+          other.stage == this.stage &&
+          other.failedMessage == this.failedMessage &&
+          other.meta == this.meta &&
+          other.queuedAt == this.queuedAt &&
+          other.startedAt == this.startedAt &&
+          other.finishedAt == this.finishedAt);
+}
+
+class ProcessingTasksCompanion extends UpdateCompanion<ProcessingTaskRow> {
+  final Value<String> id;
+  final Value<String> taskType;
+  final Value<String> refId;
+  final Value<String> status;
+  final Value<String?> stage;
+  final Value<String?> failedMessage;
+  final Value<Map<String, dynamic>> meta;
+  final Value<int> queuedAt;
+  final Value<int?> startedAt;
+  final Value<int?> finishedAt;
+  final Value<int> rowid;
+  const ProcessingTasksCompanion({
+    this.id = const Value.absent(),
+    this.taskType = const Value.absent(),
+    this.refId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.stage = const Value.absent(),
+    this.failedMessage = const Value.absent(),
+    this.meta = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProcessingTasksCompanion.insert({
+    required String id,
+    required String taskType,
+    required String refId,
+    this.status = const Value.absent(),
+    this.stage = const Value.absent(),
+    this.failedMessage = const Value.absent(),
+    this.meta = const Value.absent(),
+    required int queuedAt,
+    this.startedAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       taskType = Value(taskType),
+       refId = Value(refId),
+       queuedAt = Value(queuedAt);
+  static Insertable<ProcessingTaskRow> custom({
+    Expression<String>? id,
+    Expression<String>? taskType,
+    Expression<String>? refId,
+    Expression<String>? status,
+    Expression<String>? stage,
+    Expression<String>? failedMessage,
+    Expression<String>? meta,
+    Expression<int>? queuedAt,
+    Expression<int>? startedAt,
+    Expression<int>? finishedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (taskType != null) 'task_type': taskType,
+      if (refId != null) 'ref_id': refId,
+      if (status != null) 'status': status,
+      if (stage != null) 'stage': stage,
+      if (failedMessage != null) 'failed_message': failedMessage,
+      if (meta != null) 'meta': meta,
+      if (queuedAt != null) 'queued_at': queuedAt,
+      if (startedAt != null) 'started_at': startedAt,
+      if (finishedAt != null) 'finished_at': finishedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProcessingTasksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? taskType,
+    Value<String>? refId,
+    Value<String>? status,
+    Value<String?>? stage,
+    Value<String?>? failedMessage,
+    Value<Map<String, dynamic>>? meta,
+    Value<int>? queuedAt,
+    Value<int?>? startedAt,
+    Value<int?>? finishedAt,
+    Value<int>? rowid,
+  }) {
+    return ProcessingTasksCompanion(
+      id: id ?? this.id,
+      taskType: taskType ?? this.taskType,
+      refId: refId ?? this.refId,
+      status: status ?? this.status,
+      stage: stage ?? this.stage,
+      failedMessage: failedMessage ?? this.failedMessage,
+      meta: meta ?? this.meta,
+      queuedAt: queuedAt ?? this.queuedAt,
+      startedAt: startedAt ?? this.startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (taskType.present) {
+      map['task_type'] = Variable<String>(taskType.value);
+    }
+    if (refId.present) {
+      map['ref_id'] = Variable<String>(refId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (stage.present) {
+      map['stage'] = Variable<String>(stage.value);
+    }
+    if (failedMessage.present) {
+      map['failed_message'] = Variable<String>(failedMessage.value);
+    }
+    if (meta.present) {
+      map['meta'] = Variable<String>(
+        $ProcessingTasksTable.$convertermeta.toSql(meta.value),
+      );
+    }
+    if (queuedAt.present) {
+      map['queued_at'] = Variable<int>(queuedAt.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<int>(finishedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProcessingTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('taskType: $taskType, ')
+          ..write('refId: $refId, ')
+          ..write('status: $status, ')
+          ..write('stage: $stage, ')
+          ..write('failedMessage: $failedMessage, ')
+          ..write('meta: $meta, ')
+          ..write('queuedAt: $queuedAt, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3169,6 +3803,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DiaryTagRelationsTable(this);
   late final $ApiLogsTable apiLogs = $ApiLogsTable(this);
   late final $DailySummariesTable dailySummaries = $DailySummariesTable(this);
+  late final $ProcessingTasksTable processingTasks = $ProcessingTasksTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3179,6 +3816,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryTagRelations,
     apiLogs,
     dailySummaries,
+    processingTasks,
   ];
 }
 
@@ -3233,10 +3871,7 @@ final class $$DiaryEntriesTableReferences
   _diaryTagRelationsRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.diaryTagRelations,
-        aliasName: $_aliasNameGenerator(
-          db.diaryEntries.id,
-          db.diaryTagRelations.diaryId,
-        ),
+        aliasName: 'diary_entries__id__diary_tag_relations__diary_id',
       );
 
   $$DiaryTagRelationsTableProcessedTableManager get diaryTagRelationsRefs {
@@ -3769,7 +4404,7 @@ final class $$TagsTableReferences
   _diaryTagRelationsRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.diaryTagRelations,
-        aliasName: $_aliasNameGenerator(db.tags.id, db.diaryTagRelations.tagId),
+        aliasName: 'tags__id__diary_tag_relations__tag_id',
       );
 
   $$DiaryTagRelationsTableProcessedTableManager get diaryTagRelationsRefs {
@@ -4076,10 +4711,8 @@ final class $$DiaryTagRelationsTableReferences
     super.$_typedResult,
   );
 
-  static $DiaryEntriesTable _diaryIdTable(_$AppDatabase db) =>
-      db.diaryEntries.createAlias(
-        $_aliasNameGenerator(db.diaryTagRelations.diaryId, db.diaryEntries.id),
-      );
+  static $DiaryEntriesTable _diaryIdTable(_$AppDatabase db) => db.diaryEntries
+      .createAlias('diary_tag_relations__diary_id__diary_entries__id');
 
   $$DiaryEntriesTableProcessedTableManager get diaryId {
     final $_column = $_itemColumn<String>('diary_id')!;
@@ -4095,9 +4728,8 @@ final class $$DiaryTagRelationsTableReferences
     );
   }
 
-  static $TagsTable _tagIdTable(_$AppDatabase db) => db.tags.createAlias(
-    $_aliasNameGenerator(db.diaryTagRelations.tagId, db.tags.id),
-  );
+  static $TagsTable _tagIdTable(_$AppDatabase db) =>
+      db.tags.createAlias('diary_tag_relations__tag_id__tags__id');
 
   $$TagsTableProcessedTableManager get tagId {
     final $_column = $_itemColumn<String>('tag_id')!;
@@ -5143,6 +5775,316 @@ typedef $$DailySummariesTableProcessedTableManager =
       DailySummaryRow,
       PrefetchHooks Function()
     >;
+typedef $$ProcessingTasksTableCreateCompanionBuilder =
+    ProcessingTasksCompanion Function({
+      required String id,
+      required String taskType,
+      required String refId,
+      Value<String> status,
+      Value<String?> stage,
+      Value<String?> failedMessage,
+      Value<Map<String, dynamic>> meta,
+      required int queuedAt,
+      Value<int?> startedAt,
+      Value<int?> finishedAt,
+      Value<int> rowid,
+    });
+typedef $$ProcessingTasksTableUpdateCompanionBuilder =
+    ProcessingTasksCompanion Function({
+      Value<String> id,
+      Value<String> taskType,
+      Value<String> refId,
+      Value<String> status,
+      Value<String?> stage,
+      Value<String?> failedMessage,
+      Value<Map<String, dynamic>> meta,
+      Value<int> queuedAt,
+      Value<int?> startedAt,
+      Value<int?> finishedAt,
+      Value<int> rowid,
+    });
+
+class $$ProcessingTasksTableFilterComposer
+    extends Composer<_$AppDatabase, $ProcessingTasksTable> {
+  $$ProcessingTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskType => $composableBuilder(
+    column: $table.taskType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refId => $composableBuilder(
+    column: $table.refId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stage => $composableBuilder(
+    column: $table.stage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get failedMessage => $composableBuilder(
+    column: $table.failedMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<
+    Map<String, dynamic>,
+    Map<String, dynamic>,
+    String
+  >
+  get meta => $composableBuilder(
+    column: $table.meta,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProcessingTasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProcessingTasksTable> {
+  $$ProcessingTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taskType => $composableBuilder(
+    column: $table.taskType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get refId => $composableBuilder(
+    column: $table.refId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stage => $composableBuilder(
+    column: $table.stage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get failedMessage => $composableBuilder(
+    column: $table.failedMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get meta => $composableBuilder(
+    column: $table.meta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProcessingTasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProcessingTasksTable> {
+  $$ProcessingTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get taskType =>
+      $composableBuilder(column: $table.taskType, builder: (column) => column);
+
+  GeneratedColumn<String> get refId =>
+      $composableBuilder(column: $table.refId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get stage =>
+      $composableBuilder(column: $table.stage, builder: (column) => column);
+
+  GeneratedColumn<String> get failedMessage => $composableBuilder(
+    column: $table.failedMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<Map<String, dynamic>, String> get meta =>
+      $composableBuilder(column: $table.meta, builder: (column) => column);
+
+  GeneratedColumn<int> get queuedAt =>
+      $composableBuilder(column: $table.queuedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ProcessingTasksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProcessingTasksTable,
+          ProcessingTaskRow,
+          $$ProcessingTasksTableFilterComposer,
+          $$ProcessingTasksTableOrderingComposer,
+          $$ProcessingTasksTableAnnotationComposer,
+          $$ProcessingTasksTableCreateCompanionBuilder,
+          $$ProcessingTasksTableUpdateCompanionBuilder,
+          (
+            ProcessingTaskRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ProcessingTasksTable,
+              ProcessingTaskRow
+            >,
+          ),
+          ProcessingTaskRow,
+          PrefetchHooks Function()
+        > {
+  $$ProcessingTasksTableTableManager(
+    _$AppDatabase db,
+    $ProcessingTasksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProcessingTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProcessingTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProcessingTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> taskType = const Value.absent(),
+                Value<String> refId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> stage = const Value.absent(),
+                Value<String?> failedMessage = const Value.absent(),
+                Value<Map<String, dynamic>> meta = const Value.absent(),
+                Value<int> queuedAt = const Value.absent(),
+                Value<int?> startedAt = const Value.absent(),
+                Value<int?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProcessingTasksCompanion(
+                id: id,
+                taskType: taskType,
+                refId: refId,
+                status: status,
+                stage: stage,
+                failedMessage: failedMessage,
+                meta: meta,
+                queuedAt: queuedAt,
+                startedAt: startedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String taskType,
+                required String refId,
+                Value<String> status = const Value.absent(),
+                Value<String?> stage = const Value.absent(),
+                Value<String?> failedMessage = const Value.absent(),
+                Value<Map<String, dynamic>> meta = const Value.absent(),
+                required int queuedAt,
+                Value<int?> startedAt = const Value.absent(),
+                Value<int?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProcessingTasksCompanion.insert(
+                id: id,
+                taskType: taskType,
+                refId: refId,
+                status: status,
+                stage: stage,
+                failedMessage: failedMessage,
+                meta: meta,
+                queuedAt: queuedAt,
+                startedAt: startedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProcessingTasksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProcessingTasksTable,
+      ProcessingTaskRow,
+      $$ProcessingTasksTableFilterComposer,
+      $$ProcessingTasksTableOrderingComposer,
+      $$ProcessingTasksTableAnnotationComposer,
+      $$ProcessingTasksTableCreateCompanionBuilder,
+      $$ProcessingTasksTableUpdateCompanionBuilder,
+      (
+        ProcessingTaskRow,
+        BaseReferences<_$AppDatabase, $ProcessingTasksTable, ProcessingTaskRow>,
+      ),
+      ProcessingTaskRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5156,4 +6098,6 @@ class $AppDatabaseManager {
       $$ApiLogsTableTableManager(_db, _db.apiLogs);
   $$DailySummariesTableTableManager get dailySummaries =>
       $$DailySummariesTableTableManager(_db, _db.dailySummaries);
+  $$ProcessingTasksTableTableManager get processingTasks =>
+      $$ProcessingTasksTableTableManager(_db, _db.processingTasks);
 }

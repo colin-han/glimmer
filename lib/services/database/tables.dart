@@ -1,4 +1,21 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
+
+/// drift TypeConverter：`Map<String, dynamic>` ↔ JSON text（用于 ProcessingTasks.meta）。
+class MapConverter extends TypeConverter<Map<String, dynamic>, String> {
+  const MapConverter();
+  @override
+  Map<String, dynamic> fromSql(String fromDb) {
+    final decoded = jsonDecode(fromDb);
+    return decoded is Map<String, dynamic>
+        ? decoded
+        : Map<String, dynamic>.from(decoded as Map);
+  }
+
+  @override
+  String toSql(Map<String, dynamic> value) => jsonEncode(value);
+}
 
 class DiaryEntries extends Table {
   TextColumn get id => text()();
@@ -97,4 +114,44 @@ class DailySummaries extends Table {
 
   @override
   Set<Column> get primaryKey => {date};
+}
+
+/// 处理任务队列表（消息队列语义）。每行一个处理任务，completed/failed 行保留作历史。
+/// 行类名用 DataClassName 显式指定为 ProcessingTaskRow，避免与 model 层
+/// ProcessingTask（lib/models/processing_task.dart）同名冲突。
+@DataClassName('ProcessingTaskRow')
+class ProcessingTasks extends Table {
+  /// 任务 id（UUID）。
+  TextColumn get id => text()();
+
+  /// 'diary' | 'daily_summary'（可扩展）。
+  TextColumn get taskType => text()();
+
+  /// diary 的 entryId，或 daily_summary 的日期 'yyyy-MM-dd'。
+  TextColumn get refId => text()();
+
+  /// 'queued' | 'running' | 'completed' | 'failed'。
+  TextColumn get status => text().withDefault(const Constant('queued'))();
+
+  /// 通用调度字段，FGS 续跑用。diary: uploading/asr/llm/tagging；daily_summary 可 null。
+  TextColumn get stage => text().nullable()();
+
+  /// task 进入 failed 时的原因（异常 toString）。只在 failed 时写。
+  TextColumn get failedMessage => text().nullable()();
+
+  /// 任务专有数据（JSON）。diary 的 {"asrTaskId":"..."}；daily_summary 的 {}。
+  TextColumn get meta =>
+      text().map(const MapConverter()).withDefault(const Constant('{}'))();
+
+  /// 入队时间（毫秒）。
+  IntColumn get queuedAt => integer()();
+
+  /// FGS 开始处理时间。
+  IntColumn get startedAt => integer().nullable()();
+
+  /// 完成/失败时间。
+  IntColumn get finishedAt => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }

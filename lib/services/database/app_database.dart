@@ -11,7 +11,14 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [DiaryEntries, Tags, DiaryTagRelations, ApiLogs, DailySummaries],
+  tables: [
+    DiaryEntries,
+    Tags,
+    DiaryTagRelations,
+    ApiLogs,
+    DailySummaries,
+    ProcessingTasks,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase._internal() : super(_openConnection());
@@ -34,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -102,6 +109,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         if (!await _tableExists('daily_summaries')) {
           await m.createTable(dailySummaries);
+        }
+      }
+      if (from < 9) {
+        if (!await _tableExists('processing_tasks')) {
+          await m.createTable(processingTasks);
         }
       }
     },
