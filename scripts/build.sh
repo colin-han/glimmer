@@ -77,6 +77,11 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
   APK="build/app/outputs/flutter-apk/app-prod-release.apk"
 
+  # 走本机 Clash 代理：flutter clean 后 sqlite3 包需从 GitHub 下载预编译原生库，
+  # 直连 github.com 经常超时，导致构建在 compileFlutterBuild 阶段失败。
+  export HTTP_PROXY="http://127.0.0.1:7890"
+  export HTTPS_PROXY="http://127.0.0.1:7890"
+
   echo "==> 清理构建缓存..."
   flutter clean
 
