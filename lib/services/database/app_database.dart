@@ -114,6 +114,8 @@ class AppDatabase extends _$AppDatabase {
       if (from < 9) {
         if (!await _tableExists('processing_tasks')) {
           await m.createTable(processingTasks);
+          // 建表后搬迁旧 status 数据（processing/failed → task 行；completed 不补）
+          await _migrateStatusToTasks();
         }
       }
     },
@@ -132,6 +134,57 @@ class AppDatabase extends _$AppDatabase {
   Future<bool> _columnExists(String tableName, String columnName) async {
     final rows = await customSelect('PRAGMA table_info($tableName)').get();
     return rows.any((row) => row.read<String>('name') == columnName);
+  }
+
+  /// 把旧 DiaryEntries/DailySummaries 的 status 搬到 processing_tasks。
+  /// processing/failed → 建 task 行（failed 保留失败历史）；completed 不补。
+  /// 幂等：仅在 processing_tasks 表首次创建时（from<9 块内）执行一次。
+  Future<void> _migrateStatusToTasks() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    // diary：status in (processing, failed)
+    final diaryRows = await customSelect(
+      "SELECT id, status, processing_stage, asr_task_id FROM diary_entries "
+      "WHERE status IN ('processing', 'failed')",
+    ).get();
+    for (final r in diaryRows) {
+      final id = r.read<String>('id');
+      final status = r.read<String>('status');
+      final stage = r.read<String?>('processing_stage');
+      final asrTaskId = r.read<String?>('asr_task_id');
+      await into(processingTasks).insert(
+        ProcessingTasksCompanion.insert(
+          id: 'migrated-diary-$id',
+          taskType: 'diary',
+          refId: id,
+          status: Value(status == 'failed' ? 'failed' : 'running'),
+          stage: Value(stage),
+          meta: Value(
+            asrTaskId != null
+                ? <String, dynamic>{'asrTaskId': asrTaskId}
+                : <String, dynamic>{},
+          ),
+          queuedAt: now,
+        ),
+      );
+    }
+    // daily_summary：status in (processing, failed)
+    final summaryRows = await customSelect(
+      "SELECT date, status FROM daily_summaries "
+      "WHERE status IN ('processing', 'failed')",
+    ).get();
+    for (final r in summaryRows) {
+      final date = r.read<String>('date');
+      final status = r.read<String>('status');
+      await into(processingTasks).insert(
+        ProcessingTasksCompanion.insert(
+          id: 'migrated-summary-$date',
+          taskType: 'daily_summary',
+          refId: date,
+          status: Value(status == 'failed' ? 'failed' : 'running'),
+          queuedAt: now,
+        ),
+      );
+    }
   }
 
   // --- DiaryEntries ---
