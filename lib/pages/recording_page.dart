@@ -189,12 +189,15 @@ class _RecordingPageState extends State<RecordingPage> {
 
   Future<void> _startRecording() async {
     // 有 processing 活动（在跑 or 待延时启动）→ 停掉并等它停稳
-    if (ProcessingFgsController.hasActivity) {
+    final ha = ProcessingFgsController.hasActivity;
+    debugPrint('[Rec] _startRecording: hasActivity=$ha');
+    if (ha) {
       setState(() => _state = RecordingState.processing);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('已暂停后台处理，录音结束后自动继续')));
       await ProcessingFgsController.stop(); // 内部取消 timer + 停 FGS + 等停（含超时兜底）
+      debugPrint('[Rec] _startRecording: controller.stop() 已返回');
     }
     await _doStartRecording();
   }
@@ -211,6 +214,7 @@ class _RecordingPageState extends State<RecordingPage> {
 
       // 设置通信端口
       FlutterForegroundTask.initCommunicationPort();
+      debugPrint('[Rec] _doStartRecording: 准备 startService(microphone)');
 
       // 启动 Recording FGS
       final result = await FlutterForegroundTask.startService(
@@ -219,6 +223,7 @@ class _RecordingPageState extends State<RecordingPage> {
         notificationText: '语音日记 - 录音中...',
         callback: startCallback,
       );
+      debugPrint('[Rec] startService(microphone) result=$result');
 
       if (result is ServiceRequestFailure) {
         throw RecordingException(result.error.toString());
@@ -234,6 +239,7 @@ class _RecordingPageState extends State<RecordingPage> {
         setState(() => _currentInputDevice = device);
       }
     } catch (e) {
+      debugPrint('[Rec] _doStartRecording 失败: $e');
       _showError('录音启动失败：$e');
       setState(() => _state = RecordingState.idle);
     }

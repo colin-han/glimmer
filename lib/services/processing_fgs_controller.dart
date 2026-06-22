@@ -28,16 +28,21 @@ class ProcessingFgsController {
   /// 立即启动 processing FGS（唯一启动入口）。
   /// mode==recording 时拒绝（别中断录音），返回 false。
   static Future<bool> start() async {
+    final svcRunning = await backend.isServiceRunning();
+    debugPrint(
+      '[FGS-Ctrl] start: mode=${FgsRuntime.mode} _isRunning=$_isRunning isServiceRunning=$svcRunning',
+    );
     if (FgsRuntime.mode == FgsMode.recording) return false;
     // FGS 已在跑（可能别的入口启动的，如 daily-summary）→ 不重复启动
     // （startProcessingFgs 内部会 stopService 清理，会中断已在跑的 FGS），仅标记状态。
-    if (await backend.isServiceRunning()) {
+    if (svcRunning) {
       _isRunning = true;
       FgsRuntime.setProcessing();
       return true;
     }
     if (_isRunning) return true; // 幂等（防 isServiceRunning 与 _isRunning 竞态）
     final ok = await backend.startProcessingFgs();
+    debugPrint('[FGS-Ctrl] start: startProcessingFgs ok=$ok');
     if (!ok) return false;
     _isRunning = true;
     FgsRuntime.setProcessing();
@@ -48,20 +53,31 @@ class ProcessingFgsController {
   /// 调用方 await 返回后，FGS 槽已释放，可立即启动录音 FGS。
   /// 幂等：无活动时立即返回。
   static Future<void> stop() async {
+    debugPrint('[FGS-Ctrl] stop: _isRunning=$_isRunning');
     _scheduledTimer?.cancel(); // 合并的 cancelScheduled
     _scheduledTimer = null;
 
-    if (!_isRunning) return; // 没在跑（只取消了 timer 或本就无活动）→ 无需等
+    if (!_isRunning) {
+      debugPrint('[FGS-Ctrl] stop: 未在跑，直接返回');
+      return; // 没在跑（只取消了 timer 或本就无活动）→ 无需等
+    }
 
     _stopCompleter = Completer<void>();
     backend.stopFgs(); // 触发 FGS onDestroy → processingDone → onStopped
+    debugPrint('[FGS-Ctrl] stop: stopFgs 已调，等 onStopped（3s 超时）');
+    bool timedOut = false;
     await _stopCompleter!.future.timeout(
       const Duration(seconds: 3),
       onTimeout: () {
+        timedOut = true;
         // 兜底：FGS 被杀没发 processingDone → 强制清理，避免录音卡死
         _isRunning = false;
         FgsRuntime.setNone();
       },
+    );
+    final svcRunningAfter = await backend.isServiceRunning();
+    debugPrint(
+      '[FGS-Ctrl] stop: 完成 timedOut=$timedOut isServiceRunning(后)=$svcRunningAfter',
     );
     _stopCompleter = null;
   }
@@ -85,6 +101,7 @@ class ProcessingFgsController {
   /// FGS 自然结束回调（processingDone/completed/failed）或 stop 超时后调。
   /// 由 RecordingPage / DiaryDetailPage 的 _onTaskData 在收到结束消息时调用。
   static void onStopped() {
+    debugPrint('[FGS-Ctrl] onStopped: _isRunning $_isRunning→false');
     _isRunning = false;
     FgsRuntime.setNone();
     if (_stopCompleter != null && !_stopCompleter!.isCompleted) {

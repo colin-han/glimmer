@@ -27,6 +27,9 @@ class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
   @override
   Future<bool> startProcessingFgs() async {
     try {
+      debugPrint(
+        '[FGS-Backend] startProcessingFgs: init+stop+delay500+startService(dataSync)',
+      );
       FlutterForegroundTask.initCommunicationPort();
       FlutterForegroundTask.stopService();
       await Future.delayed(const Duration(milliseconds: 500));
@@ -36,6 +39,7 @@ class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
         notificationText: '语音日记 - 处理中...',
         callback: processingCallback,
       );
+      debugPrint('[FGS-Backend] startService result=$result');
       if (result is ServiceRequestFailure) {
         debugPrint('[ProcessingFgsBackend] 启动失败: ${result.error}');
         return false;
@@ -48,7 +52,10 @@ class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
   }
 
   @override
-  void stopFgs() => FlutterForegroundTask.stopService();
+  void stopFgs() {
+    debugPrint('[FGS-Backend] stopFgs: stopService()');
+    FlutterForegroundTask.stopService();
+  }
 
   @override
   Future<int> getProcessingDelay() => SettingsPage.getProcessingDelay();
