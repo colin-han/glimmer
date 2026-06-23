@@ -121,7 +121,7 @@ class ProcessingTaskStore {
     await _storage.insertProcessingTask(task);
     _activeByRefId[refId] = task; // 覆盖旧的（新行是最新）
     _notify();
-    await ProcessingFgsController.start(); // 触发 FGS 处理队列
+    ProcessingFgsController.start(); // 触发 FGS 处理队列（同步返回 bool）
     return task;
   }
 

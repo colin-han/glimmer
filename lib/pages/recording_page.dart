@@ -217,31 +217,13 @@ class _RecordingPageState extends State<RecordingPage> {
       debugPrint('[Rec] _doStartRecording: 准备 startService(microphone)');
 
       // 启动 Recording FGS
-      var result = await FlutterForegroundTask.startService(
+      final result = await FlutterForegroundTask.startService(
         serviceTypes: [ForegroundServiceTypes.microphone],
         notificationTitle: '正在录音',
         notificationText: '语音日记 - 录音中...',
         callback: startCallback,
       );
       debugPrint('[Rec] startService(microphone) result=$result');
-
-      // 竞态兜底：可能 processing FGS 刚启动（controller.start delay 期间 FGS 槽被占），
-      // 导致 microphone startService 报 ServiceAlreadyStartedException。
-      // 强制 stopService + 等 500ms + 重试一次。
-      if (result is ServiceRequestFailure) {
-        debugPrint(
-          '[Rec] startService 失败（${result.error}），强制 stopService + 重试',
-        );
-        FlutterForegroundTask.stopService();
-        await Future.delayed(const Duration(milliseconds: 500));
-        result = await FlutterForegroundTask.startService(
-          serviceTypes: [ForegroundServiceTypes.microphone],
-          notificationTitle: '正在录音',
-          notificationText: '语音日记 - 录音中...',
-          callback: startCallback,
-        );
-        debugPrint('[Rec] 重试 startService(microphone) result=$result');
-      }
 
       if (result is ServiceRequestFailure) {
         throw RecordingException(result.error.toString());

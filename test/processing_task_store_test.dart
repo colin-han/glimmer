@@ -74,9 +74,10 @@ void main() {
       expect(dbTask!.status, TaskStatus.queued);
       expect(dbTask.meta['asrTaskId'], 'x');
 
-      // 触发了 FGS controller.start（走 backend.startProcessingFgs）
-      expect(backend.startCalls, greaterThan(0));
-      expect(ProcessingFgsController.isRunning, isTrue);
+      // 触发了 FGS controller.start（同步：_isStarting=true，hasActivity=true；
+      // startProcessingFgs 在 start 的 500ms Timer fire 后才调）
+      expect(ProcessingFgsController.hasActivity, isTrue);
+      expect(ProcessingFgsController.isRunning, isFalse); // 还在 _isStarting
     });
 
     test('同一 ref 再次入队 → 内存更新为最新行（新建行）', () async {
@@ -254,13 +255,15 @@ void main() {
       expect(store.isProcessing('2026-06-21'), isFalse);
     });
 
-    test('processingDone → controller.onStopped（清 isRunning）', () async {
-      // enqueue 把 controller 标成 running
+    test('processingDone → controller.onStopped（清活动状态）', () async {
+      // enqueue 把 controller 标成活动（_isStarting）
       await store.enqueueTask(taskType: TaskType.diary, refId: 'e1');
-      expect(ProcessingFgsController.isRunning, isTrue);
+      expect(ProcessingFgsController.hasActivity, isTrue);
 
       store.onTaskDataForTesting({'type': 'processingDone'});
 
+      // onStopped 把 _isRunning/_isStarting 都清，hasActivity 归 false
+      expect(ProcessingFgsController.hasActivity, isFalse);
       expect(ProcessingFgsController.isRunning, isFalse);
     });
 

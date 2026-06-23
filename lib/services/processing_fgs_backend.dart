@@ -28,11 +28,10 @@ class FlutterForegroundTaskBackend implements ProcessingFgsBackend {
   Future<bool> startProcessingFgs() async {
     try {
       debugPrint(
-        '[FGS-Backend] startProcessingFgs: init+stop+delay500+startService(dataSync)',
+        '[FGS-Backend] startProcessingFgs: init+stop+startService(dataSync)',
       );
       FlutterForegroundTask.initCommunicationPort();
       FlutterForegroundTask.stopService();
-      await Future.delayed(const Duration(milliseconds: 500));
       final result = await FlutterForegroundTask.startService(
         serviceTypes: [ForegroundServiceTypes.dataSync],
         notificationTitle: '正在处理',
