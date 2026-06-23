@@ -102,7 +102,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       }
     } else if (type == 'completed' && mounted) {
       // 处理完成，加载最终内容（store 已移除 active task，listener 会刷新横幅）
-      ProcessingFgsController.onStopped();
+      // 不调 onStopped——那是 processingDone 的事（FGS 整体停止）
       _loadContent();
     } else if (type == 'processingDone' && mounted) {
       // FGS 停止，重新加载内容（刷新 _latestTask，可能含 failed）
@@ -110,7 +110,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       _loadContent();
     } else if (type == 'failed' && mounted) {
       // 处理失败：重新加载内容（_latestTask 会含 failed，显示失败横幅）
-      ProcessingFgsController.onStopped();
+      // 不调 onStopped——那是 processingDone 的事（FGS 整体停止）
       _loadContent();
     }
   }

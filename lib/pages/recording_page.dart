@@ -117,8 +117,8 @@ class _RecordingPageState extends State<RecordingPage> {
         ProcessingFgsController.onStopped();
       case 'completed':
       case 'failed':
-        // 处理完成或失败：store 已移除 active task，listener 自动刷新 badge
-        ProcessingFgsController.onStopped();
+      // 单个 task 完成/失败：不调 onStopped（那是 processingDone 的事）。
+      // store 已移除 active task，listener 自动刷新 badge。
       case 'notificationPressed':
         _handleNotificationPressed(data);
     }
