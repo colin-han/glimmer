@@ -11,6 +11,9 @@ build/
 .env.local
 *.env
 
+# 发布产物（release.sh 归档的 APK，带版本号）
+releases/
+
 # Vim
 *.swp
 *.swo
