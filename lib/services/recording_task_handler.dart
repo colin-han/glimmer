@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
 import '../models/processing_stage.dart';
+import '../models/weather_condition.dart';
 import 'amap_service.dart';
 import 'api_log_service.dart';
 import 'audio_recorder_service.dart';
@@ -16,7 +17,6 @@ import 'favorite_location_store.dart';
 import 'location_resolver.dart';
 import 'location_service.dart';
 import 'realtime_asr_service.dart';
-import 'weather_service.dart';
 
 /// 前台服务入口函数，必须为顶层函数并标注 @pragma('vm:entry-point')
 @pragma('vm:entry-point')
@@ -35,8 +35,8 @@ class RecordingTaskHandler extends TaskHandler {
   RealtimeAsrService? _realtimeAsr;
   final _storageService = DiaryStorageService();
   final _locationService = LocationService();
-  final _weatherService = WeatherService();
-  final _locationResolver = LocationResolver(AmapService());
+  final _amapService = AmapService();
+  late final _locationResolver = LocationResolver(_amapService);
   final _uuid = const Uuid();
   final _apiLogService = ApiLogService();
   final _favoriteLocationStore = FavoriteLocationStore();
@@ -52,7 +52,7 @@ class RecordingTaskHandler extends TaskHandler {
   StreamSubscription<Amplitude>? _amplitudeSub;
 
   // 天气/位置（异步获取，创建条目时使用）
-  WeatherLocation? _weatherLocation;
+  ({WeatherCondition condition, String temperature})? _weather;
   ({double lat, double lon})? _location;
 
   // 解析后的最终地名（常用位置/地标/高德地址，可空）
@@ -191,8 +191,8 @@ class RecordingTaskHandler extends TaskHandler {
         _location = loc;
         final favorites = await _favoriteLocationStore.load();
 
-        // 天气 与 位置解析 并行（两者只依赖 lat/lon）
-        final weatherFuture = _weatherService.fetchWeatherAndLocation(
+        // 天气（高德） 与 位置解析 并行（两者只依赖 lat/lon）
+        final weatherFuture = _amapService.fetchWeatherByLocation(
           loc.lat,
           loc.lon,
         );
@@ -202,15 +202,14 @@ class RecordingTaskHandler extends TaskHandler {
           favorites: favorites,
         );
 
-        // 天气就绪 → 发天气消息（不含 locationName）
+        // 天气就绪 → 发天气消息（condition + temperature）
         weatherFuture.then((w) {
           if (w == null) return;
-          _weatherLocation = w;
+          _weather = w;
           _sendToMain({
             'type': 'weather',
-            'icon': w.icon,
-            'text': w.text,
-            'temp': w.temp,
+            'condition': w.condition.name,
+            'temperature': w.temperature,
           });
         });
 
@@ -277,11 +276,9 @@ class RecordingTaskHandler extends TaskHandler {
             audioFormat: 'ogg',
             status: EntryStatus.processing,
             processingStage: ProcessingStage.uploading,
-            weatherIcon: _weatherLocation?.icon,
-            weatherText: _weatherLocation?.text,
-            temperature: _weatherLocation?.temp,
-            locationName:
-                _resolvedLocationName ?? _weatherLocation?.locationName,
+            weatherCondition: _weather?.condition,
+            temperature: _weather?.temperature,
+            locationName: _resolvedLocationName,
             locationLat: _location?.lat,
             locationLon: _location?.lon,
           ),

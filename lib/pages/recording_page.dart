@@ -8,7 +8,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../design_tokens.dart';
 import '../exceptions.dart';
 import '../models/audio_input_device.dart';
-import '../models/diary_entry.dart';
 import '../models/processing_task.dart' as task_model;
 import '../services/audio_device_service.dart';
 import '../services/diary_storage_service.dart';
@@ -16,7 +15,7 @@ import '../services/fgs_runtime.dart';
 import '../services/location_service.dart';
 import '../services/processing_fgs_controller.dart';
 import '../services/recording_task_handler.dart';
-import '../services/weather_service.dart';
+import '../models/weather_condition.dart';
 import '../main.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
@@ -39,7 +38,8 @@ class _RecordingPageState extends State<RecordingPage> {
   int _recordingSeconds = 0;
   String _realtimeText = '';
   final _realtimeScrollController = ScrollController();
-  WeatherLocation? _currentWeatherLocation;
+  WeatherCondition? _currentCondition;
+  String? _currentTemperature;
   String? _currentLocationName;
   AudioInputDevice? _currentInputDevice;
 
@@ -96,12 +96,10 @@ class _RecordingPageState extends State<RecordingPage> {
         });
       case 'weather':
         setState(() {
-          _currentWeatherLocation = WeatherLocation(
-            icon: data['icon'] as String,
-            text: data['text'] as String,
-            temp: data['temp'] as String,
-            locationName: (data['locationName'] as String?) ?? '',
+          _currentCondition = WeatherCondition.values.byName(
+            data['condition'] as String,
           );
+          _currentTemperature = data['temperature'] as String?;
         });
       case 'location':
         setState(() {
@@ -263,7 +261,8 @@ class _RecordingPageState extends State<RecordingPage> {
       _state = RecordingState.idle;
       _recordingSeconds = 0;
       _realtimeText = '';
-      _currentWeatherLocation = null;
+      _currentCondition = null;
+      _currentTemperature = null;
       _currentLocationName = null;
       _currentInputDevice = null;
     });
@@ -272,6 +271,14 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// 天气 pill 文本：emoji标签 +（有温度时）温度°。
+  String _weatherPillText() {
+    final base = _currentCondition!.displayPart;
+    final temp = _currentTemperature;
+    if (temp == null || temp.isEmpty) return base;
+    return '$base $temp°';
   }
 
   Widget _infoPill(String text) {
@@ -349,7 +356,7 @@ class _RecordingPageState extends State<RecordingPage> {
                 if (_state == RecordingState.recording &&
                     ((_currentLocationName != null &&
                             _currentLocationName!.isNotEmpty) ||
-                        _currentWeatherLocation != null)) ...[
+                        _currentCondition != null)) ...[
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -358,10 +365,9 @@ class _RecordingPageState extends State<RecordingPage> {
                       if (_currentLocationName != null &&
                           _currentLocationName!.isNotEmpty)
                         _infoPill(_currentLocationName!),
-                      if (_currentWeatherLocation != null)
-                        _infoPill(
-                          '${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
-                        ),
+                      if (_currentCondition != null &&
+                          _currentCondition!.displayPart.isNotEmpty)
+                        _infoPill(_weatherPillText()),
                     ],
                   ),
                 ],

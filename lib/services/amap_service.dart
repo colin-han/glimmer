@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../models/weather_condition.dart';
+
 /// 高德 Web 服务：逆地理编码，取最近 POI / 地址作地标。
 class AmapService {
   final _dio = Dio(
@@ -61,6 +63,75 @@ class AmapService {
       return null;
     } catch (e) {
       debugPrint('[高德] 解析失败: $e');
+      return null;
+    }
+  }
+
+  /// 高德天气实况：先 regeo 取 adcode，再 weatherInfo 取实况。
+  /// 返回 (condition, temperature)；未配置/失败返回 null，不抛异常。
+  Future<({WeatherCondition condition, String temperature})?>
+  fetchWeatherByLocation(double lat, double lon) async {
+    _ensureInitialized();
+    final key = _key;
+    if (key == null || key.isEmpty) {
+      debugPrint('[高德天气] 未配置 AMAP_WEB_KEY，跳过');
+      return null;
+    }
+
+    try {
+      final locParam = '${lon.toStringAsFixed(6)},${lat.toStringAsFixed(6)}';
+
+      // 1. regeo 取 adcode
+      final regeo = await _dio.get(
+        'https://restapi.amap.com/v3/geocode/regeo',
+        queryParameters: {
+          'key': key,
+          'location': locParam,
+          'extensions': 'base',
+          'output': 'json',
+        },
+      );
+      if (regeo.data['status']?.toString() != '1') {
+        debugPrint('[高德天气] regeo 失败 body=${regeo.data}');
+        return null;
+      }
+      final adcode = regeo.data['regeocode']?['addressComponent']?['adcode'];
+      if (adcode == null || adcode.toString().isEmpty) {
+        debugPrint('[高德天气] regeo 无 adcode');
+        return null;
+      }
+
+      // 2. weatherInfo 取实况
+      final resp = await _dio.get(
+        'https://restapi.amap.com/v3/weather/weatherInfo',
+        queryParameters: {
+          'key': key,
+          'city': adcode.toString(),
+          'extensions': 'base',
+          'output': 'json',
+        },
+      );
+      if (resp.data['status']?.toString() != '1') {
+        debugPrint('[高德天气] weatherInfo 失败 body=${resp.data}');
+        return null;
+      }
+      final lives = resp.data['lives'] as List?;
+      if (lives == null || lives.isEmpty) return null;
+      final live = lives[0] as Map<String, dynamic>;
+      final weatherText = (live['weather'] ?? '').toString();
+      final temperature = (live['temperature'] ?? '').toString();
+      if (weatherText.isEmpty && temperature.isEmpty) return null;
+      return (
+        condition: WeatherCondition.fromAmapText(weatherText),
+        temperature: temperature,
+      );
+    } on DioException catch (e) {
+      debugPrint(
+        '[高德天气] HTTP 错误: status=${e.response?.statusCode}, body=${e.response?.data}',
+      );
+      return null;
+    } catch (e) {
+      debugPrint('[高德天气] 解析失败: $e');
       return null;
     }
   }
