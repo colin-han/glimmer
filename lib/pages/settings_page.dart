@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/app_title.dart';
 import 'api_log_page.dart';
+import 'favorite_locations_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -103,6 +104,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text('30秒', style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.place_outlined),
+            title: const Text('常用位置'),
+            subtitle: const Text('家、公司等，录音接近时显示名称'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FavoriteLocationsPage(),
+                ),
+              );
+            },
           ),
           const Divider(),
           ListTile(title: const Text('版本'), subtitle: Text(_version)),
