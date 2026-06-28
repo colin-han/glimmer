@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'design_tokens.dart';
-import 'models/processing_task.dart';
 import 'pages/recording_page.dart';
 import 'services/diary_storage_service.dart';
 import 'services/migration_service.dart';
@@ -44,7 +42,6 @@ void main() async {
 
   // 异步执行历史 WAV → OGG + TOS 迁移（不阻塞 UI）
   _runTosMigrationIfNeeded();
-  _runDailySummaryIfNeeded();
 
   runApp(const VoiceDiaryApp());
 }
@@ -62,71 +59,6 @@ Future<void> _runTosMigrationIfNeeded() async {
     tos.close();
   } catch (e) {
     debugPrint('[迁移] 跳过: $e');
-  }
-}
-
-/// 日期 → 'yyyy-MM-dd'。
-@visibleForTesting
-String dateKey(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-/// 计算需要生成总结的目标日期（昨天）；今天已为昨天生成过则返回 null。
-/// 多天未打开也只补「昨天」一天（更早的历史由用户在 list 分组手动生成）。
-@visibleForTesting
-String? dailySummaryTargetDate({
-  required String? lastGenDate,
-  required DateTime now,
-}) {
-  final yesterday = DateTime(
-    now.year,
-    now.month,
-    now.day,
-  ).subtract(const Duration(days: 1));
-  final key = dateKey(yesterday);
-  return lastGenDate == key ? null : key;
-}
-
-/// 异步执行：每天首次打开 app 时自动为「昨天」生成每日总结。
-/// 仿 _runTosMigrationIfNeeded，fire-and-forget，不阻塞 UI。
-///
-/// 通过 task 表判断是否已生成（不再依赖 DailySummaries.status）：
-/// - 若该 date 已有 completed/active task，跳过（更新 gen date）
-/// - 否则入队 daily_summary task
-Future<void> _runDailySummaryIfNeeded() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final last = prefs.getString('last_daily_summary_gen_date');
-    final target = dailySummaryTargetDate(
-      lastGenDate: last,
-      now: DateTime.now(),
-    );
-    if (target == null) return; // 今天已为昨天生成过
-
-    final storage = DiaryStorageService();
-    // 昨天有录音才生成
-    final entries = await storage.getEntriesByDate(target);
-    if (entries.isEmpty) {
-      // 无录音也更新 gen date，避免每次启动重复查
-      await prefs.setString('last_daily_summary_gen_date', target);
-      return;
-    }
-
-    // 查 task 表：若该 date 已有 task（completed 不重复生成；active 不重复入队），跳过
-    final existingTask = await storage.getLatestProcessingTask(target);
-    if (existingTask != null) {
-      await prefs.setString('last_daily_summary_gen_date', target);
-      return;
-    }
-
-    // 入队 daily_summary task（store 内部会触发 FGS）
-    await processingTaskStore.enqueueTask(
-      taskType: TaskType.dailySummary,
-      refId: target,
-    );
-
-    await prefs.setString('last_daily_summary_gen_date', target);
-  } catch (e) {
-    debugPrint('[DailySummary] 启动钩子跳过: $e');
   }
 }
 
