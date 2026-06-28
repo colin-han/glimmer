@@ -168,7 +168,7 @@ locationLon:  _location?.lon,
 ## 10. 环境变量与备份
 
 - 新增 `AMAP_WEB_KEY`（高德 Web 服务 key）→ 同步进 `.env.local` / `.env.local.example` / `scripts/build.sh` 的 `REQUIRED_ENV_VARS`（遵循维护规范）。
-- 常用位置（`pref_favorite_locations`）纳入 app-backup 导出/导入，换机不丢。
+- 常用位置（`pref_favorite_locations`）存 SharedPreferences。**注**：app 内备份/恢复功能目前**尚未实现**（仅迁移前整目录 zip 备份，且不含 shared_prefs），故「纳入备份」暂不做；未来该功能实现时需单独导出 SharedPreferences 数据。
 
 ## 11. 测试策略
 
@@ -203,4 +203,5 @@ locationLon:  _location?.lon,
 - `lib/pages/settings_page.dart`（新增入口）
 - `lib/main.dart`（注册回填迁移）
 - `.env.local` / `.env.local.example` / `scripts/build.sh`（`AMAP_WEB_KEY`）
-- app-backup 逻辑（纳入常用位置）
+
+> 不含 app-backup 改动：备份/恢复功能尚未实现，待其落地时再纳入常用位置。
