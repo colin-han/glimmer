@@ -13,6 +13,7 @@ import '../models/processing_task.dart' as task_model;
 import '../services/audio_device_service.dart';
 import '../services/diary_storage_service.dart';
 import '../services/fgs_runtime.dart';
+import '../services/location_service.dart';
 import '../services/processing_fgs_controller.dart';
 import '../services/recording_task_handler.dart';
 import '../services/weather_service.dart';
@@ -216,6 +217,10 @@ class _RecordingPageState extends State<RecordingPage> {
         setState(() => _state = RecordingState.idle);
         return;
       }
+
+      // 预请求定位权限（必须在主 isolate；后台 FGS isolate 无 Activity 无法请求）。
+      // 定位可选，失败不阻塞录音（仅无位置信息）。
+      await LocationService().ensurePermission();
 
       // 设置通信端口
       FlutterForegroundTask.initCommunicationPort();

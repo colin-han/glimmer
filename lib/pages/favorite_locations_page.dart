@@ -72,6 +72,16 @@ class _FavoriteLocationsPageState extends State<FavoriteLocationsPage> {
     if (name == null || name.trim().isEmpty) return;
     if (!mounted) return;
     setState(() => _loading = true);
+    final granted = await _locationService.ensurePermission();
+    if (!granted) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('未授予定位权限，无法获取位置')));
+      }
+      return;
+    }
     final loc = await _locationService.getCurrentLocation();
     if (loc == null) {
       if (mounted) {
