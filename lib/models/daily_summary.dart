@@ -1,4 +1,5 @@
 import 'diary_entry.dart';
+import 'weather_condition.dart';
 
 // --- 容错解析工具（与 utterance.dart 一致的降级风格）---
 String _asString(dynamic v) =>
@@ -97,23 +98,20 @@ class DailySummaryData {
 /// 一天的天气聚合结果（详情页现算，不入库）。
 class DayWeatherSummary {
   final String? locationName;
-  final String? weatherIcon;
-  final String? weatherText;
+  final WeatherCondition? condition;
   final num? tempMin;
   final num? tempMax;
 
   const DayWeatherSummary({
     this.locationName,
-    this.weatherIcon,
-    this.weatherText,
+    this.condition,
     this.tempMin,
     this.tempMax,
   });
 
   bool get isEmpty =>
       locationName == null &&
-      weatherIcon == null &&
-      weatherText == null &&
+      condition == null &&
       tempMin == null &&
       tempMax == null;
 
@@ -124,13 +122,12 @@ class DayWeatherSummary {
     return '${tempMin!.round()}°~${tempMax!.round()}°';
   }
 
-  /// 聚合天气的展示文本，如 '海淀区  ☁️ 18°~25°'；无数据返回 ''。
+  /// 聚合天气的展示文本，如 '海淀区  ☁️ 阴  18°~25°'；无数据返回 ''。
   String get display {
     final parts = <String>[];
     if (locationName != null) parts.add(locationName!);
-    if (weatherIcon != null) {
-      final emoji = DiaryEntry.weatherEmoji(weatherIcon!) ?? weatherText ?? '';
-      if (emoji.isNotEmpty) parts.add(emoji);
+    if (condition != null && condition!.displayPart.isNotEmpty) {
+      parts.add(condition!.displayPart);
     }
     if (tempDisplay.isNotEmpty) parts.add(tempDisplay);
     return parts.join('  ');
@@ -184,7 +181,7 @@ String buildDaySummariesText(List<DaySummarySegment> segments) {
 }
 
 /// 取频次最高的 key（众数）；空 map 返回 null；平局取先出现的。
-String? _modeKey(Map<String, int> counts) {
+T? _modeKeyOf<T>(Map<T, int> counts) {
   if (counts.isEmpty) return null;
   var bestKey = counts.keys.first;
   var bestCount = counts[bestKey]!;
@@ -197,12 +194,11 @@ String? _modeKey(Map<String, int> counts) {
   return bestKey;
 }
 
-/// 聚合一天各篇录音的天气：地点众数 + 天气众数（按 weatherIcon 统计）+ 温度 min~max。
+/// 聚合一天各篇录音的天气：地点众数 + 天气众数（按 effectiveCondition 统计）+ 温度 min~max。
 /// 详情页现算，不入库；全无数据时返回 isEmpty 的对象。
 DayWeatherSummary aggregateDayWeather(List<DiaryEntry> entries) {
   final locCounts = <String, int>{};
-  final iconCounts = <String, int>{};
-  final iconToText = <String, String>{};
+  final conditionCounts = <WeatherCondition, int>{};
   final temps = <num>[];
 
   for (final e in entries) {
@@ -210,14 +206,9 @@ DayWeatherSummary aggregateDayWeather(List<DiaryEntry> entries) {
     if (loc != null && loc.isNotEmpty) {
       locCounts[loc] = (locCounts[loc] ?? 0) + 1;
     }
-    final icon = e.weatherIcon;
-    if (icon != null && icon.isNotEmpty) {
-      iconCounts[icon] = (iconCounts[icon] ?? 0) + 1;
-      if (!iconToText.containsKey(icon) &&
-          e.weatherText != null &&
-          e.weatherText!.isNotEmpty) {
-        iconToText[icon] = e.weatherText!;
-      }
+    final c = e.effectiveCondition;
+    if (c != null) {
+      conditionCounts[c] = (conditionCounts[c] ?? 0) + 1;
     }
     final temp = e.temperature;
     if (temp != null && temp.isNotEmpty) {
@@ -226,7 +217,7 @@ DayWeatherSummary aggregateDayWeather(List<DiaryEntry> entries) {
     }
   }
 
-  final iconMode = _modeKey(iconCounts);
+  final conditionMode = _modeKeyOf(conditionCounts);
 
   num? tempMin;
   num? tempMax;
@@ -237,9 +228,8 @@ DayWeatherSummary aggregateDayWeather(List<DiaryEntry> entries) {
   }
 
   return DayWeatherSummary(
-    locationName: _modeKey(locCounts),
-    weatherIcon: iconMode,
-    weatherText: iconMode == null ? null : iconToText[iconMode],
+    locationName: _modeKeyOf(locCounts),
+    condition: conditionMode,
     tempMin: tempMin,
     tempMax: tempMax,
   );

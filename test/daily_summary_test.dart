@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:voice_diary/models/daily_summary.dart';
 import 'package:voice_diary/models/diary_entry.dart';
+import 'package:voice_diary/models/weather_condition.dart';
 
 DiaryEntry _entry({
   required DateTime createdAt,
@@ -92,8 +93,10 @@ void main() {
           locationName: '朝阳区',
         ),
       ]);
-      expect(agg.weatherIcon, '104'); // 104 出现 2 次 > 100 的 1 次
-      expect(agg.weatherText, '阴');
+      expect(
+        agg.condition,
+        WeatherCondition.overcast,
+      ); // 104 出现 2 次 > 100 的 1 次
       expect(agg.tempMin, 18);
       expect(agg.tempMax, 25);
       expect(agg.tempDisplay, '18°~25°');
@@ -124,6 +127,18 @@ void main() {
       ]);
       expect(agg.tempMin, 20);
       expect(agg.tempMax, 20);
+    });
+
+    test('display 含 emoji 标签', () {
+      final agg = aggregateDayWeather([
+        _entry(
+          createdAt: DateTime(2026, 6, 13, 9),
+          weatherIcon: '104',
+          temperature: '20',
+          locationName: '海淀区',
+        ),
+      ]);
+      expect(agg.display, '海淀区  ☁️ 阴  20°');
     });
   });
 
