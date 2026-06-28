@@ -39,6 +39,7 @@ class _RecordingPageState extends State<RecordingPage> {
   String _realtimeText = '';
   final _realtimeScrollController = ScrollController();
   WeatherLocation? _currentWeatherLocation;
+  String? _currentLocationName;
   AudioInputDevice? _currentInputDevice;
 
   // 振幅流（从 FGS 接收振幅数据，转为 Stream<Amplitude> 给波形组件）
@@ -100,6 +101,10 @@ class _RecordingPageState extends State<RecordingPage> {
             temp: data['temp'] as String,
             locationName: (data['locationName'] as String?) ?? '',
           );
+        });
+      case 'location':
+        setState(() {
+          _currentLocationName = (data['locationName'] as String?) ?? '';
         });
       case 'recordingComplete':
         // 录音完成，重置 recording mode，入队 diary task
@@ -254,6 +259,7 @@ class _RecordingPageState extends State<RecordingPage> {
       _recordingSeconds = 0;
       _realtimeText = '';
       _currentWeatherLocation = null;
+      _currentLocationName = null;
       _currentInputDevice = null;
     });
     // 注意：不在此处启动 Processing FGS，等收到 recordingComplete 后延迟调度
@@ -261,6 +267,28 @@ class _RecordingPageState extends State<RecordingPage> {
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Widget _infoPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: WarmTokens.warmSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: WarmTokens.warmDivider.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          color: WarmTokens.warmMuted,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
   }
 
   @override
@@ -312,31 +340,24 @@ class _RecordingPageState extends State<RecordingPage> {
                       : WarmTokens.warmAmber,
                 ),
 
-                // 天气信息 pill
-                if (_currentWeatherLocation != null &&
-                    _state == RecordingState.recording) ...[
+                // 位置 + 天气 pill（任一就绪即显示，各自独立）
+                if (_state == RecordingState.recording &&
+                    ((_currentLocationName != null &&
+                            _currentLocationName!.isNotEmpty) ||
+                        _currentWeatherLocation != null)) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: WarmTokens.warmSurface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      '${_currentWeatherLocation!.locationName}  ${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: WarmTokens.warmMuted,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (_currentLocationName != null &&
+                          _currentLocationName!.isNotEmpty)
+                        _infoPill(_currentLocationName!),
+                      if (_currentWeatherLocation != null)
+                        _infoPill(
+                          '${DiaryEntry.weatherEmoji(_currentWeatherLocation!.icon) ?? _currentWeatherLocation!.text} ${_currentWeatherLocation!.temp}°',
+                        ),
+                    ],
                   ),
                 ],
 
