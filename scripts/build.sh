@@ -52,7 +52,7 @@ echo "==> 编译 prod release APK..."
 # 追踪至今 open），不会随版本修复，故此处不依赖 set -e 立即失败，改为构建后
 # 从 gradle 真实输出路径 outputs/apk/prod/release/ 补齐正确命名的 APK。
 set +e
-flutter build apk --flavor prod --release "${BUILD_ARGS[@]}"
+flutter build apk --flavor prod --release ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
 build_rc=$?
 set -e
 echo ""
