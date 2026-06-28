@@ -98,6 +98,13 @@ class DiaryStorageService {
     );
   }
 
+  /// 只更新 locationName（位置回填用）
+  Future<void> updateLocationName(String id, String? locationName) async {
+    await (_db.update(_db.diaryEntries)..where((t) => t.id.equals(id))).write(
+      DiaryEntriesCompanion(locationName: Value(locationName)),
+    );
+  }
+
   /// 更新业务表 status（已废弃，业务表 status 列不再维护）。
   @Deprecated(
     '已废弃：改用 updateProcessingTaskStatus()（processing_tasks 表）。业务表 status 不再维护。',

@@ -37,6 +37,27 @@ void main() {
     );
   }
 
+  test('updateLocationName 只改 locationName 字段', () async {
+    await service.createEntry(
+      DiaryEntry(
+        id: 'x',
+        title: 't',
+        folderPath: '/x',
+        durationSeconds: 1,
+        createdAt: DateTime(2026, 6, 28),
+        locationName: '雁塔区',
+        locationLat: 34.0,
+        locationLon: 108.0,
+      ),
+    );
+    await service.updateLocationName('x', '家');
+    final entries = await service.getAllEntries();
+    final e = entries.firstWhere((e) => e.id == 'x');
+    expect(e.locationName, '家');
+    expect(e.locationLat, 34.0); // 其他字段不变
+    expect(e.title, 't');
+  });
+
   test('resetEntryForReanalysis 有 tosKey 时重置为 asr 阶段', () async {
     await createEntry(id: 'e1', tosKey: 'tos-key-1', asrTaskId: 'old-task');
 
