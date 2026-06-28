@@ -55,6 +55,7 @@ class DiaryStorageService {
         tosKey: Value(entry.tosKey),
         audioFormat: Value(entry.audioFormat),
         uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+        weatherCondition: Value(entry.weatherCondition),
         weatherIcon: Value(entry.weatherIcon),
         weatherText: Value(entry.weatherText),
         temperature: Value(entry.temperature),
@@ -79,6 +80,7 @@ class DiaryStorageService {
         tosKey: Value(entry.tosKey),
         audioFormat: Value(entry.audioFormat),
         uploadedAt: Value(entry.uploadedAt?.millisecondsSinceEpoch),
+        weatherCondition: Value(entry.weatherCondition),
         weatherIcon: Value(entry.weatherIcon),
         weatherText: Value(entry.weatherText),
         temperature: Value(entry.temperature),
@@ -256,6 +258,7 @@ class DiaryStorageService {
             uploadedAt: r.uploadedAt != null
                 ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
                 : null,
+            weatherCondition: r.weatherCondition,
             weatherIcon: r.weatherIcon,
             weatherText: r.weatherText,
             temperature: r.temperature,
@@ -283,6 +286,7 @@ class DiaryStorageService {
       uploadedAt: r.uploadedAt != null
           ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
           : null,
+      weatherCondition: r.weatherCondition,
       weatherIcon: r.weatherIcon,
       weatherText: r.weatherText,
       temperature: r.temperature,
@@ -539,6 +543,7 @@ class DiaryStorageService {
             uploadedAt: r.uploadedAt != null
                 ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
                 : null,
+            weatherCondition: r.weatherCondition,
             weatherIcon: r.weatherIcon,
             weatherText: r.weatherText,
             temperature: r.temperature,
@@ -571,6 +576,7 @@ class DiaryStorageService {
             uploadedAt: r.uploadedAt != null
                 ? DateTime.fromMillisecondsSinceEpoch(r.uploadedAt!)
                 : null,
+            weatherCondition: r.weatherCondition,
             weatherIcon: r.weatherIcon,
             weatherText: r.weatherText,
             temperature: r.temperature,

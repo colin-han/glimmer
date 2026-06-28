@@ -1,4 +1,5 @@
 import 'processing_stage.dart';
+import 'weather_condition.dart';
 
 enum EntryStatus { processing, completed, failed }
 
@@ -11,6 +12,7 @@ class DiaryEntry {
   final String? tosKey;
   final String audioFormat;
   final DateTime? uploadedAt;
+  final WeatherCondition? weatherCondition;
   final String? weatherIcon;
   final String? weatherText;
   final String? temperature;
@@ -30,6 +32,7 @@ class DiaryEntry {
     this.tosKey,
     this.audioFormat = 'wav',
     this.uploadedAt,
+    this.weatherCondition,
     this.weatherIcon,
     this.weatherText,
     this.temperature,
@@ -57,6 +60,7 @@ class DiaryEntry {
       tosKey: tosKey ?? this.tosKey,
       audioFormat: audioFormat,
       uploadedAt: uploadedAt,
+      weatherCondition: weatherCondition,
       weatherIcon: weatherIcon,
       weatherText: weatherText,
       temperature: temperature,
@@ -82,17 +86,22 @@ class DiaryEntry {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
-  /// 天气摘要文本，如 "海淀区  ☁️ 24°"，无天气时返回空字符串
+  /// 天气摘要文本，如 "海淀区  🌦️ 阵雨  24°"，无天气时返回空字符串
   String get weatherDisplay {
     final parts = <String>[];
     if (locationName != null) parts.add(locationName!);
-    if (weatherIcon != null) {
-      final emoji = weatherEmoji(weatherIcon!) ?? weatherText ?? '';
-      if (emoji.isNotEmpty) parts.add(emoji);
-    }
+    final c = effectiveCondition;
+    if (c != null && c.displayPart.isNotEmpty) parts.add(c.displayPart);
     if (temperature != null) parts.add('$temperature°');
     return parts.join('  ');
   }
+
+  /// 有效天气：优先 weatherCondition，为空则从历史 weather_icon 兜底。
+  WeatherCondition? get effectiveCondition =>
+      weatherCondition ??
+      (weatherIcon != null
+          ? WeatherCondition.fromQweatherCode(weatherIcon!)
+          : null);
 
   /// 和风天气图标代码 → emoji 映射
   static String? weatherEmoji(String iconCode) => _weatherEmojiMap[iconCode];
