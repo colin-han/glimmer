@@ -8,12 +8,15 @@ import 'package:uuid/uuid.dart';
 
 import '../models/diary_entry.dart';
 import '../models/processing_stage.dart';
+import 'amap_service.dart';
+import 'api_log_service.dart';
 import 'audio_recorder_service.dart';
 import 'diary_storage_service.dart';
+import 'favorite_location_store.dart';
+import 'location_resolver.dart';
 import 'location_service.dart';
 import 'realtime_asr_service.dart';
 import 'weather_service.dart';
-import 'api_log_service.dart';
 
 /// 前台服务入口函数，必须为顶层函数并标注 @pragma('vm:entry-point')
 @pragma('vm:entry-point')
@@ -33,8 +36,10 @@ class RecordingTaskHandler extends TaskHandler {
   final _storageService = DiaryStorageService();
   final _locationService = LocationService();
   final _weatherService = WeatherService();
+  final _locationResolver = LocationResolver(AmapService());
   final _uuid = const Uuid();
   final _apiLogService = ApiLogService();
+  final _favoriteLocationStore = FavoriteLocationStore();
 
   // --- 状态 ---
   String? _folderId;
@@ -49,6 +54,9 @@ class RecordingTaskHandler extends TaskHandler {
   // 天气/位置（异步获取，创建条目时使用）
   WeatherLocation? _weatherLocation;
   ({double lat, double lon})? _location;
+
+  // 解析后的最终地名（常用位置/地标/高德地址，可空）
+  String? _resolvedLocationName;
 
   /// 向 UI 发送消息
   void _sendToMain(Map<String, dynamic> data) {
@@ -181,21 +189,38 @@ class RecordingTaskHandler extends TaskHandler {
         final loc = await _locationService.getCurrentLocation();
         if (loc == null) return;
         _location = loc;
-        _weatherLocation = await _weatherService.fetchWeatherAndLocation(
+        final favorites = await _favoriteLocationStore.load();
+
+        // 天气 与 位置解析 并行（两者只依赖 lat/lon）
+        final weatherFuture = _weatherService.fetchWeatherAndLocation(
           loc.lat,
           loc.lon,
         );
-        if (_weatherLocation != null) {
+        final resolveFuture = _locationResolver.resolve(
+          lat: loc.lat,
+          lon: loc.lon,
+          favorites: favorites,
+        );
+
+        // 天气就绪 → 发天气消息（不含 locationName）
+        weatherFuture.then((w) {
+          if (w == null) return;
+          _weatherLocation = w;
           _sendToMain({
             'type': 'weather',
-            'icon': _weatherLocation!.icon,
-            'text': _weatherLocation!.text,
-            'temp': _weatherLocation!.temp,
-            'locationName': _weatherLocation!.locationName,
+            'icon': w.icon,
+            'text': w.text,
+            'temp': w.temp,
           });
-        }
+        });
+
+        // 位置就绪 → 发位置消息
+        resolveFuture.then((name) {
+          _resolvedLocationName = name;
+          _sendToMain({'type': 'location', 'locationName': name ?? ''});
+        });
       } catch (e) {
-        debugPrint('[TaskHandler] 天气获取失败（不阻塞）: $e');
+        debugPrint('[TaskHandler] 天气/位置获取失败（不阻塞）: $e');
       }
     }();
   }
@@ -255,7 +280,8 @@ class RecordingTaskHandler extends TaskHandler {
             weatherIcon: _weatherLocation?.icon,
             weatherText: _weatherLocation?.text,
             temperature: _weatherLocation?.temp,
-            locationName: _weatherLocation?.locationName,
+            locationName:
+                _resolvedLocationName ?? _weatherLocation?.locationName,
             locationLat: _location?.lat,
             locationLon: _location?.lon,
           ),

@@ -98,7 +98,7 @@ class _RecordingPageState extends State<RecordingPage> {
             icon: data['icon'] as String,
             text: data['text'] as String,
             temp: data['temp'] as String,
-            locationName: data['locationName'] as String,
+            locationName: (data['locationName'] as String?) ?? '',
           );
         });
       case 'recordingComplete':
