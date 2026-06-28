@@ -66,10 +66,9 @@ dart run build_runner build --delete-conflicting-outputs  # 同上，强制覆�
 - `VOLCENGINE_ARK_ENDPOINT_ID` / `VOLCENGINE_ARK_API_KEY` — LLM（豆包 Doubao）
 - `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` — 火山引擎 IAM（TOS 等共用）
 - `VOLCENGINE_TOS_ENDPOINT` / `VOLCENGINE_TOS_BUCKET` — TOS 云端存储
-- `QWEATHER_TOKEN` — 和风天气（天气 + 逆地理编码）
-- `AMAP_WEB_KEY` — 高德地图（位置地标逆地理）
+- `AMAP_WEB_KEY` — 高德地图（位置地标逆地理 + 天气实况）
 
-> `QWEATHER_HOST` 有默认值、`WORKTREE` 仅 dev flavor 使用，故未列入 prod 必需项。
+> `WORKTREE` 仅 dev flavor 使用，故未列入 prod 必需项。
 
 ### 维护规范
 

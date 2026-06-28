@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # prod release 必需的环境变量。
-# WORKTREE 仅 dev flavor 使用、QWEATHER_HOST 有默认值，故不列入。
+# WORKTREE 仅 dev flavor 使用，故不列入。
 REQUIRED_ENV_VARS=(
   VOLCENGINE_SPEECH_APPID
   VOLCENGINE_SPEECH_TOKEN
@@ -23,7 +23,6 @@ REQUIRED_ENV_VARS=(
   VOLCENGINE_SECRET_KEY
   VOLCENGINE_TOS_ENDPOINT
   VOLCENGINE_TOS_BUCKET
-  QWEATHER_TOKEN
   AMAP_WEB_KEY
 )
 
