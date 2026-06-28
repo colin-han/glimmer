@@ -1,5 +1,5 @@
 #!/bin/bash
-# 发布流程：更新版本号 → 构建 → 归档到 releases/ → 安装
+# 发布流程：检查环境变量 → 更新版本号（提交 + 打 tag + 推送）→ 构建 → 归档到 releases/ → 安装
 # 用法: ./scripts/release.sh [major|minor|patch|<#.#.#>]
 
 set -euo pipefail
@@ -7,8 +7,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+# ─── 检查环境变量 ─────────────────────────────────────────────
+bash "$SCRIPT_DIR/check_env.sh"
+
+# ─── 更新版本号（提交、打 tag、推送）────────────────────────
 bash "$SCRIPT_DIR/update_version.sh" "$@"
-bash "$SCRIPT_DIR/build.sh"
+
+# ─── 构建（环境变量已检查，跳过重复检查）────────────────────
+bash "$SCRIPT_DIR/build.sh" --skip-env-check
 
 # ─── 归档 release APK 到 releases/（带版本号，已加入 .gitignore 不入库） ───
 APK="build/app/outputs/flutter-apk/app-prod-release.apk"
