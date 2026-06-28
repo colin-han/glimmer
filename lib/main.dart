@@ -9,6 +9,10 @@ import 'services/migration_service.dart';
 import 'services/processing_task_store.dart';
 import 'services/storage_migration_service.dart';
 import 'services/tos_upload_service.dart';
+import 'services/amap_service.dart';
+import 'services/favorite_location_store.dart';
+import 'services/location_resolve_migration.dart';
+import 'services/location_resolver.dart';
 
 /// 全局 task store（main isolate 单例）。UI/入口通过此访问。
 late final ProcessingTaskStore processingTaskStore;
@@ -42,6 +46,7 @@ void main() async {
 
   // 异步执行历史 WAV → OGG + TOS 迁移（不阻塞 UI）
   _runTosMigrationIfNeeded();
+  _runLocationResolveMigrationIfNeeded();
 
   runApp(const VoiceDiaryApp());
 }
@@ -59,6 +64,24 @@ Future<void> _runTosMigrationIfNeeded() async {
     tos.close();
   } catch (e) {
     debugPrint('[迁移] 跳过: $e');
+  }
+}
+
+/// 异步执行：首次启动时用已有 lat/lon 回填历史日记的 locationName。
+/// fire-and-forget，不阻塞 UI；标志位保证只跑一次。
+Future<void> _runLocationResolveMigrationIfNeeded() async {
+  if (await LocationResolveMigration.isDone()) return;
+  try {
+    final storage = DiaryStorageService();
+    final resolver = LocationResolver(AmapService());
+    final favStore = FavoriteLocationStore();
+    final migration = LocationResolveMigration(storage, resolver, favStore);
+    final count = await migration.run();
+    if (count > 0) {
+      debugPrint('[位置回填] 完成: 更新 $count 条日记');
+    }
+  } catch (e) {
+    debugPrint('[位置回填] 跳过: $e');
   }
 }
 
