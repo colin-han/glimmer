@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../models/weather_condition.dart';
+
 /// drift TypeConverter：`Map<String, dynamic>` ↔ JSON text（用于 ProcessingTasks.meta）。
 class MapConverter extends TypeConverter<Map<String, dynamic>, String> {
   const MapConverter();
@@ -17,6 +19,17 @@ class MapConverter extends TypeConverter<Map<String, dynamic>, String> {
   String toSql(Map<String, dynamic> value) => jsonEncode(value);
 }
 
+/// 可空版 WeatherCondition TypeConverter（用于 nullable 列）。
+class NullableWeatherConditionConverter
+    extends TypeConverter<WeatherCondition?, String?> {
+  const NullableWeatherConditionConverter();
+  @override
+  WeatherCondition? fromSql(String? fromDb) =>
+      fromDb != null ? WeatherCondition.values.byName(fromDb) : null;
+  @override
+  String? toSql(WeatherCondition? value) => value?.name;
+}
+
 class DiaryEntries extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
@@ -26,6 +39,8 @@ class DiaryEntries extends Table {
   TextColumn get tosKey => text().nullable()();
   TextColumn get audioFormat => text().withDefault(const Constant('wav'))();
   IntColumn get uploadedAt => integer().nullable()();
+  TextColumn get weatherCondition =>
+      text().map(const NullableWeatherConditionConverter()).nullable()();
   TextColumn get weatherIcon => text().nullable()();
   TextColumn get weatherText => text().nullable()();
   TextColumn get temperature => text().nullable()();

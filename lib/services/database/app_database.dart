@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 
 import 'tables.dart';
 
+import '../../models/weather_condition.dart';
+
 part 'app_database.g.dart';
 
 @DriftDatabase(
@@ -41,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -125,6 +127,12 @@ class AppDatabase extends _$AppDatabase {
           await _migrateStatusToTasks();
         }
       }
+      if (from < 10) {
+        if (!await _columnExists('diary_entries', 'weather_condition')) {
+          await m.addColumn(diaryEntries, diaryEntries.weatherCondition);
+        }
+        await _migrateWeatherCondition();
+      }
     },
   );
 
@@ -190,6 +198,23 @@ class AppDatabase extends _$AppDatabase {
           status: Value(status == 'failed' ? 'failed' : 'running'),
           queuedAt: now,
         ),
+      );
+    }
+  }
+
+  /// 回填 weather_condition：把历史 weather_icon（和风代码）映射到枚举。
+  /// 幂等：仅处理 weather_condition IS NULL 的行。
+  Future<void> _migrateWeatherCondition() async {
+    final rows = await customSelect(
+      "SELECT id, weather_icon FROM diary_entries "
+      "WHERE weather_condition IS NULL AND weather_icon IS NOT NULL",
+    ).get();
+    for (final r in rows) {
+      final icon = r.read<String>('weather_icon');
+      final condition = WeatherCondition.fromQweatherCode(icon);
+      await customStatement(
+        "UPDATE diary_entries SET weather_condition = ? WHERE id = ?",
+        [condition.name, r.read<String>('id')],
       );
     }
   }

@@ -92,6 +92,18 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<WeatherCondition?, String>
+  weatherCondition =
+      GeneratedColumn<String>(
+        'weather_condition',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<WeatherCondition?>(
+        $DiaryEntriesTable.$converterweatherCondition,
+      );
   static const VerificationMeta _weatherIconMeta = const VerificationMeta(
     'weatherIcon',
   );
@@ -201,6 +213,7 @@ class $DiaryEntriesTable extends DiaryEntries
     tosKey,
     audioFormat,
     uploadedAt,
+    weatherCondition,
     weatherIcon,
     weatherText,
     temperature,
@@ -400,6 +413,12 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.int,
         data['${effectivePrefix}uploaded_at'],
       ),
+      weatherCondition: $DiaryEntriesTable.$converterweatherCondition.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}weather_condition'],
+        ),
+      ),
       weatherIcon: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}weather_icon'],
@@ -443,6 +462,9 @@ class $DiaryEntriesTable extends DiaryEntries
   $DiaryEntriesTable createAlias(String alias) {
     return $DiaryEntriesTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<WeatherCondition?, String?> $converterweatherCondition =
+      const NullableWeatherConditionConverter();
 }
 
 class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
@@ -454,6 +476,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
   final String? tosKey;
   final String audioFormat;
   final int? uploadedAt;
+  final WeatherCondition? weatherCondition;
   final String? weatherIcon;
   final String? weatherText;
   final String? temperature;
@@ -472,6 +495,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     this.tosKey,
     required this.audioFormat,
     this.uploadedAt,
+    this.weatherCondition,
     this.weatherIcon,
     this.weatherText,
     this.temperature,
@@ -496,6 +520,11 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     map['audio_format'] = Variable<String>(audioFormat);
     if (!nullToAbsent || uploadedAt != null) {
       map['uploaded_at'] = Variable<int>(uploadedAt);
+    }
+    if (!nullToAbsent || weatherCondition != null) {
+      map['weather_condition'] = Variable<String>(
+        $DiaryEntriesTable.$converterweatherCondition.toSql(weatherCondition),
+      );
     }
     if (!nullToAbsent || weatherIcon != null) {
       map['weather_icon'] = Variable<String>(weatherIcon);
@@ -537,6 +566,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       uploadedAt: uploadedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(uploadedAt),
+      weatherCondition: weatherCondition == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weatherCondition),
       weatherIcon: weatherIcon == null && nullToAbsent
           ? const Value.absent()
           : Value(weatherIcon),
@@ -577,6 +609,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       tosKey: serializer.fromJson<String?>(json['tosKey']),
       audioFormat: serializer.fromJson<String>(json['audioFormat']),
       uploadedAt: serializer.fromJson<int?>(json['uploadedAt']),
+      weatherCondition: serializer.fromJson<WeatherCondition?>(
+        json['weatherCondition'],
+      ),
       weatherIcon: serializer.fromJson<String?>(json['weatherIcon']),
       weatherText: serializer.fromJson<String?>(json['weatherText']),
       temperature: serializer.fromJson<String?>(json['temperature']),
@@ -600,6 +635,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       'tosKey': serializer.toJson<String?>(tosKey),
       'audioFormat': serializer.toJson<String>(audioFormat),
       'uploadedAt': serializer.toJson<int?>(uploadedAt),
+      'weatherCondition': serializer.toJson<WeatherCondition?>(
+        weatherCondition,
+      ),
       'weatherIcon': serializer.toJson<String?>(weatherIcon),
       'weatherText': serializer.toJson<String?>(weatherText),
       'temperature': serializer.toJson<String?>(temperature),
@@ -621,6 +659,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     Value<String?> tosKey = const Value.absent(),
     String? audioFormat,
     Value<int?> uploadedAt = const Value.absent(),
+    Value<WeatherCondition?> weatherCondition = const Value.absent(),
     Value<String?> weatherIcon = const Value.absent(),
     Value<String?> weatherText = const Value.absent(),
     Value<String?> temperature = const Value.absent(),
@@ -639,6 +678,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     tosKey: tosKey.present ? tosKey.value : this.tosKey,
     audioFormat: audioFormat ?? this.audioFormat,
     uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
+    weatherCondition: weatherCondition.present
+        ? weatherCondition.value
+        : this.weatherCondition,
     weatherIcon: weatherIcon.present ? weatherIcon.value : this.weatherIcon,
     weatherText: weatherText.present ? weatherText.value : this.weatherText,
     temperature: temperature.present ? temperature.value : this.temperature,
@@ -667,6 +709,9 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
       uploadedAt: data.uploadedAt.present
           ? data.uploadedAt.value
           : this.uploadedAt,
+      weatherCondition: data.weatherCondition.present
+          ? data.weatherCondition.value
+          : this.weatherCondition,
       weatherIcon: data.weatherIcon.present
           ? data.weatherIcon.value
           : this.weatherIcon,
@@ -704,6 +749,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           ..write('tosKey: $tosKey, ')
           ..write('audioFormat: $audioFormat, ')
           ..write('uploadedAt: $uploadedAt, ')
+          ..write('weatherCondition: $weatherCondition, ')
           ..write('weatherIcon: $weatherIcon, ')
           ..write('weatherText: $weatherText, ')
           ..write('temperature: $temperature, ')
@@ -727,6 +773,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
     tosKey,
     audioFormat,
     uploadedAt,
+    weatherCondition,
     weatherIcon,
     weatherText,
     temperature,
@@ -749,6 +796,7 @@ class DiaryEntry extends DataClass implements Insertable<DiaryEntry> {
           other.tosKey == this.tosKey &&
           other.audioFormat == this.audioFormat &&
           other.uploadedAt == this.uploadedAt &&
+          other.weatherCondition == this.weatherCondition &&
           other.weatherIcon == this.weatherIcon &&
           other.weatherText == this.weatherText &&
           other.temperature == this.temperature &&
@@ -769,6 +817,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
   final Value<String?> tosKey;
   final Value<String> audioFormat;
   final Value<int?> uploadedAt;
+  final Value<WeatherCondition?> weatherCondition;
   final Value<String?> weatherIcon;
   final Value<String?> weatherText;
   final Value<String?> temperature;
@@ -788,6 +837,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.tosKey = const Value.absent(),
     this.audioFormat = const Value.absent(),
     this.uploadedAt = const Value.absent(),
+    this.weatherCondition = const Value.absent(),
     this.weatherIcon = const Value.absent(),
     this.weatherText = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -808,6 +858,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     this.tosKey = const Value.absent(),
     this.audioFormat = const Value.absent(),
     this.uploadedAt = const Value.absent(),
+    this.weatherCondition = const Value.absent(),
     this.weatherIcon = const Value.absent(),
     this.weatherText = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -832,6 +883,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Expression<String>? tosKey,
     Expression<String>? audioFormat,
     Expression<int>? uploadedAt,
+    Expression<String>? weatherCondition,
     Expression<String>? weatherIcon,
     Expression<String>? weatherText,
     Expression<String>? temperature,
@@ -852,6 +904,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       if (tosKey != null) 'tos_key': tosKey,
       if (audioFormat != null) 'audio_format': audioFormat,
       if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (weatherCondition != null) 'weather_condition': weatherCondition,
       if (weatherIcon != null) 'weather_icon': weatherIcon,
       if (weatherText != null) 'weather_text': weatherText,
       if (temperature != null) 'temperature': temperature,
@@ -874,6 +927,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     Value<String?>? tosKey,
     Value<String>? audioFormat,
     Value<int?>? uploadedAt,
+    Value<WeatherCondition?>? weatherCondition,
     Value<String?>? weatherIcon,
     Value<String?>? weatherText,
     Value<String?>? temperature,
@@ -894,6 +948,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
       tosKey: tosKey ?? this.tosKey,
       audioFormat: audioFormat ?? this.audioFormat,
       uploadedAt: uploadedAt ?? this.uploadedAt,
+      weatherCondition: weatherCondition ?? this.weatherCondition,
       weatherIcon: weatherIcon ?? this.weatherIcon,
       weatherText: weatherText ?? this.weatherText,
       temperature: temperature ?? this.temperature,
@@ -933,6 +988,13 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
     }
     if (uploadedAt.present) {
       map['uploaded_at'] = Variable<int>(uploadedAt.value);
+    }
+    if (weatherCondition.present) {
+      map['weather_condition'] = Variable<String>(
+        $DiaryEntriesTable.$converterweatherCondition.toSql(
+          weatherCondition.value,
+        ),
+      );
     }
     if (weatherIcon.present) {
       map['weather_icon'] = Variable<String>(weatherIcon.value);
@@ -978,6 +1040,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntry> {
           ..write('tosKey: $tosKey, ')
           ..write('audioFormat: $audioFormat, ')
           ..write('uploadedAt: $uploadedAt, ')
+          ..write('weatherCondition: $weatherCondition, ')
           ..write('weatherIcon: $weatherIcon, ')
           ..write('weatherText: $weatherText, ')
           ..write('temperature: $temperature, ')
@@ -3830,6 +3893,7 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       Value<String?> tosKey,
       Value<String> audioFormat,
       Value<int?> uploadedAt,
+      Value<WeatherCondition?> weatherCondition,
       Value<String?> weatherIcon,
       Value<String?> weatherText,
       Value<String?> temperature,
@@ -3851,6 +3915,7 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<String?> tosKey,
       Value<String> audioFormat,
       Value<int?> uploadedAt,
+      Value<WeatherCondition?> weatherCondition,
       Value<String?> weatherIcon,
       Value<String?> weatherText,
       Value<String?> temperature,
@@ -3936,6 +4001,12 @@ class $$DiaryEntriesTableFilterComposer
   ColumnFilters<int> get uploadedAt => $composableBuilder(
     column: $table.uploadedAt,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<WeatherCondition?, WeatherCondition, String>
+  get weatherCondition => $composableBuilder(
+    column: $table.weatherCondition,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get weatherIcon => $composableBuilder(
@@ -4058,6 +4129,11 @@ class $$DiaryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get weatherCondition => $composableBuilder(
+    column: $table.weatherCondition,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get weatherIcon => $composableBuilder(
     column: $table.weatherIcon,
     builder: (column) => ColumnOrderings(column),
@@ -4142,6 +4218,12 @@ class $$DiaryEntriesTableAnnotationComposer
 
   GeneratedColumn<int> get uploadedAt => $composableBuilder(
     column: $table.uploadedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<WeatherCondition?, String>
+  get weatherCondition => $composableBuilder(
+    column: $table.weatherCondition,
     builder: (column) => column,
   );
 
@@ -4249,6 +4331,8 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> tosKey = const Value.absent(),
                 Value<String> audioFormat = const Value.absent(),
                 Value<int?> uploadedAt = const Value.absent(),
+                Value<WeatherCondition?> weatherCondition =
+                    const Value.absent(),
                 Value<String?> weatherIcon = const Value.absent(),
                 Value<String?> weatherText = const Value.absent(),
                 Value<String?> temperature = const Value.absent(),
@@ -4268,6 +4352,7 @@ class $$DiaryEntriesTableTableManager
                 tosKey: tosKey,
                 audioFormat: audioFormat,
                 uploadedAt: uploadedAt,
+                weatherCondition: weatherCondition,
                 weatherIcon: weatherIcon,
                 weatherText: weatherText,
                 temperature: temperature,
@@ -4289,6 +4374,8 @@ class $$DiaryEntriesTableTableManager
                 Value<String?> tosKey = const Value.absent(),
                 Value<String> audioFormat = const Value.absent(),
                 Value<int?> uploadedAt = const Value.absent(),
+                Value<WeatherCondition?> weatherCondition =
+                    const Value.absent(),
                 Value<String?> weatherIcon = const Value.absent(),
                 Value<String?> weatherText = const Value.absent(),
                 Value<String?> temperature = const Value.absent(),
@@ -4308,6 +4395,7 @@ class $$DiaryEntriesTableTableManager
                 tosKey: tosKey,
                 audioFormat: audioFormat,
                 uploadedAt: uploadedAt,
+                weatherCondition: weatherCondition,
                 weatherIcon: weatherIcon,
                 weatherText: weatherText,
                 temperature: temperature,
