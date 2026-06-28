@@ -30,15 +30,9 @@ class DetailInfoBar extends StatelessWidget {
     }
 
     // 天气
-    if (entry.weatherIcon != null || entry.weatherText != null) {
-      final emoji = entry.weatherIcon != null
-          ? (DiaryEntry.weatherEmoji(entry.weatherIcon!) ??
-                entry.weatherText ??
-                '')
-          : entry.weatherText ?? '';
-      if (emoji.isNotEmpty) {
-        parts.add(_InfoItem(icon: null, text: emoji));
-      }
+    final condition = entry.effectiveCondition;
+    if (condition != null && condition.displayPart.isNotEmpty) {
+      parts.add(_InfoItem(icon: null, text: condition.displayPart));
     }
 
     // 温度
