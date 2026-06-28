@@ -262,7 +262,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   // ─── 分组标题（琥珀色竖线装饰） ──────────────────────────────────
 
-  Widget _buildGroupHeader(String label) {
+  Widget _buildGroupHeader(String label, {Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.only(top: 20, bottom: 10, left: 4),
       child: Row(
@@ -285,6 +285,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
               letterSpacing: 0.3,
             ),
           ),
+          if (trailing != null) ...[const Spacer(), trailing],
         ],
       ),
     );
@@ -312,9 +313,18 @@ class _DiaryListPageState extends State<DiaryListPage> {
           final date = DateTime.parse(group.key);
           final diff = todayDate.difference(date).inDays;
           final label = _getDateLabel(date, diff);
-          return [
-            _buildGroupHeader(label),
-            _buildDailySummaryRow(group.key),
+          // 无总结且未在处理中：标题行内联小按钮触发生成，不再渲染独立行
+          final needsGenerate =
+              !_dailySummaries.containsKey(group.key) &&
+              !processingTaskStore.isProcessing(group.key);
+          return <Widget>[
+            _buildGroupHeader(
+              label,
+              trailing: needsGenerate
+                  ? _buildInlineGenerateButton(group.key)
+                  : null,
+            ),
+            if (!needsGenerate) _buildDailySummaryRow(group.key),
             ...group.value.map((entry) => _buildEntryCard(entry)),
           ];
         }).toList(),
@@ -333,6 +343,43 @@ class _DiaryListPageState extends State<DiaryListPage> {
       refId: dateKey,
     );
     _loadData();
+  }
+
+  /// 日期标题行内联的「生成本日总结」小按钮（无总结时展示）。
+  Widget _buildInlineGenerateButton(String dateKey) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _requestDailySummary(dateKey),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: WarmTokens.warmAmber.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: WarmTokens.warmAmber.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.auto_stories_outlined,
+              size: 13,
+              color: WarmTokens.warmAmber,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              '生成本日总结',
+              style: TextStyle(
+                fontSize: 11,
+                color: WarmTokens.warmAmber,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 每个日期分组下的「本日总结」行，按 task 状态自适应。
@@ -425,35 +472,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
       );
     }
 
-    // 无记录：生成本日总结
-    return GestureDetector(
-      onTap: () => _requestDailySummary(dateKey),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: WarmTokens.warmAmber.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: WarmTokens.warmAmber.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.edit_note, size: 18, color: WarmTokens.warmAmber),
-            const SizedBox(width: 8),
-            Text(
-              '📝 生成本日总结',
-              style: TextStyle(
-                fontSize: 14,
-                color: WarmTokens.warmAmber,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // 无总结且未处理：已改由日期标题行内联按钮触发，此处理论不可达，兜底返回空。
+    return const SizedBox.shrink();
   }
 
   String _getDateLabel(DateTime date, int daysDiff) {
@@ -514,16 +534,21 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   Widget _buildEntryCard(DiaryEntry entry) {
     final tags = _entryTags[entry.id] ?? [];
-    // 处理中状态读 store（active task）；failed 在列表页价值低，按普通卡片渲染。
+    // 处理中状态读 store（active task）；failed 读 entry.status（由处理任务标记）。
     final isProcessing = processingTaskStore.isProcessing(entry.id);
+    final isFailed = entry.status == EntryStatus.failed;
 
     // 卡片背景色
     final bgColor = isProcessing
         ? WarmTokens.warmProcessBg
+        : isFailed
+        ? WarmTokens.failedBg
         : WarmTokens.warmCardBg;
 
     // 边框色
-    final borderColor = WarmTokens.warmDivider;
+    final borderColor = isFailed
+        ? WarmTokens.failedAccent.withValues(alpha: 0.3)
+        : WarmTokens.warmDivider;
 
     return GestureDetector(
       onTap: () {
@@ -547,15 +572,26 @@ class _DiaryListPageState extends State<DiaryListPage> {
             // 第一行：标题 + 状态
             Row(
               children: [
+                if (isFailed)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: WarmTokens.failedAccent,
+                    ),
+                  ),
                 Expanded(
                   child: Text(
-                    entry.displayTitle,
+                    isFailed ? '处理失败' : entry.displayTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: WarmTokens.warmBrown,
+                      color: isFailed
+                          ? WarmTokens.failedText
+                          : WarmTokens.warmBrown,
                       height: 1.4,
                     ),
                   ),
