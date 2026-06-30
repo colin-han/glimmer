@@ -164,4 +164,23 @@ void main() {
     verifyNever(() => storage.updateLocationName('b', any()));
     expect(await LocationResolveMigration.isDone(), isFalse);
   });
+
+  test('遗留旧 bool 标志位时，版本化守卫仍判定未完成（需重跑）', () async {
+    // 模拟已发布设备：v1 迁移跑过，遗留旧的 bool 标志 true
+    SharedPreferences.setMockInitialValues({
+      'location_resolve_migration_done': true,
+    });
+    // 新版本化守卫读 _versionKey（不存在→0），0 < 2 → 未完成，需重跑
+    expect(await LocationResolveMigration.isDone(), isFalse);
+  });
+
+  test('run 成功后写入当前版本，isDone 为 true', () async {
+    SharedPreferences.setMockInitialValues({});
+    when(() => favStore.load()).thenAnswer((_) async => const []);
+    when(() => storage.getAllEntries()).thenAnswer((_) async => const []);
+
+    await migration.run();
+
+    expect(await LocationResolveMigration.isDone(), isTrue);
+  });
 }

@@ -8,7 +8,8 @@ import 'location_resolver.dart';
 /// 历史位置回填：用已有 lat/lon 重新解析 locationName（常用位置 → 高德地标）。
 /// 串行调用高德，单条失败不阻塞；只 UPDATE locationName 字段，不动其他数据。
 class LocationResolveMigration {
-  static const _doneKey = 'location_resolve_migration_done';
+  static const _versionKey = 'location_resolve_migration_version';
+  static const int _currentVersion = 2; // 本次精简 = v2
 
   final DiaryStorageService _storage;
   final LocationResolver _resolver;
@@ -18,7 +19,8 @@ class LocationResolveMigration {
 
   static Future<bool> isDone() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_doneKey) ?? false;
+    final done = prefs.getInt(_versionKey) ?? 0;
+    return done >= _currentVersion;
   }
 
   /// 执行回填，返回更新条数。幂等性由调用方用 [isDone] 守卫。
@@ -48,7 +50,7 @@ class LocationResolveMigration {
     // resolve 返回 null（高德无地标）不算失败，不重试。
     if (failed == 0) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_doneKey, true);
+      await prefs.setInt(_versionKey, _currentVersion);
     }
     return updated;
   }
