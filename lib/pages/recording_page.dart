@@ -20,6 +20,7 @@ import '../main.dart';
 import '../widgets/app_title.dart';
 import '../widgets/audio_waveform.dart';
 import '../widgets/recording_button.dart';
+import '../widgets/streak_badge.dart';
 import 'diary_detail_page.dart';
 import 'diary_list_page.dart';
 import 'settings_page.dart';
@@ -33,6 +34,8 @@ class RecordingPage extends StatefulWidget {
 
 class _RecordingPageState extends State<RecordingPage> {
   final _storageService = DiaryStorageService();
+  ({int currentStreak, int totalDays})? _stats;
+  bool _hasRecordedThisSession = false;
 
   RecordingState _state = RecordingState.idle;
   int _recordingSeconds = 0;
@@ -53,6 +56,12 @@ class _RecordingPageState extends State<RecordingPage> {
     // 订阅 store：active task 数量变化时刷新 badge
     processingTaskStore.activeRefIds.addListener(_onStoreChange);
     ProcessingFgsController.schedule(isStartup: true);
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final s = await _storageService.getRecordingDayStats();
+    if (mounted) setState(() => _stats = s);
   }
 
   @override
@@ -116,6 +125,7 @@ class _RecordingPageState extends State<RecordingPage> {
             stage: 'uploading',
           );
         }
+        await _loadStats();
       case 'processingDone':
         // Processing FGS 结束（无论是否有条目被处理）
         ProcessingFgsController.onStopped();
@@ -238,6 +248,9 @@ class _RecordingPageState extends State<RecordingPage> {
       }
 
       setState(() => _state = RecordingState.recording);
+      if (!_hasRecordedThisSession) {
+        _hasRecordedThisSession = true;
+      }
       FgsRuntime.setRecording();
       WakelockPlus.enable();
 
@@ -336,115 +349,133 @@ class _RecordingPageState extends State<RecordingPage> {
             ),
           ],
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 波形
-                AudioWaveform(
-                  amplitudeStream: _state == RecordingState.recording
-                      ? _amplitudeController.stream
-                      : null,
-                  color: _state == RecordingState.recording
-                      ? Colors.red
-                      : WarmTokens.warmAmber,
-                ),
+        body: Stack(
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 波形
+                    AudioWaveform(
+                      amplitudeStream: _state == RecordingState.recording
+                          ? _amplitudeController.stream
+                          : null,
+                      color: _state == RecordingState.recording
+                          ? Colors.red
+                          : WarmTokens.warmAmber,
+                    ),
 
-                // 位置 + 天气 pill（任一就绪即显示，各自独立）
-                if (_state == RecordingState.recording &&
-                    ((_currentLocationName != null &&
-                            _currentLocationName!.isNotEmpty) ||
-                        _currentCondition != null)) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      if (_currentLocationName != null &&
-                          _currentLocationName!.isNotEmpty)
-                        _infoPill(_currentLocationName!),
-                      if (_currentCondition != null &&
-                          _currentCondition!.displayPart.isNotEmpty)
-                        _infoPill(_weatherPillText()),
+                    // 位置 + 天气 pill（任一就绪即显示，各自独立）
+                    if (_state == RecordingState.recording &&
+                        ((_currentLocationName != null &&
+                                _currentLocationName!.isNotEmpty) ||
+                            _currentCondition != null)) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          if (_currentLocationName != null &&
+                              _currentLocationName!.isNotEmpty)
+                            _infoPill(_currentLocationName!),
+                          if (_currentCondition != null &&
+                              _currentCondition!.displayPart.isNotEmpty)
+                            _infoPill(_weatherPillText()),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
 
-                // 实时识别文本
-                if (_realtimeText.isNotEmpty &&
-                    _state == RecordingState.recording) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: WarmTokens.warmSurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      controller: _realtimeScrollController,
-                      child: Text(
-                        _realtimeText,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: WarmTokens.warmBrown,
-                          height: 1.7,
-                          letterSpacing: 0.2,
+                    // 实时识别文本
+                    if (_realtimeText.isNotEmpty &&
+                        _state == RecordingState.recording) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 120),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                        textAlign: TextAlign.center,
+                        decoration: BoxDecoration(
+                          color: WarmTokens.warmSurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: WarmTokens.warmDivider.withValues(
+                              alpha: 0.5,
+                            ),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: SingleChildScrollView(
+                          controller: _realtimeScrollController,
+                          child: Text(
+                            _realtimeText,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: WarmTokens.warmBrown,
+                              height: 1.7,
+                              letterSpacing: 0.2,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
 
-                const SizedBox(height: 36),
-                // 录音按钮
-                RecordingButton(
-                  state: _state,
-                  onTap: _onTap,
-                  recordingSeconds: _recordingSeconds,
+                    const SizedBox(height: 36),
+                    // 录音按钮
+                    RecordingButton(
+                      state: _state,
+                      onTap: _onTap,
+                      recordingSeconds: _recordingSeconds,
+                    ),
+
+                    // 当前录音输入设备 pill（录音按钮下方）
+                    if (_state == RecordingState.recording &&
+                        _currentInputDevice != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: WarmTokens.warmSurface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: WarmTokens.warmDivider.withValues(
+                              alpha: 0.5,
+                            ),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Text(
+                          '${_currentInputDevice!.emoji} ${_currentInputDevice!.label}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: WarmTokens.warmMuted,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-
-                // 当前录音输入设备 pill（录音按钮下方）
-                if (_state == RecordingState.recording &&
-                    _currentInputDevice != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: WarmTokens.warmSurface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: WarmTokens.warmDivider.withValues(alpha: 0.5),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      '${_currentInputDevice!.emoji} ${_currentInputDevice!.label}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: WarmTokens.warmMuted,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+            if (_stats != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: StreakBadge(
+                    streak: _stats!.currentStreak,
+                    total: _stats!.totalDays,
+                    compact: _hasRecordedThisSession,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
