@@ -15,60 +15,83 @@ String truncatePoiName(String name, {int max = kPoiNameMaxLength}) {
   return name;
 }
 
-/// 高德 city 字段归一化为 nullable String。
-/// 高德对直辖市返回空数组 [] 或空串，普通市返回市名。
-String? _cityString(dynamic city) {
-  if (city == null) return null;
-  if (city is List) return city.isEmpty ? null : city.first?.toString();
-  if (city is String && city.isNotEmpty) return city;
-  return null;
+/// 高德字段归一化为 nullable String。
+/// 高德对「不存在」的值返回空数组 [] 或空串（如直辖市的 city），存在时返回字符串。
+String? _nullableString(dynamic v) {
+  if (v == null) return null;
+  if (v is List) return v.isEmpty ? null : v.first?.toString();
+  if (v is String) {
+    final s = v.trim();
+    return s.isEmpty ? null : s;
+  }
+  return v.toString();
 }
 
-/// 从 formatted_address 头部依次剥离 province/city/district 行政前缀。
-/// 剥离后为空则回退 district，仍空则返回原 formatted（保证非空）。
+/// 从 formatted_address 头部依次剥离 province/city/district/township 行政前缀。
+/// 剥离后为空则回退 district，仍空回退 township，再空返回原 formatted（保证非空）。
 String stripAdminPrefix(
   String formatted, {
-  String? province,
+  dynamic province,
   dynamic city,
-  String? district,
+  dynamic district,
+  dynamic township,
 }) {
-  final cityStr = _cityString(city);
+  final prefixes = [
+    province,
+    city,
+    district,
+    township,
+  ].map(_nullableString).whereType<String>().toList();
   var result = formatted;
-  for (final prefix in [province, cityStr, district]) {
-    if (prefix != null && prefix.isNotEmpty && result.startsWith(prefix)) {
+  for (final prefix in prefixes) {
+    if (result.startsWith(prefix)) {
       result = result.substring(prefix.length);
     }
   }
   result = result.trim();
   if (result.isEmpty) {
-    return (district != null && district.isNotEmpty) ? district : formatted;
+    return _nullableString(district) ?? _nullableString(township) ?? formatted;
   }
   return result;
 }
 
-/// 从高德 regeo 完整响应解析精简位置名：
-/// ① POI 命中 → POI 名（超长截断）
-/// ② POI 为空 → formatted_address 去行政前缀
-/// 无数据 / status≠1 / 字段缺失降级失败 → null。纯函数，不依赖 dio。
+/// 从高德 regeo 完整响应解析精简位置名（优先级）：
+/// ① POI 命中 → POI 名（超长截断）〔需请求 extensions=all〕
+/// ② streetNumber → street+number（精确门牌，如「太白南路187号」）
+/// ③ formatted_address 去 province/city/district/township 前缀
+/// 无数据 / status≠1 → null。纯函数，不依赖 dio。
 String? parseRegeoForLocation(Map<String, dynamic> data) {
   if (data['status']?.toString() != '1') return null;
   final regeocode = data['regeocode'] as Map<String, dynamic>?;
   if (regeocode == null) return null;
   final addrComp = regeocode['addressComponent'] as Map<String, dynamic>?;
 
+  // ① POI
   final pois = regeocode['pois'] as List?;
   if (pois != null && pois.isNotEmpty) {
     final name = (pois[0]['name'] as String?)?.trim() ?? '';
     if (name.isNotEmpty) return truncatePoiName(name);
   }
 
+  // ② streetNumber（精确门牌）
+  final sn = addrComp?['streetNumber'];
+  if (sn is Map) {
+    final street = _nullableString(sn['street']) ?? '';
+    final number = _nullableString(sn['number']) ?? '';
+    if (street.isNotEmpty) {
+      return truncatePoiName('$street$number');
+    }
+  }
+
+  // ③ formatted_address 去行政前缀（含街道）
   final formatted = (regeocode['formatted_address'] as String?)?.trim() ?? '';
   if (formatted.isEmpty) return null;
   return stripAdminPrefix(
     formatted,
-    province: addrComp?['province']?.toString(),
+    province: addrComp?['province'],
     city: addrComp?['city'],
-    district: addrComp?['district']?.toString(),
+    district: addrComp?['district'],
+    township: addrComp?['township'],
   );
 }
 
@@ -105,7 +128,8 @@ class AmapService {
           'key': key,
           'location': locParam,
           'radius': 1000,
-          'extensions': 'base',
+          'extensions': 'all', // 返回 pois（poitype/homeorcorp 仅 all 生效）
+          'homeorcorp': '0', // 不干扰排序，取最近 POI
           'output': 'json',
         },
       );

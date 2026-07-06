@@ -78,6 +78,32 @@ void main() {
     test('前缀均为 null → 仅 trim', () {
       expect(stripAdminPrefix('  中关村大街1号  '), '中关村大街1号');
     });
+
+    test('剥离 township（街道）', () {
+      expect(
+        stripAdminPrefix(
+          '陕西省西安市雁塔区电子城街道太白南路',
+          province: '陕西省',
+          city: '西安市',
+          district: '雁塔区',
+          township: '电子城街道',
+        ),
+        '太白南路',
+      );
+    });
+
+    test('剥离后为空 → 回退 district（优先于 township）', () {
+      expect(
+        stripAdminPrefix(
+          '陕西省西安市雁塔区电子城街道',
+          province: '陕西省',
+          city: '西安市',
+          district: '雁塔区',
+          township: '电子城街道',
+        ),
+        '雁塔区',
+      );
+    });
   });
 
   group('truncatePoiName', () {
@@ -102,6 +128,8 @@ void main() {
       String province = '',
       dynamic city,
       String district = '',
+      String township = '',
+      Map<String, dynamic>? streetNumber,
       String status = '1',
     }) => {
       'status': status,
@@ -112,6 +140,8 @@ void main() {
           'province': province,
           'city': city ?? <String>[],
           'district': district,
+          if (township.isNotEmpty) 'township': township,
+          if (streetNumber != null) 'streetNumber': streetNumber, // ignore: use_null_aware_elements
         },
       },
     };
@@ -155,6 +185,37 @@ void main() {
         district: '雁塔区',
       );
       expect(parseRegeoForLocation(data), '高新路1号');
+    });
+
+    test('POI 空 + streetNumber 有 → street+number（精确门牌，西安真实数据）', () {
+      final data = regeo(
+        formatted: '陕西省西安市雁塔区电子城街道太白南路西安高新技术产业开发区',
+        province: '陕西省',
+        city: '西安市',
+        district: '雁塔区',
+        township: '电子城街道',
+        streetNumber: {'street': '太白南路', 'number': '187号'},
+      );
+      expect(parseRegeoForLocation(data), '太白南路187号');
+    });
+
+    test('streetNumber 只有 street 无 number', () {
+      final data = regeo(
+        streetNumber: {'street': '某路', 'number': ''},
+        formatted: '某市某路',
+      );
+      expect(parseRegeoForLocation(data), '某路');
+    });
+
+    test('POI 空 + 无 streetNumber → formatted 去前缀（含街道）', () {
+      final data = regeo(
+        formatted: '陕西省西安市雁塔区电子城街道太白南路西安高新技术产业开发区',
+        province: '陕西省',
+        city: '西安市',
+        district: '雁塔区',
+        township: '电子城街道',
+      );
+      expect(parseRegeoForLocation(data), '太白南路西安高新技术产业开发区');
     });
 
     test('addressComponent 缺失 → formatted 原样返回（降级）', () {
