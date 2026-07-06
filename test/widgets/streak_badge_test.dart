@@ -37,6 +37,12 @@ void main() {
 
     expect(find.text('开始第一篇语音日记吧'), findsOneWidget);
     expect(find.text('您已经'), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('连续'),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('compact=true：前后缀 opacity=0（隐藏），数字仍渲染', (tester) async {

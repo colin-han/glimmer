@@ -66,17 +66,12 @@ class StreakBadge extends StatelessWidget {
   }
 
   Widget _encourage() {
-    return AnimatedOpacity(
-      opacity: 1.0,
-      duration: _duration,
-      curve: _curve,
-      child: Text(
-        '开始第一篇语音日记吧',
-        style: TextStyle(
-          fontSize: 15,
-          color: WarmTokens.streakMidGray,
-          letterSpacing: 1,
-        ),
+    return Text(
+      '开始第一篇语音日记吧',
+      style: TextStyle(
+        fontSize: 15,
+        color: WarmTokens.streakMidGray,
+        letterSpacing: 1,
       ),
     );
   }
