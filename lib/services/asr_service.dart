@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../exceptions.dart';
 import '../models/utterance.dart';
+import 'asr_context_builder.dart';
 
 class AsrResult {
   final String text;
@@ -23,6 +24,23 @@ class AsrService {
   final Dio _dio = Dio();
   final _uuid = const Uuid();
 
+  /// 构建 ASR 请求的 `request` 字段，按需注入个性化 `corpus.context`。
+  /// env 未配置时返回的 request 不含 corpus，行为与现状一致。
+  Map<String, dynamic> _buildRequest() {
+    final request = <String, dynamic>{
+      'model_name': 'bigmodel',
+      'show_utterances': true,
+    };
+    final corpusContext = buildAsrCorpusContext(
+      hotwords: dotenv.maybeGet('ASR_HOTWORDS'),
+      prompt: dotenv.maybeGet('ASR_CONTEXT_PROMPT'),
+    );
+    if (corpusContext != null) {
+      request['corpus'] = {'context': corpusContext};
+    }
+    return request;
+  }
+
   Future<AsrResult> transcribe(String audioFilePath) async {
     final appid = dotenv.get('VOLCENGINE_SPEECH_APPID');
     final token = dotenv.get('VOLCENGINE_SPEECH_TOKEN');
@@ -37,7 +55,7 @@ class AsrService {
       data: {
         'user': {'uid': appid},
         'audio': {'data': audioBase64, 'format': 'wav'},
-        'request': {'model_name': 'bigmodel', 'show_utterances': true},
+        'request': _buildRequest(),
       },
       options: Options(
         headers: {
@@ -73,7 +91,7 @@ class AsrService {
       data: {
         'user': {'uid': appid},
         'audio': {'url': audioUrl, 'format': 'ogg_opus'},
-        'request': {'model_name': 'bigmodel', 'show_utterances': true},
+        'request': _buildRequest(),
       },
       options: Options(
         headers: {
@@ -112,7 +130,7 @@ class AsrService {
         data: {
           'user': {'uid': 'voice_diary'},
           'audio': {'url': audioUrl, 'format': 'ogg_opus'},
-          'request': {'model_name': 'bigmodel', 'show_utterances': true},
+          'request': _buildRequest(),
         },
         options: Options(
           headers: {
