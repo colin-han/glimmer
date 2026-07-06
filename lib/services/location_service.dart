@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定位获取器：按精度与超时获取当前位置（生产调 Geolocator，测试可注入 mock）。
 typedef PositionGetter =
@@ -36,6 +37,9 @@ Future<({double lat, double lon})?> resolvePositionWithFallback(
 }
 
 class LocationService {
+  /// 「已请求过精确位置」标志位（SharedPreferences，避免反复弹窗）。
+  static const _preciseRequestedKey = 'precise_location_requested';
+
   /// 请求定位权限（必须在主 isolate / 有 Activity 上下文调用）。
   ///
   /// 后台 isolate（如录音 FGS）无 Activity，调用 [Geolocator.requestPermission]
@@ -58,12 +62,36 @@ class LocationService {
         permission = await Geolocator.requestPermission();
         debugPrint('[定位] 权限结果: $permission');
       }
-      return permission == LocationPermission.whileInUse ||
+      final granted =
+          permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always;
+      if (!granted) return false;
+
+      // 已授权位置，但若只有「大致位置」(coarse)，主动请求一次「精确位置」(fine)。
+      await _requestPreciseIfNeeded();
+      return true;
     } catch (e) {
       debugPrint('[定位] ensurePermission 异常: $e');
       return false;
     }
+  }
+
+  /// 若当前仅「大致位置」且未曾请求过精确，则请求一次精确位置。
+  /// Android 12+ 会弹出含「精确/大致」开关的对话框；用标志位避免反复弹窗，
+  /// 用户拒绝后可去系统设置手动开启「精确位置」。
+  Future<void> _requestPreciseIfNeeded() async {
+    final accuracy = await Geolocator.getLocationAccuracy();
+    debugPrint('[定位] 当前位置精度: $accuracy');
+    if (accuracy != LocationAccuracyStatus.reduced) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_preciseRequestedKey) ?? false) {
+      debugPrint('[定位] 仅大致位置，但精确位置已请求过（可去设置手动开启）');
+      return;
+    }
+    debugPrint('[定位] 仅大致位置，请求精确位置...');
+    await prefs.setBool(_preciseRequestedKey, true);
+    await Geolocator.requestPermission();
   }
 
   /// 获取当前位置（不请求权限，isolate 安全）。
