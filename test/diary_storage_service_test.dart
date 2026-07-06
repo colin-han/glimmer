@@ -91,4 +91,50 @@ void main() {
     expect(reset.folderPath, '/tmp/e3');
     expect(reset.durationSeconds, 60);
   });
+
+  group('getRecordingDayStats', () {
+    Future<void> entryAt(String id, DateTime createdAt) async {
+      await service.createEntry(
+        DiaryEntry(
+          id: id,
+          title: 't',
+          folderPath: '/tmp/$id',
+          durationSeconds: 60,
+          createdAt: createdAt,
+        ),
+      );
+    }
+
+    test('空库 → (0, 0)', () async {
+      expect(await service.getRecordingDayStats(now: DateTime(2026, 7, 6)), (
+        currentStreak: 0,
+        totalDays: 0,
+      ));
+    });
+
+    test('今天 + 昨天 → (2, 2)；以注入 now 为准', () async {
+      await entryAt('a', DateTime(2026, 7, 6, 9));
+      await entryAt('b', DateTime(2026, 7, 5, 21));
+      expect(
+        await service.getRecordingDayStats(now: DateTime(2026, 7, 6, 12)),
+        (currentStreak: 2, totalDays: 2),
+      );
+    });
+
+    test('同一天多条 → 去重 (1, 1)', () async {
+      await entryAt('a', DateTime(2026, 7, 6, 8));
+      await entryAt('b', DateTime(2026, 7, 6, 20));
+      expect(await service.getRecordingDayStats(now: DateTime(2026, 7, 6)), (
+        currentStreak: 1,
+        totalDays: 1,
+      ));
+    });
+
+    test('不传 now 时使用 DateTime.now()（冒烟：返回 totalDays==已插入数）', () async {
+      await entryAt('now1', DateTime.now());
+      final r = await service.getRecordingDayStats();
+      expect(r.totalDays, greaterThanOrEqualTo(1));
+      expect(r.currentStreak, greaterThanOrEqualTo(1));
+    });
+  });
 }

@@ -12,6 +12,7 @@ import '../models/processing_stage.dart';
 import '../models/processing_task.dart';
 import '../models/tag.dart';
 import '../models/utterance.dart';
+import '../utils/recording_stats.dart';
 import 'database/app_database.dart' hide DiaryEntry, Tag, DiaryTagRelation;
 
 class DiaryStorageService {
@@ -829,5 +830,26 @@ class DiaryStorageService {
               ..orderBy([(t) => OrderingTerm.asc(t.queuedAt)]))
             .get();
     return rows.map(_taskRowToModel).toList();
+  }
+
+  /// 计算录音统计（连续天数 + 累计天数），基于所有 DiaryEntries.createdAt。
+  ///
+  /// 仅查 createdAt 列，内存去重计算。[now] 默认 `DateTime.now()`，
+  /// 测试可注入固定时间。
+  Future<({int currentStreak, int totalDays})> getRecordingDayStats({
+    DateTime? now,
+  }) async {
+    final rows = await (_db.selectOnly(
+      _db.diaryEntries,
+    )..addColumns([_db.diaryEntries.createdAt])).get();
+    final times = rows.map(
+      (r) => DateTime.fromMillisecondsSinceEpoch(
+        r.read(_db.diaryEntries.createdAt)!,
+      ),
+    );
+    return computeRecordingStats(
+      recordingTimes: times,
+      now: now ?? DateTime.now(),
+    );
   }
 }
