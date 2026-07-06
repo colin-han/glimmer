@@ -30,7 +30,7 @@ class StreakBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedAlign(
-      alignment: compact ? Alignment.topLeft : const Alignment(0, -0.5),
+      alignment: compact ? Alignment.topLeft : const Alignment(0, -0.75),
       duration: _duration,
       curve: _curve,
       child: Padding(
