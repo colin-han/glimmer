@@ -38,4 +38,23 @@ class WarmTokens {
 
   /// 失败文字
   static const Color failedText = Color(0xFF8B4E3C);
+
+  // === StreakBadge 专用 ===
+  /// 数字（琥珀强调）
+  static const Color streakAmber = Color(0xFFC8862A);
+
+  /// 中间行灰文字（连续 / 累计 / 天）
+  static const Color streakMidGray = Color(0xFFB6A48C);
+
+  /// 上下行更淡灰（您已经 / 录制语音日记）
+  static const Color streakLightGray = Color(0xFFD4C6B0);
+
+  /// 逗号
+  static const Color streakComma = Color(0xFFDDD0BD);
+
+  /// compact chip 背景
+  static const Color streakChipBg = Color(0xFFFFF3E0);
+
+  /// compact chip 边框
+  static const Color streakChipBorder = Color(0xFFF0D9A8);
 }
