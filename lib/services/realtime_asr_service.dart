@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../exceptions.dart';
+import 'asr_context_builder.dart';
 
 class RealtimeAsrService {
   static const _wsUrl =
@@ -26,6 +27,24 @@ class RealtimeAsrService {
 
   /// 是否已连接
   bool get isConnected => _connected;
+
+  /// 构建实时 ASR 配置帧的 `request` 字段，按需注入个性化 `corpus.context`。
+  Map<String, dynamic> _buildRealtimeRequest() {
+    final request = <String, dynamic>{
+      'model_name': 'bigmodel',
+      'enable_itn': true,
+      'enable_punc': true,
+      'show_utterances': true,
+    };
+    final corpusContext = buildAsrCorpusContext(
+      hotwords: dotenv.maybeGet('ASR_HOTWORDS'),
+      prompt: dotenv.maybeGet('ASR_CONTEXT_PROMPT'),
+    );
+    if (corpusContext != null) {
+      request['corpus'] = {'context': corpusContext};
+    }
+    return request;
+  }
 
   /// 建立 WebSocket 连接并发送配置帧
   Future<void> connect() async {
@@ -57,12 +76,7 @@ class RealtimeAsrService {
         'bits': 16,
         'channel': 1,
       },
-      'request': {
-        'model_name': 'bigmodel',
-        'enable_itn': true,
-        'enable_punc': true,
-        'show_utterances': true,
-      },
+      'request': _buildRealtimeRequest(),
     });
 
     final configFrame = _buildFrame(
